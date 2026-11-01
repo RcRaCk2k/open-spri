@@ -41,6 +41,12 @@ class OrderProcessingConfiguration {
     @Bean
     fun messageCodeCatalogHolder(store: MessageCodeStore, @Value("\${openspri.message-codes.file:}") file: String): MessageCodeCatalogHolder {
         val path = file.takeIf { it.isNotBlank() }?.let(Path::of)
+        if (path != null && !Files.isRegularFile(path)) {
+            log.error(
+                "Message code table {} (openspri.message-codes.file) not found - in Docker the path inside the container is " +
+                    "/etc/openspri/<file> (host: ./config/). Using the last imported version.", path,
+            )
+        }
         val catalog = when {
             path != null && Files.isRegularFile(path) -> store.importAndActivate(Files.readAllBytes(path), path.fileName.toString())
                 .also { log.info("Message code table {} imported: {} codes, sha256 {}", path, it.codes.size, it.sha256) }

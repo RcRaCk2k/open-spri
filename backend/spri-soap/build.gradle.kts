@@ -21,6 +21,7 @@ dependencies {
     implementation("org.springframework:spring-web")
     implementation("org.springframework.boot:spring-boot")
     implementation(libs.cxf.spring.boot.starter.jaxws)
+    implementation(libs.spring.boot.starter.mail)
     implementation("org.slf4j:slf4j-api")
     compileOnly("jakarta.servlet:jakarta.servlet-api")
     testImplementation("jakarta.servlet:jakarta.servlet-api")
@@ -29,4 +30,5 @@ dependencies {
     // Test keys, sample messages and in-memory ports, shared with the end-to-end tests in :app.
     testFixturesImplementation(platform(libs.spring.boot.bom))
     testFixturesImplementation(libs.bcpkix)
+    testFixturesApi(testFixtures(project(":domain")))
 }

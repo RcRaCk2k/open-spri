@@ -1,0 +1,3 @@
+code;text;messageTypes;businessCases;productGroups;interfaces;validFrom
+0000;Testtext: Auftrag eingegangen bzw. bestätigt;QEB|ABM;NEU|KUE-AG|AEN-LMAE|LAE|PV|EST;FTTH|FTTB|FTTC;S/PRI;
+0010;Testtext: erledigt;ERLM|ENTM;NEU|KUE-AG|AEN-LMAE|LAE|PV|EST|KUE-LE;FTTH|FTTB|FTTC;S/PRI;

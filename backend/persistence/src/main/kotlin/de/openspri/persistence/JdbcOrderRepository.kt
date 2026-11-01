@@ -56,7 +56,7 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository {
             "line" to d.lineId, "preAgreement" to d.preAgreementId, "home" to d.homeId,
             "products" to d.products.joinToString("|").take(1000).ifEmpty { null },
             "project" to d.projectId, "coupling" to d.couplingId, "bracket" to d.bracketId, "bracketSize" to d.bracketSize,
-            "ont" to d.ontSerial, "infra" to d.infrastructureKey?.take(300),
+            "ont" to d.ontSerial, "infra" to d.infrastructureKey?.take(300), "seqKey" to order.sequenceKey,
             "created" to Timestamp.from(order.createdAt), "updated" to Timestamp.from(order.updatedAt),
         )
         if (order.id == null) {
@@ -66,18 +66,18 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository {
                        cancelled, complaints, appointment_requested, connectivity, bracketed, handover_phase, handover_only, finished,
                        client_number, service_number, orderer_client_number, orderer_service_number, desired_date, contract_number,
                        line_id, pre_agreement_id, home_id, products, project_id, coupling_id, bracket_id, bracket_size, ont_serial,
-                       infrastructure_key, created_at, updated_at)
+                       infrastructure_key, sequence_key, created_at, updated_at)
                    VALUES (:tenant, :partner, :role, :number, :bc, :phase, :requests, :cancelled, :complaints, :appointment,
                        :connectivity, :bracketed, :handover, :handoverOnly, :finished, :client, :service, :ordererClient,
                        :ordererService, :desired, :contract, :line, :preAgreement, :home, :products, :project, :coupling,
-                       :bracket, :bracketSize, :ont, :infra, :created, :updated)""",
+                       :bracket, :bracketSize, :ont, :infra, :seqKey, :created, :updated)""",
             ).params(params).update(keys, "id")
             return order.copy(id = OrderId(keys.key!!.toLong()))
         }
         val updated = jdbc.sql(
             """UPDATE spri_order SET phase = :phase, open_requests = :requests, cancelled = :cancelled, complaints = :complaints,
                    appointment_requested = :appointment, handover_phase = :handover, finished = :finished,
-                   desired_date = :desired, contract_number = :contract, line_id = :line, ont_serial = :ont,
+                   desired_date = :desired, contract_number = :contract, line_id = :line, ont_serial = :ont, sequence_key = :seqKey,
                    updated_at = :updated, version = version + 1
                WHERE id = :id AND version = :version""",
         ).params(params + mapOf("id" to order.id!!.value, "version" to order.version)).update()
@@ -140,6 +140,7 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository {
             createdAt = rs.getTimestamp("created_at").toInstant(),
             updatedAt = rs.getTimestamp("updated_at").toInstant(),
             version = rs.getLong("version"),
+            sequenceKey = rs.getString("sequence_key"),
         )
     }
 }

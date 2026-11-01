@@ -30,7 +30,12 @@ import kotlin.test.assertTrue
  * Real HTTP through Tomcat and CXF: the instance sends signed S/PRI requests to itself
  * (our client against our endpoint), so both directions of the interface are exercised.
  */
-@SpringBootTest(classes = [SoapInMemoryTestApplication::class], webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    classes = [SoapInMemoryTestApplication::class],
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    // the tests drive inbox and outbox themselves
+    properties = ["openspri.inbox.initial-delay=1h", "openspri.outbox.initial-delay=1h"],
+)
 class SoapEndToEndTest(
     @Autowired private val client: SpriClient,
     @Autowired private val credentials: SigningCredentials,
@@ -38,7 +43,10 @@ class SoapEndToEndTest(
     @Autowired private val inbound: InMemoryInboundStore,
     @Autowired private val outbound: InMemoryOutboundArchive,
     @Autowired private val worker: de.openspri.soap.InboxWorker,
-    @Autowired private val orders: de.openspri.soap.InMemoryOrderRepository,
+    @Autowired private val orders: de.openspri.domain.InMemoryOrderRepository,
+    @Autowired private val outbox: de.openspri.domain.InMemoryOutbox,
+    @Autowired private val delivery: de.openspri.domain.delivery.DeliveryService,
+    @Autowired private val outboundOrders: de.openspri.domain.order.OutboundOrderService,
 ) {
     @LocalServerPort
     private var port = 0
@@ -46,9 +54,10 @@ class SoapEndToEndTest(
     private val endpoint get() = URI("http://localhost:$port/spri/v4")
 
     /** "Ourselves" as partner: our own certificate, reachable from localhost. */
-    private fun self(allowed: String = "127.0.0.1") = Partner(
+    private fun self(allowed: String = "127.0.0.1", endpointUrl: String = endpoint.toString()) = Partner(
         PartnerId(1), "Selbsttest", "DEU.SELF", listOf(credentials.certificate),
         if (allowed.isEmpty()) emptyList() else listOf(IpNetwork.parse(allowed), IpNetwork.parse("::1")),
+        endpointUrl = endpointUrl,
     )
 
     @BeforeEach
@@ -57,6 +66,7 @@ class SoapEndToEndTest(
         partners.partners += self()
         inbound.clear()
         orders.orders.clear()
+        outbox.entries.clear()
         outbound.exchanges.clear()
     }
 
@@ -83,6 +93,46 @@ class SoapEndToEndTest(
         worker.drain()
         assertContains(inbound.findings.last().single(), "Dublette")
         assertEquals(1, orders.orders.size)
+    }
+
+    @Test
+    fun `as Leistungserbringer we answer with QEB through the outbox (M3)`() {
+        client.send(self(), endpoint, SoapOperation.ANNEHMEN_AUFTRAG, TestData.payload("neu-auftrag.xml", credentials), "TEST-0001")
+        worker.drain()
+        val order = orders.orders.single()
+
+        val qeb = TestData.payload("qeb-meldung.xml", credentials)
+        outboundOrders.sendMessage(
+            order,
+            de.openspri.soap.SpriPayloadMapper.message(qeb)!!,
+            de.openspri.soap.SecureXml.serialize(qeb),
+        )
+        assertEquals(de.openspri.domain.order.Phase.ACKNOWLEDGED, orders.orders.single().state.phase)
+        assertEquals(1, delivery.drain())
+        assertEquals(de.openspri.domain.delivery.DeliveryStatus.DELIVERED, outbox.entries.single().status)
+        // the QEB arrived at our endpoint (as Auftraggeber we have no such order: recorded as finding)
+        assertEquals(SoapOperation.ANNEHMEN_MELDUNG, inbound.accepted.last().second.operation)
+    }
+
+    @Test
+    fun `unreachable partner - message is kept for retry`() {
+        val order = orders.save(
+            de.openspri.domain.order.Order(
+                null, PartnerId(1), de.openspri.domain.order.OrderRole.LEISTUNGSERBRINGER,
+                de.openspri.domain.order.OrderData("TEST-0001", de.openspri.domain.BusinessCase.NEU),
+                de.openspri.domain.order.OrderLifecycle.submitted(de.openspri.domain.BusinessCase.NEU),
+                java.time.Instant.now(), java.time.Instant.now(),
+            ),
+        )
+        partners.partners.clear()
+        partners.partners += self(endpointUrl = "http://127.0.0.1:1/spri/v4") // nothing listens on port 1
+        val qeb = TestData.payload("qeb-meldung.xml", credentials)
+        outboundOrders.sendMessage(order, de.openspri.soap.SpriPayloadMapper.message(qeb)!!, de.openspri.soap.SecureXml.serialize(qeb))
+        delivery.drain()
+        val entry = outbox.entries.single()
+        assertEquals(de.openspri.domain.delivery.DeliveryStatus.PENDING, entry.status)
+        assertEquals(1, entry.attempts)
+        assertContains(entry.lastError!!, "Connect")
     }
 
     @Test

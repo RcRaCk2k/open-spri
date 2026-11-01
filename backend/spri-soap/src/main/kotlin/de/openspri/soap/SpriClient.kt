@@ -60,8 +60,12 @@ class SpriClient(
             val teqText: String,
         ) : Outcome
 
-        /** No valid TEQ (timeout, transport error, invalid or unsigned response). */
-        data class NotAcknowledged(override val operation: SoapOperation, val reason: String) : Outcome
+        /**
+         * No valid TEQ (timeout, transport error, invalid or unsigned response).
+         * @property reached false if the request certainly did not reach the partner's application (connection
+         *   refused, unknown host, HTTP 403/404/502/503/504); true if the partner may have processed it.
+         */
+        data class NotAcknowledged(override val operation: SoapOperation, val reason: String, val reached: Boolean = true) : Outcome
 
         /** Not sent: our own request violates Anlage 1 (enforce mode). Nothing went over the wire. */
         data class NotSent(override val operation: SoapOperation, val violations: List<AttributeViolation>) : Outcome
@@ -94,7 +98,7 @@ class SpriClient(
         } catch (e: Exception) {
             val reason = causes(e)
             log.warn("S/PRI {} to {} ({}) failed: {}", operation.wsdlName, partner.name, endpoint, reason)
-            Outcome.NotAcknowledged(operation, "transport: $reason")
+            Outcome.NotAcknowledged(operation, "transport: $reason", reached = !certainlyNotReached(e))
         }
         archive.store(
             ArchivedExchange(
@@ -119,6 +123,12 @@ class SpriClient(
             ),
         )
         return outcome
+    }
+
+    /** True if the error proves that the partner did not receive the request (safe to send again). */
+    private fun certainlyNotReached(error: Throwable): Boolean = generateSequence(error) { it.cause.takeIf { cause -> cause !== it } }.any { cause ->
+        cause is java.net.ConnectException || cause is java.net.UnknownHostException || cause is java.net.NoRouteToHostException ||
+            (cause is org.apache.cxf.transport.http.HTTPException && cause.responseCode in setOf(403, 404, 502, 503, 504))
     }
 
     /** CXF wraps transport errors several times; the root cause (e.g. "HTTP 403") is what operators need. */

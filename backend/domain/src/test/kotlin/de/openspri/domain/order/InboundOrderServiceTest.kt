@@ -17,27 +17,9 @@ import kotlin.test.assertTrue
 
 class InboundOrderServiceTest {
 
-    private class InMemoryOrders : OrderRepository {
-        val orders = mutableListOf<Order>()
-        val history = mutableListOf<OrderHistoryEntry>()
-        override fun find(partnerId: PartnerId, role: OrderRole, externalOrderNumber: String) =
-            orders.firstOrNull { it.partnerId == partnerId && it.role == role && it.data.externalOrderNumber == externalOrderNumber }
-        override fun findAnyPartner(role: OrderRole, externalOrderNumber: String, businessCase: BusinessCase) =
-            orders.filter { it.role == role && it.data.externalOrderNumber == externalOrderNumber && it.data.businessCase == businessCase }
-        override fun hasOpenOrder(role: OrderRole, infrastructureKey: String, except: OrderId?) =
-            orders.any { it.role == role && it.data.infrastructureKey == infrastructureKey && !it.state.finished && it.id != except }
-        override fun save(order: Order): Order {
-            val stored = if (order.id == null) order.copy(id = OrderId(orders.size + 1L)) else order
-            orders.removeIf { it.id == stored.id }
-            orders += stored
-            return stored
-        }
-        override fun append(entry: OrderHistoryEntry) { history += entry }
-    }
-
     private val partner = PartnerId(1)
     private val ekpab = PartnerId(2)
-    private val repository = InMemoryOrders()
+    private val repository = de.openspri.domain.InMemoryOrderRepository()
     private val clock = Clock.fixed(Instant.parse("2026-11-01T10:00:00Z"), ZoneId.of("Europe/Berlin"))
     private val catalog = MessageCodeCatalog(
         "test", "0",

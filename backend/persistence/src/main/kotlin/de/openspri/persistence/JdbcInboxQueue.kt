@@ -12,39 +12,58 @@ import java.sql.Timestamp
 import java.time.Instant
 
 /**
- * Inbound queue on table inbox_message. Each item is processed in its own transaction together with the
- * status update. An item whose processing fails is marked FAILED with the error and does not block the
- * following items; it can be reprocessed after the cause has been fixed (M3: retry, monitoring).
+ * Inbound queue on table inbox_message.
+ *
+ * Each item is processed in one transaction together with its status update. Multi-instance safety and
+ * order: the oldest RECEIVED item whose sequence key (partner + external order number) has no older
+ * RECEIVED item is locked with `FOR UPDATE SKIP LOCKED`. While it is being processed, other instances skip it
+ * and - because it is still RECEIVED for them - also all younger items of the same order. Items of
+ * different orders are processed in parallel.
+ *
+ * A failing item is marked FAILED with the error. It does not block the following items of other orders;
+ * items of the same order wait (FAILED blocks the key) until an operator has reprocessed or discarded it.
  */
 @Repository
 class JdbcInboxQueue(private val jdbc: JdbcClient, private val transactions: TransactionTemplate) : InboxQueue {
 
     override fun processNext(handler: (PendingInboundMessage) -> List<String>): Boolean {
-        val item = jdbc.sql(
-            "SELECT id, archive_id, partner_id, operation, external_order_number, payload FROM inbox_message WHERE status = 'RECEIVED' ORDER BY id LIMIT 1",
-        ).query { rs, _ ->
-            PendingInboundMessage(
-                id = rs.getLong("id"),
-                archiveId = rs.getLong("archive_id"),
-                message = InboundMessage(
-                    partnerId = PartnerId(rs.getLong("partner_id")),
-                    operation = SoapOperation.fromWsdlName(rs.getString("operation"))!!,
-                    externalOrderNumber = rs.getString("external_order_number"),
-                    payload = rs.getBytes("payload"),
-                ),
-            )
-        }.optional().orElse(null) ?: return false
-
+        var item: PendingInboundMessage? = null
         try {
-            transactions.executeWithoutResult {
-                val findings = handler(item)
-                mark(item.id, "PROCESSED", findings.joinToString("\n").ifEmpty { null }, null)
+            return transactions.execute {
+                val selected = jdbc.sql(
+                    """SELECT id, archive_id, partner_id, operation, external_order_number, payload FROM inbox_message i
+                       WHERE i.status = 'RECEIVED'
+                         AND NOT EXISTS (SELECT 1 FROM inbox_message e
+                                         WHERE e.sequence_key = i.sequence_key AND e.id < i.id AND e.status IN ('RECEIVED', 'FAILED'))
+                       ORDER BY i.id LIMIT 1
+                       FOR UPDATE SKIP LOCKED""",
+                ).query { rs, _ ->
+                    PendingInboundMessage(
+                        id = rs.getLong("id"),
+                        archiveId = rs.getLong("archive_id"),
+                        message = InboundMessage(
+                            partnerId = PartnerId(rs.getLong("partner_id")),
+                            operation = SoapOperation.fromWsdlName(rs.getString("operation"))!!,
+                            externalOrderNumber = rs.getString("external_order_number"),
+                            payload = rs.getBytes("payload"),
+                        ),
+                    )
+                }.optional().orElse(null) ?: return@execute false
+                item = selected
+                val findings = handler(selected)
+                mark(selected.id, "PROCESSED", findings.joinToString("\n").ifEmpty { null }, null)
+                true
             }
         } catch (e: Exception) {
-            mark(item.id, "FAILED", null, "${e.javaClass.simpleName}: ${e.message}".take(2000))
+            val failed = item ?: throw e
+            transactions.executeWithoutResult { mark(failed.id, "FAILED", null, "${e.javaClass.simpleName}: ${e.message}".take(2000)) }
+            return true
         }
-        return true
     }
+
+    /** Operator action: process a FAILED item again. */
+    fun reprocess(id: Long): Boolean =
+        jdbc.sql("UPDATE inbox_message SET status = 'RECEIVED', error = NULL WHERE id = :id AND status = 'FAILED'").param("id", id).update() == 1
 
     private fun mark(id: Long, status: String, findings: String?, error: String?) {
         jdbc.sql("UPDATE inbox_message SET status = :s, processed_at = :t, findings = :f, error = :e WHERE id = :id")

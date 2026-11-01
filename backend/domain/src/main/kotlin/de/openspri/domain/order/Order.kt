@@ -65,6 +65,8 @@ data class Order(
     val createdAt: Instant,
     val updatedAt: Instant,
     val version: Long = 0,
+    /** Outbox ordering key, fixed with the first outbound request of this order (AUFGABE 8.3). */
+    val sequenceKey: String? = null,
 )
 
 /** One entry in the history of an order: an order, a request or a message, with findings of the checks. */

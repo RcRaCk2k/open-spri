@@ -1,0 +1,158 @@
+package de.openspri.soap.config
+
+import de.openspri.domain.delivery.DeliveryService
+import de.openspri.domain.delivery.Notifier
+import de.openspri.domain.delivery.OutageRegistry
+import de.openspri.domain.delivery.Outbox
+import de.openspri.domain.delivery.OutboxEntry
+import de.openspri.domain.delivery.PartnerOutage
+import de.openspri.domain.delivery.RetryPolicy
+import de.openspri.domain.order.OrderRepository
+import de.openspri.domain.order.OutboundOrderService
+import de.openspri.domain.order.Transactions
+import de.openspri.domain.partner.PartnerDirectory
+import de.openspri.domain.partner.PartnerId
+import de.openspri.soap.OutboxSender
+import de.openspri.soap.SpriClient
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.mail.SimpleMailMessage
+import org.springframework.mail.javamail.JavaMailSender
+import org.springframework.scheduling.annotation.Scheduled
+import java.time.Duration
+import java.util.concurrent.Executors
+
+/**
+ * Outbound delivery (M3, AUFGABE chapter 8.3): outbox, retries, outage notification.
+ * Prefix `openspri.outbox` and `openspri.notifications`.
+ */
+@ConfigurationProperties("openspri.outbox")
+data class OutboxProperties(
+    /** Retry interval for requests without TEQ (11.2.3.2: "in regelmäßigen Abständen"). */
+    val retryInterval: Duration = Duration.ofMinutes(5),
+    /** Attempts before an entry becomes UNDELIVERABLE. */
+    val maxAttempts: Int = 12,
+    /** Wait after TEQ 0991 (interface overloaded). */
+    val overloadedInterval: Duration = Duration.ofMinutes(1),
+    /** Number of sequence keys sent in parallel. Each one keeps a database connection while sending. */
+    val parallelism: Int = 4,
+    /** At most one outage notification per partner and interval (11.2.3.2: once a day). */
+    val outageNotificationInterval: Duration = Duration.ofDays(1),
+)
+
+@ConfigurationProperties("openspri.notifications")
+data class NotificationProperties(
+    /** Sender address; mails are only sent if spring.mail.host is configured. */
+    val from: String = "open-spri@localhost",
+    /** Own operations team, receives a copy of every notification. */
+    val operatorEmail: String? = null,
+)
+
+@Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(OutboxProperties::class, NotificationProperties::class)
+class DeliveryConfiguration {
+
+    @Bean
+    fun notifier(mail: ObjectProvider<JavaMailSender>, partners: PartnerDirectory, properties: NotificationProperties): Notifier =
+        MailNotifier(mail.ifAvailable, partners, properties)
+
+    @Bean
+    fun deliveryService(outbox: Outbox, sender: OutboxSender, outages: OutageRegistry, notifier: Notifier, properties: OutboxProperties) =
+        DeliveryService(
+            outbox, sender, outages, notifier,
+            RetryPolicy(properties.retryInterval, properties.maxAttempts, properties.overloadedInterval),
+            properties.outageNotificationInterval,
+        )
+
+    @Bean
+    fun outboxSender(partners: PartnerDirectory, client: SpriClient) = OutboxSender(partners, client)
+
+    @Bean
+    fun outboundOrderService(orders: OrderRepository, outbox: Outbox, codes: MessageCodeCatalogHolder, transactions: Transactions) =
+        OutboundOrderService(orders, outbox, codes::get, transactions)
+
+    @Bean
+    fun deliveryScheduler(service: DeliveryService, properties: OutboxProperties) = DeliveryScheduler(service, properties.parallelism)
+
+    /** Starts [parallelism] senders per tick; each one sends until nothing is due. Ordering is ensured by the outbox. */
+    class DeliveryScheduler(private val service: DeliveryService, private val parallelism: Int) : AutoCloseable {
+        private val log = LoggerFactory.getLogger(javaClass)
+        private val executor = Executors.newVirtualThreadPerTaskExecutor()
+
+        @Scheduled(fixedDelayString = "\${openspri.outbox.poll-interval:1s}", initialDelayString = "\${openspri.outbox.initial-delay:5s}")
+        fun tick() {
+            val workers = (1..parallelism).map {
+                executor.submit {
+                    try {
+                        service.drain()
+                    } catch (e: Exception) {
+                        log.error("Outbox delivery failed", e)
+                    }
+                }
+            }
+            workers.forEach { it.get() }
+        }
+
+        override fun close() = executor.close()
+    }
+}
+
+/** E-mail notifications (specification 11.2.3.2). Without mail configuration they are only logged. */
+class MailNotifier(
+    private val mail: JavaMailSender?,
+    private val partners: PartnerDirectory,
+    private val properties: NotificationProperties,
+) : Notifier {
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    override fun partnerInterfaceDown(partnerId: PartnerId, outage: PartnerOutage, lastError: String?) {
+        val partner = partners.findById(partnerId)
+        send(
+            listOfNotNull(partner?.technicalContactEmail, properties.operatorEmail),
+            "S/PRI: Ihre Schnittstelle ist nicht erreichbar",
+            """
+            |Guten Tag,
+            |
+            |unsere Meldungen an Ihre S/PRI-Schnittstelle (${partner?.endpointUrl ?: "unbekannt"}) können seit ${outage.since}
+            |nicht zugestellt werden. Wir wiederholen den Versand automatisch.
+            |
+            |Letzter Fehler: ${lastError ?: "-"}
+            |
+            |Diese Nachricht wird je Ausfall höchstens einmal täglich versendet (S/PRI-Spezifikation 11.2.3.2).
+            """.trimMargin(),
+        )
+    }
+
+    override fun undeliverable(entry: OutboxEntry) {
+        val partner = partners.findById(entry.partnerId)
+        send(
+            listOfNotNull(properties.operatorEmail),
+            "S/PRI: Nachricht nicht zustellbar (${entry.externalOrderNumber ?: entry.id})",
+            """
+            |Die ${entry.operation.wsdlName}-Nachricht ${entry.id} zum Auftrag ${entry.externalOrderNumber} an ${partner?.name}
+            |konnte nach ${entry.attempts} Versuchen nicht zugestellt werden.
+            |
+            |Letzter Fehler: ${entry.lastError ?: "-"}
+            |
+            |Nachfolgende Nachrichten zu diesem Auftrag warten, bis die Nachricht erneut gesendet, per E-Mail übermittelt
+            |oder verworfen wurde (Zustellmonitor).
+            """.trimMargin(),
+        )
+    }
+
+    private fun send(to: List<String>, subject: String, text: String) {
+        if (mail == null || to.isEmpty()) {
+            log.warn("Notification (no mail configured or no recipient): {} - {}", subject, text.lines().firstOrNull { it.isNotBlank() })
+            return
+        }
+        try {
+            mail.send(SimpleMailMessage().apply { from = properties.from; setTo(*to.toTypedArray()); this.subject = subject; this.text = text })
+        } catch (e: Exception) {
+            log.error("Notification could not be sent to {}: {}", to, e.toString())
+        }
+    }
+}

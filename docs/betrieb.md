@@ -144,7 +144,44 @@ Angenommene Aufträge und Meldungen landen in der Warteschlange `inbox_message`.
 
 Was die Prüfungen finden, steht in `spri_order_history.findings` und `inbox_message.findings`. Das sind zum Beispiel Dubletten, R-05 (Termin mehr als 180 Tage in der Zukunft), R-10 (offener Auftrag am selben Anschluss) und Meldungen außerhalb der Reihenfolge. Status `FAILED` bedeutet einen technischen Fehler, die Ursache steht in `inbox_message.error`.
 
-Bis M3 läuft die Verarbeitung nur auf **einer** Instanz.
+Mehrere Instanzen dürfen parallel laufen. Je Auftrag wird streng in der Reihenfolge des Eingangs verarbeitet (ADR-0007). Ein Eintrag mit `FAILED` hält die folgenden Einträge desselben Auftrags an, bis er neu verarbeitet wurde.
+
+## Postausgang und Zustellung
+
+Alles, was open-spri an Partner sendet, läuft über den Postausgang `outbox_message` (ADR-0007):
+- **Reihenfolge:** Je Auftrag bzw. Leitung geht eine Nachricht erst raus, wenn die vorige abgeschlossen ist.
+- **Wiederholungen:** Wenn der Partner nicht erreichbar ist, wiederholt open-spri im Abstand von `OPENSPRI_OUTBOX_RETRY_INTERVAL` (Standard 5 Minuten), höchstens `OPENSPRI_OUTBOX_MAX_ATTEMPTS`-mal (Standard 12).
+- **Status, die jemand ansehen muss:**
+
+  | Status | Bedeutung | Was tun |
+  |---|---|---|
+  | `UNCLEAR` | eigener Auftrag ohne technische Quittung. Er könnte beim Partner angekommen sein. | Beim Partner nachfragen. Dann erneut senden **mit neuer Auftragsnummer** oder verwerfen (Spezifikation 11.2.3.1). |
+  | `UNDELIVERABLE` | Wiederholungen erschöpft | erneut senden oder über den vereinbarten E-Mail-Kanal übermitteln (11.2.3.2) |
+  | `DELIVERED_WITH_ERROR` | Meldung mit negativer TEQ. Sie gilt laut Spezifikation als zugestellt. | Fehlerliste prüfen und mit dem Partner klären |
+  | `REJECTED` | eigener Auftrag mit negativer TEQ | Auftrag korrigieren und neu stellen |
+
+  Bis M4 stehen diese Einträge nur in der Datenbank: `SELECT id, status, external_order_number, last_error FROM outbox_message WHERE status IN ('UNCLEAR','UNDELIVERABLE','DELIVERED_WITH_ERROR','REJECTED')`. Der Zustellmonitor in Oberfläche und REST folgt mit M4.
+
+**Voraussetzung für das Senden:** Die Meldungscodetabelle muss importiert sein. Ohne sie lehnt open-spri jede eigene Meldung ab, weil kein Meldungscode geprüft werden kann (R-13).
+
+## Benachrichtigungen per E-Mail
+
+| Anlass | Empfänger |
+|---|---|
+| Schnittstelle eines Partners nicht erreichbar (höchstens einmal je Ausfall und Tag, Spezifikation 11.2.3.2) | technischer Kontakt des Partners und `OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL` |
+| Nachricht nicht zustellbar | `OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL` |
+
+Mailserver in `.env` eintragen:
+```
+SPRING_MAIL_HOST=smtp.example.de
+SPRING_MAIL_PORT=587
+SPRING_MAIL_USERNAME=open-spri@example.de
+SPRING_MAIL_PASSWORD=...
+SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
+OPENSPRI_NOTIFICATIONS_FROM=open-spri@example.de
+OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL=betrieb@example.de
+```
+Ohne Mailserver schreibt open-spri die Benachrichtigungen nur ins Log.
 
 ## Zusätzliche IP-Sperre für den S/PRI-Endpunkt
 

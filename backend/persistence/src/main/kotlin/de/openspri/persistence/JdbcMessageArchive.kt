@@ -19,9 +19,10 @@ class JdbcMessageArchive(private val jdbc: JdbcClient) : InboundStore, OutboundA
     override fun storeAccepted(exchange: ArchivedExchange, message: InboundMessage): Long {
         val archiveId = insert(exchange)
         jdbc.sql(
-            """INSERT INTO inbox_message (archive_id, partner_id, operation, external_order_number, payload)
-               VALUES (:archive, :partner, :operation, :order, :payload)""",
+            """INSERT INTO inbox_message (archive_id, partner_id, operation, external_order_number, sequence_key, payload)
+               VALUES (:archive, :partner, :operation, :order, :key, :payload)""",
         )
+            .param("key", "${message.partnerId.value}:" + (message.externalOrderNumber ?: "#archive-$archiveId"))
             .param("archive", archiveId).param("partner", message.partnerId.value)
             .param("operation", message.operation.wsdlName).param("order", message.externalOrderNumber)
             .param("payload", message.payload)

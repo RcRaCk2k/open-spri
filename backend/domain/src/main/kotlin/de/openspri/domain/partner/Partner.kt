@@ -21,6 +21,10 @@ data class Partner(
     val signatureCertificates: List<X509Certificate>,
     val allowedSourceNetworks: List<IpNetwork>,
     val enabled: Boolean = true,
+    /** The partner's S/PRI endpoint (from its WSDL, specification 3.3). */
+    val endpointUrl: String? = null,
+    /** Receives the outage notification (specification 11.2.3.2) and the e-mail fallback. */
+    val technicalContactEmail: String? = null,
 )
 
 /** Read access to the configured partners. */
@@ -28,4 +32,6 @@ interface PartnerDirectory {
 
     /** Enabled partners whose allowlist contains [address]. Usually zero or one. */
     fun findBySourceAddress(address: java.net.InetAddress): List<Partner>
+
+    fun findById(id: PartnerId): Partner?
 }
