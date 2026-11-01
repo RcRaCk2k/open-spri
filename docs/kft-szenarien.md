@@ -80,8 +80,8 @@ Der Test `coverage gate` lässt den Build scheitern, wenn mehr Testfälle offen 
 | 2 | Auftragsvorlagen für alle Geschäftsfälle, Bestandsaufbau, KUE-LE, abgebender EKP, Reklamation, Diagnose | 60 von 211 |
 | 3 | besondere Auftragsinhalte: Projektkenner, Auftragskenner, Dritte, Vorabstimmung, HomeID, Konnektivität | 20 von 211 |
 | 4 | Bestand, Providerwechsel als Leistungserbringer | 14 von 211 |
-| 5 | Negativ-Testfälle als Leistungserbringer | 7 von 211 |
+| 5 | Negativ-Testfälle als Leistungserbringer; als Auftraggeber Produkt „Dummy“ und Leistungsmerkmal „TEST“ (S.1.2.7, Z.4.2.02, Z.5.2.02) | 4 von 211 |
 
-Offen nach Teil 5:
+Offen nach Teil 5 (Z.2.2.01, Z.2.2.02, Z.4.2.01, Z.5.2.01):
 - **Negativ-Testfälle als Auftraggeber,** bei denen der Auftraggeber absichtlich einen fehlerhaften Auftrag sendet: Termin mehr als 179 Tage voraus, Storno statt Standard, Diagnose statt Änderung, Produkt „Dummy“, Leistungsmerkmal „TEST“, falsche Auftragsart
 

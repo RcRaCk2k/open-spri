@@ -85,5 +85,13 @@ object TestCaseVariants {
     fun hintCode(case: KftTestCase): String? =
         HINT_CODE.find(case.hint)?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.takeIf { "1312" !in case.hint }
 
-    fun missing(case: KftTestCase): Set<Variant> = of(case) - implemented - (if (case.partnerSheet) emptySet() else faultyOrders)
+    /**
+     * Faulty orders open-spri sends as Auftraggeber: "Dummy" and "TEST" are valid against XSD and Anlage 1, the
+     * Leistungserbringer rejects them. Orders our own rules reject (date, Geschäftsfallart, Storno without order)
+     * are not possible yet.
+     */
+    val faultyOrdersAsAuftraggeber = setOf(Variant.INVALID_PRODUCT, Variant.INVALID_FEATURE)
+
+    fun missing(case: KftTestCase): Set<Variant> =
+        of(case) - implemented - (if (case.partnerSheet) faultyOrdersAsAuftraggeber else faultyOrders)
 }

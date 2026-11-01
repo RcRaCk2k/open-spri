@@ -70,7 +70,7 @@ Der KFT bei Enghouse bricht nach drei erfolglosen Versuchen ab. Deshalb müssen 
 - Build: neues Modul `simulator`; `:app`-Tests laden die Testfallliste über `:simulator:downloadKftTestCases`
 
 ## Tests
-- Teil 5: `KftScenarioTest` 204 Testfälle grün, 7 offen (Negativ-Testfälle als Auftraggeber); `InboundOrderServiceTest` (Storno zu unbekanntem Auftrag, Geschäftsfallart)
+- Teil 5: `KftScenarioTest` 207 Testfälle grün, 4 offen (Z.2.2.01, Z.2.2.02, Z.4.2.01, Z.5.2.01: eigene Prüfungen verhindern den fehlerhaften Auftrag); `InboundOrderServiceTest` (Storno zu unbekanntem Auftrag, Geschäftsfallart)
 - Teil 4: `KftScenarioTest` 197 Testfälle grün, 14 offen (Negativ-Testfälle); `InventoryBookTest` (Vertrag aus NEU/PV, Ablösung, Kündigung, Storno ohne Wirkung, abgebender EKP, Providerwechsel an den Vertragsinhaber, 409 ohne Bestand); `ApplicationIntegrationTest` (Bestand und abgebender EKP auf MariaDB)
 - Teil 3: `KftScenarioTest` 191 Testfälle grün, 20 offen (Negativ-Testfälle, Providerwechsel als Leistungserbringer); `OrderTemplatesTest`: NEU mit allen Varianten
 - Teil 2: `KftScenarioTest` 151 Testfälle grün, 60 offen mit Grund; `OrderTemplatesTest` (jede Vorlage gültig nach XSD und Anlage 1, richtiger Geschäftsfall, Reklamation)
