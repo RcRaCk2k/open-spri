@@ -37,6 +37,16 @@ class OrderLifecycleTest {
     }
 
     @Test
+    fun `a draft can only be sent, nothing else happens to it (AUFGABE 5_6)`() {
+        val draft = OrderLifecycle.draft(BusinessCase.NEU, connectivity = true)
+        assertEquals(listOf<OrderEvent>(OrderEvent.Send), OrderLifecycle.allowedEvents(draft))
+        assertContains(draft.rejects(m(MessageType.QEB)), "Entwurf")
+        assertContains(draft.rejects(storno), "Entwurf")
+        assertEquals(OrderLifecycle.submitted(BusinessCase.NEU, connectivity = true), draft.then(OrderEvent.Send))
+        neu.rejects(OrderEvent.Send)
+    }
+
+    @Test
     fun `messages that do not exist for the business case are rejected (7_2)`() {
         assertContains(OrderLifecycle.submitted(BusinessCase.KUE_AG).then(m(MessageType.QEB), m(MessageType.ABM)).rejects(m(MessageType.TAM)), "7.2")
         OrderLifecycle.submitted(BusinessCase.DIAG_GET).rejects(m(MessageType.QEB))

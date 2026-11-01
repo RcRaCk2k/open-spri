@@ -43,6 +43,7 @@ class ApplicationIntegrationTest(
     @Autowired private val archive: de.openspri.persistence.JdbcMessageArchive,
     @Autowired private val events: de.openspri.persistence.JdbcEvents,
     @Autowired private val idempotency: de.openspri.persistence.JdbcIdempotencyStore,
+    @Autowired private val drafts: de.openspri.persistence.JdbcOrderDrafts,
 ) {
     @LocalServerPort
     private var port = 0
@@ -144,6 +145,39 @@ class ApplicationIntegrationTest(
             ),
         )
         assertEquals(TeqCode.STRUCTURE_INVALID, archive.get(archiveId)!!.teqCode)
+    }
+
+    @Test
+    fun `drafts change every column, are deleted with their content, handover filter works`() {
+        val partner = partners.create(name = "Entwurf", carrierCode = "DEU.DRAFT", certificates = listOf(credentials.certificate), networks = emptyList())
+        val now = java.time.Instant.now()
+        val data = de.openspri.domain.order.OrderData("DRF-1", de.openspri.domain.BusinessCase.NEU)
+        val draft = orderRepository.save(
+            de.openspri.domain.order.Order(null, partner, de.openspri.domain.order.OrderRole.AUFTRAGGEBER, data,
+                de.openspri.domain.order.OrderLifecycle.draft(data.businessCase), now, now),
+        )
+        drafts.put(draft.id!!, "{\"a\":1}".toByteArray())
+        drafts.put(draft.id!!, "{\"a\":2}".toByteArray())
+        assertEquals("{\"a\":2}", String(drafts.get(draft.id!!)!!))
+
+        val changed = data.copy(externalOrderNumber = "DRF-2", homeId = "HOME-1", products = listOf("P1"), projectId = "PRJ")
+        orderRepository.save(draft.copy(data = changed))
+        val stored = orderRepository.get(draft.id!!)!!
+        assertEquals(listOf("DRF-2", "HOME-1", "PRJ"), listOf(stored.data.externalOrderNumber, stored.data.homeId, stored.data.projectId))
+        assertEquals(de.openspri.domain.order.Phase.DRAFT, stored.state.phase)
+
+        assertEquals(true, orderRepository.deleteDraft(draft.id!!))
+        assertEquals(null, orderRepository.get(draft.id!!))
+        assertEquals(null, drafts.get(draft.id!!))
+
+        val pv = orderRepository.save(
+            de.openspri.domain.order.Order(null, partner, de.openspri.domain.order.OrderRole.ABGEBENDER_EKP,
+                de.openspri.domain.order.OrderData("PV-1", de.openspri.domain.BusinessCase.PV),
+                de.openspri.domain.order.OrderLifecycle.handoverAnnounced().copy(handover = de.openspri.domain.order.HandoverPhase.ANNOUNCED), now, now),
+        )
+        assertEquals(false, orderRepository.deleteDraft(pv.id!!), "only drafts can be deleted")
+        assertEquals(listOf(pv.id), orderRepository.search(de.openspri.domain.query.OrderFilter(partnerId = partner, handover = de.openspri.domain.order.HandoverPhase.ANNOUNCED)).map { it.id })
+        assertEquals(emptyList(), orderRepository.search(de.openspri.domain.query.OrderFilter(partnerId = partner, handover = de.openspri.domain.order.HandoverPhase.REPLIED)))
     }
 
     @Test

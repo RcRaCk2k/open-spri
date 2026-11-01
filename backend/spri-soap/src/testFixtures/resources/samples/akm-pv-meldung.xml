@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Minimal, schema-valid AKM-PV to us as abgebender EKP, used by the tests. All data is fictitious. -->
+<envelope:annehmenMeldungRequest
+    xmlns:envelope="http://spri.telekom.de/oss/v4/envelope"
+    xmlns:message="http://spri.telekom.de/oss/v4/message"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <control>
+    <zeitstempel>2026-11-01T12:00:05.000+01:00</zeitstempel>
+    <majorRelease>4</majorRelease>
+    <minorRelease>4</minorRelease>
+    <signaturId>
+      <issuer>CN=Test Partner</issuer>
+      <serial>1</serial>
+    </signaturId>
+  </control>
+  <meldung>
+    <auftragstyp>
+      <geschaeftsfall>PV</geschaeftsfall>
+      <aenderungsKennzeichen>Standard</aenderungsKennzeichen>
+      <geschaeftsfallart>Endkundenanbieterwechsel</geschaeftsfallart>
+    </auftragstyp>
+    <meldungstyp xsi:type="message:MeldungstypAKM-PVType">
+      <meldungsattribute>
+        <vertragsnummer>V0815</vertragsnummer>
+        <externeAuftragsnummer>PV-AUF-0001</externeAuftragsnummer>
+        <auftraggebernummer>AG0042</auftraggebernummer>
+        <anschluss>
+          <lineId>DEU.GFNORD.0000000001</lineId>
+        </anschluss>
+        <aufnehmenderProvider>
+          <providername>Beispiel Telekommunikation</providername>
+          <uebernahmedatumGeplant>2026-12-15</uebernahmedatumGeplant>
+          <antwortfrist>2026-11-08</antwortfrist>
+        </aufnehmenderProvider>
+      </meldungsattribute>
+      <meldungspositionen>
+        <position>
+          <meldungscode>0020</meldungscode>
+          <meldungstext>Ankündigung Providerwechsel.</meldungstext>
+        </position>
+      </meldungspositionen>
+    </meldungstyp>
+  </meldung>
+</envelope:annehmenMeldungRequest>

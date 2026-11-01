@@ -29,10 +29,12 @@ class OutboundOrderServiceTest {
         "test", "0",
         listOf(
             MessageCode("0000", "ok", setOf("QEB", "ABM"), setOf("NEU"), setOf("FTTH"), setOf("S/PRI")),
-            MessageCode("0010", "erledigt", setOf("ERLM"), setOf("NEU"), setOf("FTTH"), setOf("S/PRI")),
+            MessageCode("0010", "erledigt", setOf("ERLM"), setOf("NEU", "KUE-LE"), setOf("FTTH"), setOf("S/PRI")),
+            MessageCode("8006", "Kündigung", setOf("KDLE"), setOf("KUE-LE"), setOf("FTTH"), setOf("S/PRI")),
         ),
     )
-    private val service = OutboundOrderService(orders, outbox, { catalog }, DirectTransactions, clock)
+    private val drafts = de.openspri.domain.InMemoryOrderDrafts()
+    private val service = OutboundOrderService(orders, outbox, { catalog }, DirectTransactions, clock, drafts = drafts)
     private val partner = PartnerId(3)
     private val data = OrderData("AG-1", BusinessCase.NEU, desiredDate = LocalDate.of(2026, 12, 1))
 
@@ -56,6 +58,57 @@ class OutboundOrderServiceTest {
         val error = assertThrows<OrderActionRejected> { service.submitOrder(partner, data.copy(desiredDate = LocalDate.of(2027, 8, 1)), ByteArray(0)) }
         assertContains(error.message!!, "R-05")
         assertTrue(outbox.entries.isEmpty() && orders.orders.isEmpty())
+    }
+
+    @Test
+    fun `a draft reserves the number and is queued only when it is sent`() {
+        val draft = service.saveDraft(partner, data, "{}".toByteArray())
+        assertEquals(Phase.DRAFT, draft.state.phase)
+        assertTrue(outbox.entries.isEmpty())
+        assertEquals(listOf<OrderEvent>(OrderEvent.Send), service.allowedActions(draft))
+        assertContains(assertThrows<OrderActionRejected> { service.submitOrder(partner, data, ByteArray(0)) }.message!!, "bereits vergeben")
+        assertContains(assertThrows<OrderActionRejected> { service.requestChange(draft, RequestKind.STORNO, data, ByteArray(0)) }.message!!, "Entwurf")
+
+        val changed = service.saveDraft(partner, data.copy(desiredDate = LocalDate.of(2026, 12, 2)), "{\"v\":2}".toByteArray(), existing = draft)
+        assertEquals(draft.id, changed.id)
+        assertEquals("{\"v\":2}", String(service.draftContent(changed)!!))
+
+        val sent = service.sendDraft(changed, changed.data, "<payload/>".toByteArray())
+        assertEquals(Phase.SUBMITTED, sent.state.phase)
+        assertEquals(sent.id, outbox.entries.single().orderId)
+        assertEquals(null, service.draftContent(sent))
+        assertContains(assertThrows<OrderActionRejected> { service.sendDraft(sent, sent.data, ByteArray(0)) }.message!!, "Nur ein Entwurf")
+        assertContains(assertThrows<OrderActionRejected> { service.deleteDraft(sent) }.message!!, "Nur ein Entwurf")
+    }
+
+    @Test
+    fun `a draft that breaks the order rules stays a draft, a deleted draft frees the number`() {
+        val draft = service.saveDraft(partner, data.copy(desiredDate = LocalDate.of(2027, 8, 1)), "{}".toByteArray())
+        assertContains(assertThrows<OrderActionRejected> { service.sendDraft(draft, draft.data, ByteArray(0)) }.message!!, "R-05")
+        assertEquals(Phase.DRAFT, orders.get(draft.id!!)!!.state.phase)
+        assertTrue(outbox.entries.isEmpty())
+
+        service.deleteDraft(draft)
+        assertTrue(orders.orders.isEmpty() && drafts.drafts.isEmpty())
+        service.submitOrder(partner, data, ByteArray(0))
+    }
+
+    @Test
+    fun `KDLE creates the KUE-LE order of the Leistungserbringer, ERLM and ENTM follow`() {
+        val kdle = MessageInfo(MessageType.KDLE, BusinessCase.KUE_LE, ChangeIndicator.STANDARD, "LE-K-1", listOf("8006"))
+        val data = OrderData("LE-K-1", BusinessCase.KUE_LE, contractNumber = "V1", clientNumber = "AG1")
+        val order = service.terminate(partner, data, kdle, ByteArray(0))
+        assertEquals(OrderRole.LEISTUNGSERBRINGER, order.role)
+        assertEquals(Phase.CONFIRMED, order.state.phase)
+        assertEquals(listOf(MessageType.KDLE), orders.history(order.id!!).map { it.messageType })
+        assertEquals(order.id, outbox.entries.single().orderId)
+        assertContains(assertThrows<OrderActionRejected> { service.terminate(partner, data, kdle, ByteArray(0)) }.message!!, "bereits vergeben")
+        val wrongCode = kdle.copy(externalOrderNumber = "LE-K-2", codes = listOf("0000"))
+        assertThrows<OrderActionRejected> { service.terminate(partner, data.copy(externalOrderNumber = "LE-K-2"), wrongCode, ByteArray(0)) }
+        assertEquals(null, orders.find(partner, OrderRole.LEISTUNGSERBRINGER, "LE-K-2"), "nothing is stored on rejection")
+
+        val erlm = service.sendMessage(order, kdle.copy(type = MessageType.ERLM, codes = listOf("0010")), ByteArray(0))
+        assertEquals(Phase.COMPLETED, erlm.state.phase)
     }
 
     @Test

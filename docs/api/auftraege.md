@@ -8,7 +8,7 @@ Ein Auftrag hat in open-spri immer eine **Rolle** aus unserer Sicht:
 | `LEISTUNGSERBRINGER` | Anbieter der Leitung | QEB, ABM, VZM, TAM, MTAM, ZWM-LE, TBK-LE, ERLM, ENTM, ABBM, KDLE | Auftrag, Storno, Terminverschiebung, Reklamation |
 | `ABGEBENDER_EKP` | bisheriger Endkundenprovider beim Providerwechsel | RUEM-PV | AKM-PV, ABM-PV, ERLM-PV, ENTM-PV, ABBM-PV |
 
-Jeder Auftrag folgt einem **expliziten Zustandsautomaten** (Grundsatz 6). Was als Nächstes zulässig ist, steht in `allowedActions`. Eine unzulässige Aktion wird mit 409 abgewiesen, und die Antwort nennt die zulässigen Aktionen. Senden heißt immer: prüfen und in den Postausgang legen (202). Die Zustellung läuft asynchron in strenger Reihenfolge je Auftrag bzw. Leitung (siehe [zustellung.md](zustellung.md)).
+Jeder Auftrag folgt einem **expliziten Zustandsautomaten** (Grundsatz 6). Was als Nächstes zulässig ist, steht in `allowedActions` (`MESSAGE`, `REQUEST` oder `SEND` für einen Entwurf). Eine unzulässige Aktion wird mit 409 abgewiesen, und die Antwort nennt die zulässigen Aktionen. Senden heißt immer: prüfen und in den Postausgang legen (202). Die Zustellung läuft asynchron in strenger Reihenfolge je Auftrag bzw. Leitung (siehe [zustellung.md](zustellung.md)).
 
 ## Aufträge suchen und lesen (`orders:read`)
 
@@ -76,10 +76,12 @@ Den `control`-Kopf (Zeitstempel, Version, `signaturId` unseres aktuellen Schlüs
 
 ## Als Auftraggeber
 
-### Auftrag senden (`orders:write`)
+### Auftrag anlegen und senden (`orders:write`)
+
+Ein neuer Auftrag ist zuerst ein **Entwurf** (AUFGABE 5.6: Entwurf → Senden). `POST /orders` legt ihn an (201, Phase `DRAFT`); dabei prüft open-spri schon XSD und Anlage 1 und reserviert die externe Auftragsnummer. Gesendet wird er mit `POST /orders/{id}/send`. Wer keinen Zwischenschritt braucht (z. B. ein CRM), hängt `?send=true` an: Dann wird in einem Schritt geprüft und gesendet (202).
 
 ```bash
-curl -s -X POST $SPRI/api/v1/orders -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+curl -s -X POST "$SPRI/api/v1/orders?send=true" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -H "Idempotency-Key: crm-4711-neu" \
   -d '{
   "partnerId": 7,
@@ -116,6 +118,27 @@ Antwort 202 mit dem Auftrag wie bei `GET /orders/{id}`, Phase `SUBMITTED`. Mögl
 | 400 | Feld unbekannt, XSD-Verstoß, Pflichtfeld nach Anlage 1 fehlt |
 | 404 | Partner existiert nicht |
 | 409 | Auftragsnummer beim Partner schon vergeben (11.4), Wunschtermin außerhalb der Frist (R-05), Partner deaktiviert |
+
+#### Entwürfe
+
+```bash
+# anlegen: 201, Phase DRAFT, allowedActions = [SEND]
+DRAFT=$(curl -s -X POST $SPRI/api/v1/orders -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d @neu-auftrag.json | jq .order.id)
+
+curl -s $SPRI/api/v1/orders/$DRAFT/draft -H "Authorization: Bearer $TOKEN"          # Inhalt wie gespeichert
+curl -s -X PUT $SPRI/api/v1/orders/$DRAFT -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d @neu-auftrag-v2.json                         # Inhalt ersetzen
+curl -s -X POST $SPRI/api/v1/orders/$DRAFT/send -H "Authorization: Bearer $TOKEN" \
+  -H "Idempotency-Key: entwurf-$DRAFT"                                                # senden: 202, Phase SUBMITTED
+curl -s -X DELETE $SPRI/api/v1/orders/$DRAFT -H "Authorization: Bearer $TOKEN"       # oder verwerfen: 204
+```
+
+- Ein Entwurf muss ein **vollständiger, gültiger Auftrag** sein (XSD, Anlage 1). Halbfertige Eingaben hält das Frontend selbst.
+- Die **Auftragsregeln** (z. B. Wunschtermin R-05) prüft open-spri beim Senden, weil sie vom Datum abhängen. Wird der Entwurf abgewiesen (409), bleibt er Entwurf.
+- Beim Senden wird der Auftrag mit aktuellem Kopf und aktuellem Signaturschlüssel neu gebaut.
+- Ein Entwurf hat keinen Verlauf und keine Ereignisse. Das Ereignis `order.submitted` entsteht beim Senden.
+- Ändern, Löschen und Senden geht nur im Entwurf; danach antwortet die API mit 409.
 
 ### Storno, Terminverschiebung, Reklamation
 
@@ -163,3 +186,52 @@ curl -s -X POST $SPRI/api/v1/orders/77/messages -H "Authorization: Bearer $TOKEN
 Geprüft wird in dieser Reihenfolge: Rolle (wer darf die Meldung senden), Meldungscodes gegen die Tabelle (R-13), Zustandsautomat (409 mit `allowedActions`), danach XSD und Anlage 1 (400).
 
 Scopes: Meldungen in Aufträgen mit der Rolle `LEISTUNGSERBRINGER` brauchen `le:messages:write`, alle anderen `orders:write`.
+
+## Als Leistungserbringer: Kündigung (KUE-LE, KDLE)
+
+Die Kündigung durch den Leistungserbringer beginnt ohne Auftrag des Partners: Die KDLE ist laut Arbeitshandbuch eine „eigenständige Meldung (KEIN Auftrag)“. `POST /terminations` legt den Auftrag `KUE-LE` in der Rolle `LEISTUNGSERBRINGER` an und sendet die KDLE. Die externe Auftragsnummer vergeben wir selbst (Anlage 1: „GF KUE-LE: wird in diesem Fall vom LE eineindeutig vergeben“). ERLM und ENTM folgen wie gewohnt über `POST /orders/{id}/messages`.
+
+```bash
+curl -s -X POST $SPRI/api/v1/terminations -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: kdle-2026-0001" \
+  -d '{"partnerId": 7, "externalOrderNumber": "KDLE-2026-0001", "contractNumber": "V4711", "clientNumber": "AG4711",
+       "shutdownDate": "2027-01-31", "reason": "Zahlungsverzug", "codes": [{"code": "8006"}]}'
+```
+
+| Feld | KDLE-Element | |
+|---|---|---|
+| `externalOrderNumber` | `externeAuftragsnummer` | Pflicht, je Partner eindeutig |
+| `contractNumber`, `clientNumber` | `vertragsnummer`, `auftraggebernummer` | Pflicht |
+| `shutdownDate` | `abschaltungstermin` | Pflicht |
+| `reason` | `abschaltungsgrund` | optional |
+| `lineId` | – | optional, nicht Teil der KDLE: ordnet den Postausgang mit anderen Nachrichten zur Leitung und hilft bei der Suche |
+| `codes`, `attributes` | Meldungscodes, weitere `meldungsattribute` | wie bei Meldungen |
+
+Scope `le:messages:write`. 409, wenn die Nummer beim Partner schon vergeben ist oder der Meldungscode nicht zu KDLE passt.
+
+## Als abgebender EKP: Providerwechsel-Anfragen (AKM-PV, RUEM-PV)
+
+Wirbt ein anderer Provider einen unserer Kunden ab, schickt uns der Leistungserbringer eine AKM-PV. open-spri legt dafür einen Auftrag in der Rolle `ABGEBENDER_EKP` an. Die AKM-PV hat eine **Antwortfrist**; bis dahin muss die RUEM-PV gesendet sein.
+
+```bash
+# offene Anfragen (RUEM-PV steht aus); ?open=false zeigt alle
+curl -s $SPRI/api/v1/pv-requests -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+[{
+  "order": {"id": 51, "role": "ABGEBENDER_EKP", "externalOrderNumber": "PV-AUF-0001", "businessCase": "PV", "handoverPhase": "ANNOUNCED", …},
+  "replyDue": true, "announcementArchiveId": 902, "newProvider": "Beispiel Telekommunikation",
+  "plannedTransferDate": "2026-12-15", "replyDeadline": "2026-11-08", "lineId": "DEU.GFNORD.0000000001"
+}]
+```
+
+Antworten (Scope `orders:write`):
+
+```bash
+curl -s -X POST $SPRI/api/v1/pv-requests/51/reply -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: ruem-51" \
+  -d '{"consent": true, "providerName": "Unser Netz", "codes": [{"code": "0021"}]}'
+```
+
+`consent` wird zu `zustimmungProviderwechsel` (`J`/`N`), dazu optional `answerCode` und `answerText` (`antwortcode`, `antworttext`). Vertragsnummer, externe Auftragsnummer, Auftraggebernummer, VorabstimmungsID und `anschluss` übernimmt open-spri aus der archivierten AKM-PV, weil sie in der RUEM-PV dieselben sein müssen. Danach kommen ABM-PV, ERLM-PV, ENTM-PV (oder ABBM-PV) als Ereignisse `message.received`. Eine zweite RUEM-PV wird mit 409 abgewiesen.

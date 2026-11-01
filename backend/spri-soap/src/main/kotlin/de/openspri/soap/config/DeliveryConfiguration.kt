@@ -9,11 +9,13 @@ import de.openspri.domain.delivery.Outbox
 import de.openspri.domain.delivery.OutboxEntry
 import de.openspri.domain.delivery.PartnerOutage
 import de.openspri.domain.delivery.RetryPolicy
+import de.openspri.domain.order.OrderDrafts
 import de.openspri.domain.order.OrderRepository
 import de.openspri.domain.order.OutboundOrderService
 import de.openspri.domain.order.Transactions
 import de.openspri.domain.partner.PartnerDirectory
 import de.openspri.domain.partner.PartnerId
+import de.openspri.domain.query.ArchiveQueries
 import de.openspri.domain.query.DeliveryQueries
 import de.openspri.domain.query.OrderQueries
 import de.openspri.soap.OrderCommands
@@ -86,8 +88,8 @@ class DeliveryConfiguration {
     fun outboxSender(partners: PartnerDirectory, client: SpriClient) = OutboxSender(partners, client)
 
     @Bean
-    fun outboundOrderService(orders: OrderRepository, outbox: Outbox, codes: MessageCodeCatalogHolder, transactions: Transactions, events: EventLog) =
-        OutboundOrderService(orders, outbox, codes::get, transactions, events = events)
+    fun outboundOrderService(orders: OrderRepository, outbox: Outbox, codes: MessageCodeCatalogHolder, transactions: Transactions, events: EventLog, drafts: OrderDrafts) =
+        OutboundOrderService(orders, outbox, codes::get, transactions, events = events, drafts = drafts)
 
     @Bean
     fun outboundPayloads(schema: SpriSchema, keys: SigningKeyHolder) = OutboundPayloads(schema, keys::current)
@@ -100,7 +102,8 @@ class DeliveryConfiguration {
         deliveries: DeliveryQueries,
         partners: PartnerDirectory,
         codes: MessageCodeCatalogHolder,
-    ) = OrderCommands(payloads, service, orders, deliveries, partners, codes::get)
+        archive: ArchiveQueries,
+    ) = OrderCommands(payloads, service, orders, deliveries, partners, codes::get, archive)
 
     @Bean
     fun deliveryScheduler(service: DeliveryService, properties: OutboxProperties) = DeliveryScheduler(service, properties.parallelism)

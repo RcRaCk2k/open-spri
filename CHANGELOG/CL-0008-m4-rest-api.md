@@ -87,13 +87,21 @@ M4 macht open-spri bedienbar: Web-Oberfläche und Fremdsysteme steuern alles üb
 - `ablaeufe.md`: NEU als Auftraggeber bis ENTM über den Event-Feed, eingehenden Auftrag als Leistungserbringer bearbeiten, Zustellproblem beheben
 - `docs/betrieb.md`: Zustellmonitor per REST, Abschnitt Ereignisse und Webhooks
 
+### Teil 6: Entwürfe, Kündigung durch den Leistungserbringer, Providerwechsel-Anfragen
+- **Entwürfe (AUFGABE 5.6, 8.5):** neue Phase `DRAFT` und Ereignis `OrderEvent.Send` im Zustandsautomaten. Im Entwurf ist nur Senden zulässig (`allowedActions` = `SEND`). **Verhaltensänderung:** `POST /orders` legt jetzt einen Entwurf an (201). `?send=true` sendet wie bisher sofort (202).
+  - `GET /orders/{id}/draft`, `PUT /orders/{id}`, `DELETE /orders/{id}`, `POST /orders/{id}/send`
+  - Ein Entwurf ist ein gültiger Auftrag (XSD, Anlage 1) und reserviert die Auftragsnummer. Die Auftragsregeln werden beim Senden geprüft, der Kopf wird dann mit aktuellem Schlüssel neu gebaut.
+  - Migration V10: `spri_order_draft` (eingegebenes JSON). `JdbcOrderRepository.save` schreibt jetzt alle Spalten, weil ein Entwurf jeden Inhalt ändern darf.
+- **`POST /terminations` (KUE-LE):** legt den Auftrag in der Rolle `LEISTUNGSERBRINGER` an und sendet die KDLE (`OutboundOrderService.terminate`). Die Nummer vergibt der Leistungserbringer (Anlage 1). Geprüft wird vor dem Speichern, eine abgewiesene KDLE hinterlässt keinen Auftrag.
+- **`GET /pv-requests`, `POST /pv-requests/{id}/reply`:** AKM-PV als abgebender EKP mit Antwortfrist, aufnehmendem Provider und bisheriger LineID aus der archivierten AKM-PV. Die RUEM-PV übernimmt Vertrags- und Auftragsnummern, VorabstimmungsID und `anschluss` aus der AKM-PV (SA-012).
+- Idempotenz gilt jetzt auch für `/orders/{id}/send`, `/terminations` und `/pv-requests/{id}/reply`.
+
 ### Noch offen in M4
-- Auftragsentwürfe (`POST /orders` als Entwurf, `POST /orders/{id}/send`): heute wird ein Auftrag sofort geprüft und gesendet. Entwürfe kommen mit dem Auftragsassistenten des Frontends (M7) und brauchen eigene Speicherung.
-- `POST /terminations` (KUE-LE mit KDLE) und `GET /pv-requests` + `POST /pv-requests/{id}/reply` (RUEM-PV) als eigene Pfade. Fachlich ist beides schon über `POST /orders/{id}/messages` möglich, KDLE braucht aber einen neuen Auftragsdatensatz.
 - Partner: `/contracts`, `/powers-of-attorney`, `/projects`; `CRUD /products` und `/product-change-matrix`; `POST /maintenance-announcements`
 - Bestand, Diagnose, Verfügbarkeit, Replikat: mit M5/M6, weil die Fachlogik dort entsteht
 
 ## Tests
+- Teil 6: `OrderLifecycleTest` (Entwurf: nur Senden), `OutboundOrderServiceTest` (Entwurf reserviert die Nummer, wird erst beim Senden eingereiht, bleibt bei Regelverstoß Entwurf, Löschen gibt die Nummer frei; KDLE legt KUE-LE an, keine Spuren bei Abweisung, ERLM folgt), `OrderApiTest` (Entwurf anlegen/ändern/senden/löschen, 409 nach dem Senden; KDLE mit Scope und Dublette; AKM-PV mit Frist → RUEM-PV mit Feldern aus der AKM-PV, zweite RUEM-PV 409), `ApplicationIntegrationTest` (Entwurf ändert alle Spalten, Löschen samt Inhalt, Filter nach Übergabephase)
 
 - `SpriJsonTest` (3): XML → JSON → XML für Auftrag und QEB bleibt XSD-gültig, Fehlermeldungen mit Pfad und Vorschlägen
 - `OutboundPayloadsTest` (4): Auftrag mit unserem Kopf, ungültiges JSON mit Pfad, Storno/Terminverschiebung aus dem Original, vereinfachte QEB

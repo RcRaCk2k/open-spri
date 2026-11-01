@@ -5,6 +5,7 @@ import de.openspri.domain.ChangeIndicator
 import de.openspri.domain.order.HandoverPhase
 import de.openspri.domain.order.Order
 import de.openspri.domain.order.OrderData
+import de.openspri.domain.order.OrderDrafts
 import de.openspri.domain.order.OrderHistoryEntry
 import de.openspri.domain.order.OrderId
 import de.openspri.domain.order.OrderRepository
@@ -23,6 +24,24 @@ import org.springframework.jdbc.support.GeneratedKeyHolder
 import org.springframework.stereotype.Repository
 import java.sql.ResultSet
 import java.sql.Timestamp
+
+@Repository
+class JdbcOrderDrafts(private val jdbc: JdbcClient) : OrderDrafts {
+    override fun put(orderId: OrderId, content: ByteArray) {
+        jdbc.sql(
+            """INSERT INTO spri_order_draft (order_id, content, updated_at) VALUES (:id, :content, NOW(3))
+               ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = VALUES(updated_at)""",
+        ).param("id", orderId.value).param("content", content).update()
+    }
+
+    override fun get(orderId: OrderId): ByteArray? =
+        jdbc.sql("SELECT content FROM spri_order_draft WHERE order_id = :id").param("id", orderId.value)
+            .query { rs, _ -> rs.getBytes(1) }.optional().orElse(null)
+
+    override fun remove(orderId: OrderId) {
+        jdbc.sql("DELETE FROM spri_order_draft WHERE order_id = :id").param("id", orderId.value).update()
+    }
+}
 
 @Repository
 class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository, OrderQueries {
@@ -55,6 +74,7 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository, Order
         filter.partnerId?.let { where += "partner_id = :partner"; params["partner"] = it.value }
         filter.businessCase?.let { where += "business_case = :bc"; params["bc"] = it.code }
         filter.phase?.let { where += "phase = :phase"; params["phase"] = it.name }
+        filter.handover?.let { where += "handover_phase = :handover"; params["handover"] = it.name }
         filter.beforeId?.let { where += "id < :before"; params["before"] = it }
         if (filter.openOnly) where += "NOT finished"
         filter.text?.takeIf { it.isNotBlank() }?.let {
@@ -114,14 +134,24 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository, Order
             return order.copy(id = OrderId(keys.key!!.toLong()))
         }
         val updated = jdbc.sql(
-            """UPDATE spri_order SET phase = :phase, open_requests = :requests, cancelled = :cancelled, complaints = :complaints,
-                   appointment_requested = :appointment, handover_phase = :handover, finished = :finished,
-                   desired_date = :desired, contract_number = :contract, line_id = :line, ont_serial = :ont, sequence_key = :seqKey,
+            // all columns: a draft may change any content before it is sent
+            """UPDATE spri_order SET external_order_number = :number, business_case = :bc, phase = :phase, open_requests = :requests,
+                   cancelled = :cancelled, complaints = :complaints, appointment_requested = :appointment, connectivity = :connectivity,
+                   bracketed = :bracketed, handover_phase = :handover, finished = :finished, client_number = :client,
+                   service_number = :service, orderer_client_number = :ordererClient, orderer_service_number = :ordererService,
+                   desired_date = :desired, contract_number = :contract, line_id = :line, pre_agreement_id = :preAgreement,
+                   home_id = :home, products = :products, project_id = :project, coupling_id = :coupling, bracket_id = :bracket,
+                   bracket_size = :bracketSize, ont_serial = :ont, infrastructure_key = :infra, sequence_key = :seqKey,
                    updated_at = :updated, version = version + 1
                WHERE id = :id AND version = :version""",
         ).params(params + mapOf("id" to order.id!!.value, "version" to order.version)).update()
         if (updated != 1) throw OptimisticLockingFailureException("order ${order.id} was changed concurrently")
         return order.copy(version = order.version + 1)
+    }
+
+    override fun deleteDraft(id: OrderId): Boolean {
+        jdbc.sql("DELETE FROM spri_order_draft WHERE order_id = :id").param("id", id.value).update()
+        return jdbc.sql("DELETE FROM spri_order WHERE id = :id AND phase = 'DRAFT'").param("id", id.value).update() == 1
     }
 
     override fun append(entry: OrderHistoryEntry) {

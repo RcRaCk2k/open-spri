@@ -188,7 +188,7 @@ Fremdsysteme (CRM, Workflow) erfahren von neuen Aufträgen, Meldungen und Zustel
 
 Ereignisse enthalten Nummern, Status und Meldungscodes, aber keine Endkundendaten. Sie werden nach `OPENSPRI_EVENTS_RETENTION` (Standard `90d`) gelöscht.
 
-**Idempotenz:** Wer `POST /api/v1/orders…` mit dem Header `Idempotency-Key` aufruft, kann die Anfrage nach einem Netzfehler gefahrlos wiederholen: Eine Wiederholung mit demselben Schlüssel bekommt die gespeicherte Antwort, ohne dass etwas erneut gesendet wird. Die Schlüssel werden 24 h aufbewahrt.
+**Idempotenz:** Wer `POST /api/v1/orders…`, `/terminations` oder `/pv-requests/{id}/reply` mit dem Header `Idempotency-Key` aufruft, kann die Anfrage nach einem Netzfehler gefahrlos wiederholen: Eine Wiederholung mit demselben Schlüssel bekommt die gespeicherte Antwort, ohne dass etwas erneut gesendet wird. Die Schlüssel werden 24 h aufbewahrt.
 
 ## Benachrichtigungen per E-Mail
 

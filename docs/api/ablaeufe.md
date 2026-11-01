@@ -5,8 +5,9 @@ Die Beispiele zeigen typische Abläufe nur mit der REST-API. Genauso arbeitet di
 ## 1. NEU-Auftrag als Auftraggeber bis zur ENTM
 
 ```bash
-# 1. Auftrag senden (Inhalt wie in auftraege.md); merkt sich die id
-ORDER=$(curl -s -X POST $SPRI/api/v1/orders -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+# 1. Auftrag in einem Schritt anlegen und senden (Inhalt wie in auftraege.md); merkt sich die id
+#    Ohne ?send=true entsteht ein Entwurf, der mit POST /orders/{id}/send gesendet wird.
+ORDER=$(curl -s -X POST "$SPRI/api/v1/orders?send=true" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -H "Idempotency-Key: crm-4711-neu" -d @neu-auftrag.json | jq .order.id)
 
 # 2. Zustellung prüfen: DELIVERED mit teqCode OK = der Partner hat technisch quittiert

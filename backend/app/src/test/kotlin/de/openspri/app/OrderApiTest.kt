@@ -12,7 +12,17 @@ import de.openspri.domain.order.OrderLifecycle
 import de.openspri.domain.order.OrderRole
 import de.openspri.domain.partner.Partner
 import de.openspri.domain.partner.PartnerId
+import de.openspri.domain.exchange.ArchivedExchange
+import de.openspri.domain.exchange.Direction
+import de.openspri.domain.exchange.InboundMessage
+import de.openspri.domain.exchange.SoapOperation
+import de.openspri.domain.message.MessageType
+import de.openspri.domain.order.OrderEvent
+import de.openspri.domain.order.OrderHistoryEntry
+import de.openspri.domain.order.Transition
+import de.openspri.soap.InMemoryInboundStore
 import de.openspri.soap.InMemoryPartnerDirectory
+import de.openspri.soap.SoapEnvelope
 import de.openspri.soap.SecureXml
 import de.openspri.soap.SpriJaxb
 import de.openspri.soap.SpriJson
@@ -44,6 +54,7 @@ class OrderApiTest(
     @Autowired private val partners: InMemoryPartnerDirectory,
     @Autowired private val orders: InMemoryOrderRepository,
     @Autowired private val outbox: InMemoryOutbox,
+    @Autowired private val inbound: InMemoryInboundStore,
 ) {
     @LocalServerPort
     private var port = 0
@@ -78,7 +89,7 @@ class OrderApiTest(
 
     @Test
     fun `order, storno and the delivery monitor`() {
-        val created = call("POST", "/api/v1/orders", """{"partnerId":77,"auftrag":${auftrag("API-0001")}}""", operatorAg)
+        val created = call("POST", "/api/v1/orders?send=true", """{"partnerId":77,"auftrag":${auftrag("API-0001")}}""", operatorAg)
         assertEquals(202, created.statusCode(), created.body())
         assertContains(created.body(), "\"phase\":\"SUBMITTED\"")
         assertContains(created.body(), "\"request\":\"STORNO\"")
@@ -116,7 +127,7 @@ class OrderApiTest(
 
     @Test
     fun `terminverschiebung carries terminNeu`() {
-        val created = call("POST", "/api/v1/orders", """{"partnerId":77,"auftrag":${auftrag("API-0004")}}""")
+        val created = call("POST", "/api/v1/orders?send=true", """{"partnerId":77,"auftrag":${auftrag("API-0004")}}""")
         val orderId = id(created.body())
         // the partner acknowledged the order (QEB): a Terminverschiebung is possible now (5.1.4)
         val order = orders.get(de.openspri.domain.order.OrderId(orderId))!!
@@ -130,16 +141,16 @@ class OrderApiTest(
 
     @Test
     fun `invalid order content is 400 with the JSON path, a duplicate number is 409`() {
-        val invalid = call("POST", "/api/v1/orders", """{"partnerId":77,"auftrag":{"externeAuftragsnr":"X"}}""")
+        val invalid = call("POST", "/api/v1/orders?send=true", """{"partnerId":77,"auftrag":{"externeAuftragsnr":"X"}}""")
         assertEquals(400, invalid.statusCode())
         assertContains(invalid.body(), "externeAuftragsnummer")
 
-        assertEquals(202, call("POST", "/api/v1/orders", """{"partnerId":77,"auftrag":${auftrag("API-0002")}}""").statusCode())
-        val duplicate = call("POST", "/api/v1/orders", """{"partnerId":77,"auftrag":${auftrag("API-0002")}}""")
+        assertEquals(202, call("POST", "/api/v1/orders?send=true", """{"partnerId":77,"auftrag":${auftrag("API-0002")}}""").statusCode())
+        val duplicate = call("POST", "/api/v1/orders?send=true", """{"partnerId":77,"auftrag":${auftrag("API-0002")}}""")
         assertEquals(409, duplicate.statusCode())
         assertContains(duplicate.body(), "bereits vergeben")
 
-        assertEquals(404, call("POST", "/api/v1/orders", """{"partnerId":999,"auftrag":${auftrag("API-0003")}}""").statusCode())
+        assertEquals(404, call("POST", "/api/v1/orders?send=true", """{"partnerId":999,"auftrag":${auftrag("API-0003")}}""").statusCode())
     }
 
     @Test
@@ -166,6 +177,90 @@ class OrderApiTest(
         val wrongTurn = call("POST", path, """{"type":"ERLM","codes":[{"code":"0000"}]}""")
         assertEquals(409, wrongTurn.statusCode())
         assertContains(wrongTurn.body(), "\"messageType\":\"ABM\"")
+    }
+
+    @Test
+    fun `draft, change, send and delete (AUFGABE 5_6)`() {
+        val created = call("POST", "/api/v1/orders", """{"partnerId":77,"auftrag":${auftrag("DRAFT-0001")}}""", operatorAg)
+        assertEquals(201, created.statusCode(), created.body())
+        assertContains(created.body(), "\"phase\":\"DRAFT\"")
+        assertContains(created.body(), "\"kind\":\"SEND\"")
+        val orderId = id(created.body())
+        assertTrue(outbox.entries.none { it.orderId?.value == orderId })
+        assertEquals(409, call("POST", "/api/v1/orders/$orderId/cancel", null, operatorAg).statusCode())
+
+        val content = call("GET", "/api/v1/orders/$orderId/draft")
+        assertEquals(200, content.statusCode())
+        assertContains(content.body(), "DRAFT-0001")
+        val changed = call("PUT", "/api/v1/orders/$orderId", """{"partnerId":77,"auftrag":${auftrag("DRAFT-0002")}}""", operatorAg)
+        assertEquals(200, changed.statusCode(), changed.body())
+        assertContains(changed.body(), "\"externalOrderNumber\":\"DRAFT-0002\"")
+        assertEquals(400, call("PUT", "/api/v1/orders/$orderId", """{"partnerId":77,"auftrag":{"x":1}}""").statusCode())
+
+        val sent = call("POST", "/api/v1/orders/$orderId/send", null, operatorAg)
+        assertEquals(202, sent.statusCode(), sent.body())
+        assertContains(sent.body(), "\"phase\":\"SUBMITTED\"")
+        assertContains(String(outbox.entries.last { it.orderId?.value == orderId }.payload), "<externeAuftragsnummer>DRAFT-0002</externeAuftragsnummer>")
+        assertEquals(409, call("POST", "/api/v1/orders/$orderId/send", null, operatorAg).statusCode())
+        assertEquals(409, call("DELETE", "/api/v1/orders/$orderId", null, operatorAg).statusCode())
+        assertEquals(404, call("GET", "/api/v1/orders/$orderId/draft").statusCode())
+
+        val other = id(call("POST", "/api/v1/orders", """{"partnerId":77,"auftrag":${auftrag("DRAFT-0003")}}""").body())
+        assertEquals(204, call("DELETE", "/api/v1/orders/$other", null, operatorAg).statusCode())
+        assertEquals(404, call("GET", "/api/v1/orders/$other").statusCode())
+    }
+
+    @Test
+    fun `as Leistungserbringer we terminate with KDLE (KUE-LE)`() {
+        val body = """{"partnerId":77,"externalOrderNumber":"KDLE-0001","contractNumber":"V4711","clientNumber":"AG4711",
+            "shutdownDate":"${LocalDate.now().plusDays(30)}","reason":"Testgrund","codes":[{"code":"8006"}]}"""
+        assertEquals(403, call("POST", "/api/v1/terminations", body, operatorAg).statusCode())
+        val terminated = call("POST", "/api/v1/terminations", body)
+        assertEquals(202, terminated.statusCode(), terminated.body())
+        assertContains(terminated.body(), "\"businessCase\":\"KUE-LE\"")
+        assertContains(terminated.body(), "\"role\":\"LEISTUNGSERBRINGER\"")
+        assertContains(terminated.body(), "\"messageType\":\"ERLM\"")
+        val payload = String(outbox.entries.last().payload)
+        assertContains(payload, "MeldungstypKDLEType")
+        assertContains(payload, "<abschaltungsgrund>Testgrund</abschaltungsgrund>")
+        assertEquals(409, call("POST", "/api/v1/terminations", body).statusCode())
+        assertEquals(409, call("POST", "/api/v1/terminations", body.replace("KDLE-0001", "KDLE-0002").replace("8006", "0000")).statusCode())
+    }
+
+    @Test
+    fun `as abgebender EKP we see the AKM-PV with its deadline and answer with RUEM-PV`() {
+        val akm = SecureXml.parse(TestData.sample("akm-pv-meldung.xml")).documentElement
+        val raw = SecureXml.serialize(SoapEnvelope.wrap(akm))
+        val now = Instant.now()
+        val archiveId = inbound.storeAccepted(
+            ArchivedExchange(Direction.INBOUND, SoapOperation.ANNEHMEN_MELDUNG, PartnerId(77), "192.0.2.1", now, 5, raw, null, null, null, null, null, "PV-AUF-0001"),
+            InboundMessage(PartnerId(77), SoapOperation.ANNEHMEN_MELDUNG, "PV-AUF-0001", SecureXml.serialize(akm)),
+        )
+        val announced = (OrderLifecycle.apply(OrderLifecycle.handoverAnnounced(), OrderEvent.Message(MessageType.AKM_PV)) as Transition.Accepted).state
+        val order = orders.save(Order(null, PartnerId(77), OrderRole.ABGEBENDER_EKP, OrderData("PV-AUF-0001", BusinessCase.PV, contractNumber = "V0815"), announced, now, now))
+        orders.append(OrderHistoryEntry(order.id, PartnerId(77), archiveId, OrderHistoryEntry.Kind.MESSAGE, MessageType.AKM_PV, at = now, direction = Direction.INBOUND))
+
+        val open = call("GET", "/api/v1/pv-requests", null, operatorAg)
+        assertEquals(200, open.statusCode(), open.body())
+        assertContains(open.body(), "\"replyDeadline\":\"2026-11-08\"")
+        assertContains(open.body(), "\"newProvider\":\"Beispiel Telekommunikation\"")
+        assertContains(open.body(), "\"lineId\":\"DEU.GFNORD.0000000001\"")
+
+        val path = "/api/v1/pv-requests/${order.id!!.value}/reply"
+        val reply = call("POST", path, """{"consent":true,"providerName":"Unser Netz","codes":[{"code":"0021"}]}""", operatorAg)
+        assertEquals(202, reply.statusCode(), reply.body())
+        assertContains(reply.body(), "\"handoverPhase\":\"REPLIED\"")
+        val payload = String(outbox.entries.last().payload)
+        assertContains(payload, "MeldungstypRUEM-PVType")
+        assertContains(payload, "<zustimmungProviderwechsel>J</zustimmungProviderwechsel>")
+        assertContains(payload, "<lineId>DEU.GFNORD.0000000001</lineId>")
+        assertContains(payload, "<auftraggebernummer>AG0042</auftraggebernummer>")
+
+        assertEquals(409, call("POST", path, """{"consent":true,"codes":[{"code":"0021"}]}""", operatorAg).statusCode())
+        assertTrue("PV-AUF-0001" !in call("GET", "/api/v1/pv-requests").body(), "answered requests are not open")
+        assertContains(call("GET", "/api/v1/pv-requests?open=false").body(), "\"replyDue\":false")
+        val ownOrder = id(call("POST", "/api/v1/orders", """{"partnerId":77,"auftrag":${auftrag("PV-0002")}}""").body())
+        assertEquals(404, call("POST", "/api/v1/pv-requests/$ownOrder/reply", """{"consent":true,"codes":[{"code":"0021"}]}""").statusCode())
     }
 
     @Test

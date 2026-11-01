@@ -15,17 +15,21 @@ import de.openspri.domain.query.OrderFilter
 import de.openspri.domain.query.OrderQueries
 import de.openspri.rest.auth.Requires
 import de.openspri.rest.auth.currentActor
+import de.openspri.soap.NotFoundException
 import de.openspri.soap.OrderCommands
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -80,17 +84,66 @@ class OrderController(
     }
 
     @PostMapping(consumes = [MediaType.APPLICATION_JSON_VALUE])
+    @PreAuthorize(Requires.ORDERS_WRITE)
+    @Operation(
+        summary = "Auftrag anlegen (Entwurf) oder sofort senden",
+        description = "Prüft gegen XSD und Anlage 1. Ohne `send` entsteht ein Entwurf (201, Phase DRAFT), der mit " +
+            "POST /orders/{id}/send gesendet wird. Mit `send=true` prüft open-spri zusätzlich die Auftragsregeln und legt den " +
+            "Auftrag sofort in den Postausgang (202). Die Zustellung läuft asynchron (GET /deliveries?orderId=…). " +
+            "400: Inhalt ungültig, 409: fachlich nicht zulässig.",
+    )
+    fun create(
+        @RequestBody body: CreateOrderRequest,
+        @Parameter(description = "true: sofort senden statt Entwurf") @RequestParam(defaultValue = "false") send: Boolean,
+    ): ResponseEntity<OrderDetailDto> {
+        if (!send) {
+            val draft = commands.saveDraft(PartnerId(body.partnerId), body.auftrag)
+            audit.record(currentActor(), "order.draft", "order:${draft.id!!.value}", "partner=${body.partnerId} number=${draft.data.externalOrderNumber}")
+            return ResponseEntity.status(HttpStatus.CREATED).body(detail(draft.id!!))
+        }
+        val order = commands.submitOrder(PartnerId(body.partnerId), body.auftrag)
+        audit.record(currentActor(), "order.submit", "order:${order.id!!.value}", "partner=${body.partnerId} number=${order.data.externalOrderNumber}")
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(detail(order.id!!))
+    }
+
+    @GetMapping("/{id}/draft")
+    @PreAuthorize(Requires.ORDERS_READ)
+    @Operation(summary = "Inhalt eines Entwurfs", description = "Das `auftrag`-JSON wie gespeichert. 404, wenn der Auftrag kein Entwurf ist.")
+    fun draft(@PathVariable id: Long): CreateOrderRequest {
+        val order = commands.order(OrderId(id))
+        val content = commands.draft(OrderId(id)) ?: throw NotFoundException("Auftrag $id ist kein Entwurf")
+        return CreateOrderRequest(order.partnerId.value, content)
+    }
+
+    @PutMapping("/{id}", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    @PreAuthorize(Requires.ORDERS_WRITE)
+    @Operation(summary = "Entwurf ändern", description = "Ersetzt den Inhalt. 409, wenn der Auftrag schon gesendet ist.")
+    fun updateDraft(@PathVariable id: Long, @RequestBody body: CreateOrderRequest): OrderDetailDto {
+        commands.saveDraft(PartnerId(body.partnerId), body.auftrag, existing = OrderId(id))
+        audit.record(currentActor(), "order.draft", "order:$id", "update")
+        return detail(OrderId(id))
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize(Requires.ORDERS_WRITE)
+    @Operation(summary = "Entwurf löschen", description = "Nur Entwürfe; ein gesendeter Auftrag endet mit Storno oder durch den Partner (409).")
+    fun deleteDraft(@PathVariable id: Long) {
+        commands.deleteDraft(OrderId(id))
+        audit.record(currentActor(), "order.draft.delete", "order:$id", null)
+    }
+
+    @PostMapping("/{id}/send")
     @ResponseStatus(HttpStatus.ACCEPTED)
     @PreAuthorize(Requires.ORDERS_WRITE)
     @Operation(
-        summary = "Auftrag an einen Partner senden",
-        description = "Prüft gegen XSD, Anlage 1 und die Auftragsregeln und legt den Auftrag in den Postausgang. " +
-            "Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.",
+        summary = "Entwurf senden",
+        description = "Baut den Auftrag mit aktuellem Kopf neu, prüft XSD, Anlage 1 und Auftragsregeln und legt ihn in den Postausgang.",
     )
-    fun create(@RequestBody body: CreateOrderRequest): OrderDetailDto {
-        val order = commands.submitOrder(PartnerId(body.partnerId), body.auftrag)
-        audit.record(currentActor(), "order.submit", "order:${order.id!!.value}", "partner=${body.partnerId} number=${order.data.externalOrderNumber}")
-        return detail(order.id!!)
+    fun send(@PathVariable id: Long): OrderDetailDto {
+        val order = commands.sendDraft(OrderId(id))
+        audit.record(currentActor(), "order.submit", "order:$id", "partner=${order.partnerId.value} number=${order.data.externalOrderNumber}")
+        return detail(OrderId(id))
     }
 
     @PostMapping("/{id}/cancel")
@@ -147,10 +200,7 @@ class OrderController(
         return detail(OrderId(id))
     }
 
-    private fun detail(id: OrderId): OrderDetailDto {
-        val order = commands.order(id)
-        return OrderDetailDto(OrderDto.of(order), service.allowedActions(order).map(ActionDto::of))
-    }
+    private fun detail(id: OrderId) = OrderDetailDto.of(commands.order(id), service)
 }
 
 internal inline fun <reified E : Enum<E>> enumValue(value: String, field: String): E =

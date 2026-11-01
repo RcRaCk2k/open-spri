@@ -4,6 +4,7 @@ import de.openspri.domain.BusinessCase
 import de.openspri.domain.delivery.DeliveryStatus
 import de.openspri.domain.delivery.OutboxEntry
 import de.openspri.domain.exchange.ArchivedExchange
+import de.openspri.domain.order.HandoverPhase
 import de.openspri.domain.order.Order
 import de.openspri.domain.order.OrderHistoryEntry
 import de.openspri.domain.order.OrderId
@@ -18,6 +19,8 @@ data class OrderFilter(
     val partnerId: PartnerId? = null,
     val businessCase: BusinessCase? = null,
     val phase: Phase? = null,
+    /** provider change, view of the abgebender EKP: e.g. ANNOUNCED = RUEM-PV outstanding */
+    val handover: HandoverPhase? = null,
     /** external order number, LineID or contract number (prefix search) */
     val text: String? = null,
     /** only open (unfinished) orders */

@@ -32,11 +32,11 @@
     "description" : "Ersteinrichtung einer neuen Installation (geschützt durch das Setup-Token aus dem Log)",
     "name" : "Setup"
   }, {
-    "description" : "Event-Feed per Polling und Webhooks (D-14)",
-    "name" : "Ereignisse"
-  }, {
     "description" : "Aufträge in allen Rollen, Änderungen und Meldungen (AUFGABE 5.5/5.6)",
     "name" : "Aufträge"
+  }, {
+    "description" : "Event-Feed per Polling und Webhooks (D-14)",
+    "name" : "Ereignisse"
   }, {
     "description" : "Postausgang und Eingang überwachen und eingreifen (AUFGABE 5.7, 11.2.3.2)",
     "name" : "Zustellung"
@@ -743,8 +743,18 @@
         "tags" : [ "Aufträge" ]
       },
       "post" : {
-        "description" : "Prüft gegen XSD, Anlage 1 und die Auftragsregeln und legt den Auftrag in den Postausgang. Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.",
+        "description" : "Prüft gegen XSD und Anlage 1. Ohne `send` entsteht ein Entwurf (201, Phase DRAFT), der mit POST /orders/{id}/send gesendet wird. Mit `send=true` prüft open-spri zusätzlich die Auftragsregeln und legt den Auftrag sofort in den Postausgang (202). Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.",
         "operationId" : "create_4",
+        "parameters" : [ {
+          "description" : "true: sofort senden statt Entwurf",
+          "in" : "query",
+          "name" : "send",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -756,7 +766,7 @@
           "required" : true
         },
         "responses" : {
-          "202" : {
+          "200" : {
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -764,16 +774,36 @@
                 }
               }
             },
-            "description" : "Accepted"
+            "description" : "OK"
           }
         },
-        "summary" : "Auftrag an einen Partner senden",
+        "summary" : "Auftrag anlegen (Entwurf) oder sofort senden",
         "tags" : [ "Aufträge" ]
       }
     },
     "/api/v1/orders/{id}" : {
+      "delete" : {
+        "description" : "Nur Entwürfe; ein gesendeter Auftrag endet mit Storno oder durch den Partner (409).",
+        "operationId" : "deleteDraft",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Entwurf löschen",
+        "tags" : [ "Aufträge" ]
+      },
       "get" : {
-        "operationId" : "get_3",
+        "operationId" : "get_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -796,6 +826,43 @@
           }
         },
         "summary" : "Auftrag mit zulässigen Aktionen lesen",
+        "tags" : [ "Aufträge" ]
+      },
+      "put" : {
+        "description" : "Ersetzt den Inhalt. 409, wenn der Auftrag schon gesendet ist.",
+        "operationId" : "updateDraft",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Entwurf ändern",
         "tags" : [ "Aufträge" ]
       }
     },
@@ -896,6 +963,35 @@
           }
         },
         "summary" : "Reklamation einer Entstörung senden",
+        "tags" : [ "Aufträge" ]
+      }
+    },
+    "/api/v1/orders/{id}/draft" : {
+      "get" : {
+        "description" : "Das `auftrag`-JSON wie gespeichert. 404, wenn der Auftrag kein Entwurf ist.",
+        "operationId" : "draft",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreateOrderRequest"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Inhalt eines Entwurfs",
         "tags" : [ "Aufträge" ]
       }
     },
@@ -1009,6 +1105,35 @@
         "tags" : [ "Aufträge" ]
       }
     },
+    "/api/v1/orders/{id}/send" : {
+      "post" : {
+        "description" : "Baut den Auftrag mit aktuellem Kopf neu, prüft XSD, Anlage 1 und Auftragsregeln und legt ihn in den Postausgang.",
+        "operationId" : "send",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Entwurf senden",
+        "tags" : [ "Aufträge" ]
+      }
+    },
     "/api/v1/partners" : {
       "get" : {
         "operationId" : "list_3",
@@ -1100,7 +1225,7 @@
     },
     "/api/v1/partners/{id}" : {
       "get" : {
-        "operationId" : "get_2",
+        "operationId" : "get_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -1273,6 +1398,104 @@
         "tags" : [ "Partner" ]
       }
     },
+    "/api/v1/pv-requests" : {
+      "get" : {
+        "description" : "Neueste zuerst. `open=true` (Standard): nur Anfragen, deren RUEM-PV noch aussteht. Blättern mit `cursor`.",
+        "operationId" : "pvRequests",
+        "parameters" : [ {
+          "description" : "nur Anfragen ohne RUEM-PV",
+          "in" : "query",
+          "name" : "open",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : true
+          }
+        }, {
+          "in" : "query",
+          "name" : "partnerId",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "description" : "Cursor: kleinste `order.id` der vorigen Seite",
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PvRequestDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Providerwechsel-Anfragen (AKM-PV als abgebender EKP)",
+        "tags" : [ "Aufträge" ]
+      }
+    },
+    "/api/v1/pv-requests/{id}/reply" : {
+      "post" : {
+        "description" : "Zustimmung oder Ablehnung. Die übrigen Pflichtfelder der RUEM-PV kommen aus der AKM-PV. 409, wenn die RUEM-PV schon gesendet ist (`allowedActions`).",
+        "operationId" : "reply",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PvReplyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Providerwechsel-Anfrage beantworten (RUEM-PV)",
+        "tags" : [ "Aufträge" ]
+      }
+    },
     "/api/v1/settings" : {
       "get" : {
         "operationId" : "get_1",
@@ -1422,6 +1645,36 @@
         },
         "summary" : "Ersteinrichtung abschließen",
         "tags" : [ "Setup" ]
+      }
+    },
+    "/api/v1/terminations" : {
+      "post" : {
+        "description" : "Legt den Auftrag KUE-LE an (Rolle LEISTUNGSERBRINGER) und sendet die KDLE. ERLM und ENTM folgen über POST /orders/{id}/messages. 409 bei vergebener Nummer oder unzulässigem Meldungscode.",
+        "operationId" : "terminate",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TerminationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Kündigung durch den Leistungserbringer (KDLE)",
+        "tags" : [ "Aufträge" ]
       }
     },
     "/api/v1/tokens" : {
@@ -1764,7 +2017,7 @@
           },
           "kind" : {
             "type" : "string",
-            "description" : "MESSAGE (POST /orders/{id}/messages) oder REQUEST (STORNO: /cancel, TERMINVERSCHIEBUNG: /reschedule, REKLAMATION: /complaint)"
+            "description" : "MESSAGE (POST /orders/{id}/messages), REQUEST (STORNO: /cancel, TERMINVERSCHIEBUNG: /reschedule, REKLAMATION: /complaint) oder SEND (Entwurf senden: /send)"
           },
           "messageType" : {
             "type" : [ "string", "null" ],
@@ -2649,7 +2902,7 @@
           },
           "phase" : {
             "type" : "string",
-            "description" : "Phase des Zustandsautomaten",
+            "description" : "Phase des Zustandsautomaten; DRAFT = Entwurf, noch nicht gesendet",
             "example" : "CONFIRMED"
           },
           "products" : {
@@ -2716,6 +2969,72 @@
           }
         },
         "required" : [ "allowedSourceNetworks", "carrierCode", "certificates", "enabled", "id", "name" ]
+      },
+      "PvReplyRequest" : {
+        "type" : "object",
+        "description" : "RUEM-PV: Antwort auf eine AKM-PV. Vertrags- und Auftragsnummern, VorabstimmungsID und `anschluss` übernimmt open-spri aus der AKM-PV.",
+        "properties" : {
+          "answerCode" : {
+            "type" : [ "string", "null" ],
+            "description" : "antwortcode, z. B. bei Ablehnung"
+          },
+          "answerText" : {
+            "type" : [ "string", "null" ],
+            "description" : "antworttext"
+          },
+          "codes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CodeDto"
+            }
+          },
+          "consent" : {
+            "type" : "boolean",
+            "description" : "zustimmungProviderwechsel: true = J, false = N"
+          },
+          "providerName" : {
+            "type" : [ "string", "null" ],
+            "description" : "providername (unser Name)"
+          }
+        },
+        "required" : [ "codes", "consent" ]
+      },
+      "PvRequestDto" : {
+        "type" : "object",
+        "description" : "Providerwechsel-Anfrage: eine AKM-PV, die wir als abgebender EKP erhalten haben",
+        "properties" : {
+          "announcementArchiveId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "Id der AKM-PV im Nachrichtenarchiv (GET /messages/{id}, Scope nötig)"
+          },
+          "lineId" : {
+            "type" : [ "string", "null" ],
+            "description" : "bisherige LineID (anschluss)"
+          },
+          "newProvider" : {
+            "type" : [ "string", "null" ],
+            "description" : "aufnehmender Provider (providername der AKM-PV)"
+          },
+          "order" : {
+            "$ref" : "#/components/schemas/OrderDto"
+          },
+          "plannedTransferDate" : {
+            "type" : [ "string", "null" ],
+            "format" : "date",
+            "description" : "uebernahmedatumGeplant"
+          },
+          "replyDeadline" : {
+            "type" : [ "string", "null" ],
+            "format" : "date",
+            "description" : "antwortfrist: bis dahin muss die RUEM-PV gesendet sein"
+          },
+          "replyDue" : {
+            "type" : "boolean",
+            "description" : "die RUEM-PV steht noch aus"
+          }
+        },
+        "required" : [ "order", "replyDue" ]
       },
       "RescheduleRequest" : {
         "type" : "object",
@@ -2846,6 +3165,58 @@
           }
         },
         "required" : [ "certificatePem", "issuer", "keyBits", "notAfter", "serialNumber", "source", "subject" ]
+      },
+      "TerminationRequest" : {
+        "type" : "object",
+        "description" : "Kündigung durch den Leistungserbringer (KUE-LE): Inhalt der KDLE (MeldungsattributeKDLEType)",
+        "properties" : {
+          "attributes" : {
+            "description" : "weitere `meldungsattribute` von MeldungsattributeKDLEType",
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/JsonNode"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "clientNumber" : {
+            "type" : "string",
+            "description" : "Auftraggebernummer"
+          },
+          "codes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CodeDto"
+            }
+          },
+          "contractNumber" : {
+            "type" : "string",
+            "description" : "Vertragsnummer des Einzelvertrags"
+          },
+          "externalOrderNumber" : {
+            "type" : "string",
+            "description" : "von uns vergebene Nummer dieses Vorgangs",
+            "example" : "KDLE-2026-0001"
+          },
+          "lineId" : {
+            "type" : [ "string", "null" ],
+            "description" : "LineID der Leitung; nicht Teil der KDLE, ordnet den Postausgang und hilft bei der Suche"
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "der Auftraggeber, dem wir kündigen"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ],
+            "description" : "abschaltungsgrund, z. B. Zahlungsverzug"
+          },
+          "shutdownDate" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "abschaltungstermin"
+          }
+        },
+        "required" : [ "clientNumber", "codes", "contractNumber", "externalOrderNumber", "partnerId", "shutdownDate" ]
       },
       "TokenResponse" : {
         "type" : "object",

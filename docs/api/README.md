@@ -13,7 +13,7 @@ Die REST-API ist die **einzige** Programmierschnittstelle von open-spri. Die Web
 | [setup.md](setup.md) | Ersteinrichtung mit dem Setup-Token |
 | [auth.md](auth.md) | Anmeldung, Tokens, Benutzer, Rollen und Scopes |
 | [partner.md](partner.md) | Partner, Zertifikate, IP-Freigaben, WSDL, Onboarding-Blatt |
-| [auftraege.md](auftraege.md) | Aufträge in allen Rollen, Storno, Terminverschiebung, Reklamation, Meldungen |
+| [auftraege.md](auftraege.md) | Aufträge in allen Rollen, Entwürfe, Storno, Terminverschiebung, Reklamation, Meldungen, Kündigung durch den Leistungserbringer, Providerwechsel-Anfragen |
 | [zustellung.md](zustellung.md) | Postausgang, Eingang, Nachrichtenarchiv |
 | [ereignisse.md](ereignisse.md) | Event-Feed, Webhooks mit HMAC-Signatur, Idempotenz |
 | [meldungscodes.md](meldungscodes.md) | Meldungscodetabelle anzeigen und importieren |
@@ -34,7 +34,7 @@ export TOKEN=spri_Ab3dE7fG_…   # aus POST /api/v1/tokens, siehe auth.md
 | Fehler | RFC 9457 „Problem Details“ (`application/problem+json`), siehe unten |
 | Anmeldung | `Authorization: Bearer spri_…` (Long-Life-Token) oder Session der Web-Oberfläche mit CSRF-Schutz |
 | Berechtigung | Scopes je Endpunkt (z. B. `orders:write`), siehe [auth.md](auth.md#rollen-und-scopes). Fehlt ein Scope: 403. |
-| Idempotenz | Header `Idempotency-Key` bei allen POSTs, die eine S/PRI-Nachricht auslösen (`/orders…`); empfohlen für jedes Fremdsystem ([ereignisse.md](ereignisse.md#idempotenz)) |
+| Idempotenz | Header `Idempotency-Key` bei allen POSTs, die eine S/PRI-Nachricht auslösen (`/orders…`, `/terminations`, `/pv-requests/{id}/reply`); empfohlen für jedes Fremdsystem ([ereignisse.md](ereignisse.md#idempotenz)) |
 | Paginierung | Listen sind nach `id` absteigend sortiert. Nächste Seite mit `?cursor=<kleinste id der Seite>&limit=…`. Der Event-Feed läuft aufsteigend mit `?after=<größte id>`. |
 | Asynchron | Senden heißt: geprüft und in den Postausgang gelegt (202 Accepted). Ob der Partner quittiert hat, zeigen `GET /deliveries?orderId=…` und das Ereignis `delivery.updated`. |
 | Versionierung | Pfad `/api/v1`. Inkompatible Änderungen nur mit `/api/v2`. |

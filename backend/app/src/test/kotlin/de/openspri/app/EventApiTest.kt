@@ -86,7 +86,7 @@ class EventApiTest(
             val secret = Regex("\"secret\":\"(whsec_[^\"]+)\"").find(created.body())!!.groupValues[1]
             assertEquals(false, call("GET", "/api/v1/webhooks").body().contains(secret), "the secret is shown only once")
 
-            assertEquals(202, call("POST", "/api/v1/orders", order("EVT-0001")).statusCode())
+            assertEquals(202, call("POST", "/api/v1/orders?send=true", order("EVT-0001")).statusCode())
             val feed = call("GET", "/api/v1/events?after=0&types=order.submitted")
             assertContains(feed.body(), "\"externalOrderNumber\":\"EVT-0001\"")
 
@@ -107,21 +107,21 @@ class EventApiTest(
     @Test
     fun `a repeated request with the same Idempotency-Key is answered from the store`() {
         val key = mapOf("Idempotency-Key" to "order-IDEM-0001")
-        val first = call("POST", "/api/v1/orders", order("IDEM-0001"), key)
+        val first = call("POST", "/api/v1/orders?send=true", order("IDEM-0001"), key)
         assertEquals(202, first.statusCode(), first.body())
         val count = outbox.entries.size
 
-        val again = call("POST", "/api/v1/orders", order("IDEM-0001"), key)
+        val again = call("POST", "/api/v1/orders?send=true", order("IDEM-0001"), key)
         assertEquals(202, again.statusCode())
         assertEquals("true", again.headers().firstValue("Idempotent-Replayed").orElse(null))
         assertEquals(first.body(), again.body())
         assertEquals(count, outbox.entries.size, "nothing was sent twice")
 
-        assertEquals(422, call("POST", "/api/v1/orders", order("IDEM-0002"), key).statusCode())
+        assertEquals(422, call("POST", "/api/v1/orders?send=true", order("IDEM-0002"), key).statusCode())
 
         // after an error the key can be used again
         val failing = mapOf("Idempotency-Key" to "order-IDEM-0003")
-        assertEquals(404, call("POST", "/api/v1/orders", order("IDEM-0003").replace("\"partnerId\":78", "\"partnerId\":999"), failing).statusCode())
-        assertEquals(202, call("POST", "/api/v1/orders", order("IDEM-0003"), failing).statusCode())
+        assertEquals(404, call("POST", "/api/v1/orders?send=true", order("IDEM-0003").replace("\"partnerId\":78", "\"partnerId\":999"), failing).statusCode())
+        assertEquals(202, call("POST", "/api/v1/orders?send=true", order("IDEM-0003"), failing).statusCode())
     }
 }

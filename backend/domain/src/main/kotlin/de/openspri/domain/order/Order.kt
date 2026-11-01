@@ -100,4 +100,17 @@ interface OrderRepository {
     fun save(order: Order): Order
 
     fun append(entry: OrderHistoryEntry)
+
+    /** Removes an order that was never sent (draft): no history, no outbox entry. */
+    fun deleteDraft(id: OrderId): Boolean
+}
+
+/**
+ * Content of a draft as entered (REST: the `auftrag` JSON), opaque to the domain. The S/PRI payload is built
+ * from it when the draft is sent, with a fresh control header.
+ */
+interface OrderDrafts {
+    fun put(orderId: OrderId, content: ByteArray)
+    fun get(orderId: OrderId): ByteArray?
+    fun remove(orderId: OrderId)
 }

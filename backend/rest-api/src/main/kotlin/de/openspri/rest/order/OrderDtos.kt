@@ -3,6 +3,7 @@ package de.openspri.rest.order
 import de.openspri.domain.order.Order
 import de.openspri.domain.order.OrderEvent
 import de.openspri.domain.order.OrderHistoryEntry
+import de.openspri.domain.order.OutboundOrderService
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED
 import tools.jackson.databind.JsonNode
@@ -17,7 +18,7 @@ data class OrderDto(
     @field:Schema(description = "Unsere Rolle: AUFTRAGGEBER, LEISTUNGSERBRINGER oder ABGEBENDER_EKP", requiredMode = REQUIRED) val role: String,
     @field:Schema(example = "AG-2026-000123", requiredMode = REQUIRED) val externalOrderNumber: String,
     @field:Schema(description = "Geschäftsfall wie in der Spezifikation", example = "NEU", requiredMode = REQUIRED) val businessCase: String,
-    @field:Schema(description = "Phase des Zustandsautomaten", example = "CONFIRMED", requiredMode = REQUIRED) val phase: String,
+    @field:Schema(description = "Phase des Zustandsautomaten; DRAFT = Entwurf, noch nicht gesendet", example = "CONFIRMED", requiredMode = REQUIRED) val phase: String,
     @field:Schema(requiredMode = REQUIRED) val finished: Boolean,
     @field:Schema(description = "offene Änderungen: STORNO, TERMINVERSCHIEBUNG, REKLAMATION", requiredMode = REQUIRED) val openRequests: List<String>,
     @field:Schema(requiredMode = REQUIRED) val cancelled: Boolean,
@@ -59,7 +60,12 @@ data class OrderDto(
 
 @Schema(description = "Eine Aktion, die der Zustandsautomat jetzt zulässt")
 data class ActionDto(
-    @field:Schema(description = "MESSAGE (POST /orders/{id}/messages) oder REQUEST (STORNO: /cancel, TERMINVERSCHIEBUNG: /reschedule, REKLAMATION: /complaint)", requiredMode = REQUIRED) val kind: String,
+    @field:Schema(
+        description = "MESSAGE (POST /orders/{id}/messages), REQUEST (STORNO: /cancel, TERMINVERSCHIEBUNG: /reschedule, " +
+            "REKLAMATION: /complaint) oder SEND (Entwurf senden: /send)",
+        requiredMode = REQUIRED,
+    )
+    val kind: String,
     @field:Schema(description = "bei MESSAGE: Meldungstyp", example = "ABM") val messageType: String?,
     @field:Schema(description = "bei MESSAGE: Änderungskennzeichen des beantworteten Auftrags", example = "Standard") val changeIndicator: String?,
     @field:Schema(description = "bei REQUEST: STORNO, TERMINVERSCHIEBUNG oder REKLAMATION") val request: String?,
@@ -68,6 +74,7 @@ data class ActionDto(
         fun of(event: OrderEvent) = when (event) {
             is OrderEvent.Message -> ActionDto("MESSAGE", event.type.code, event.changeIndicator.code, null)
             is OrderEvent.Request -> ActionDto("REQUEST", null, null, event.kind.name)
+            OrderEvent.Send -> ActionDto("SEND", null, null, null)
         }
     }
 }
@@ -94,7 +101,11 @@ data class HistoryDto(
 data class OrderDetailDto(
     @field:Schema(requiredMode = REQUIRED) val order: OrderDto,
     @field:Schema(description = "was wir als Nächstes senden dürfen", requiredMode = REQUIRED) val allowedActions: List<ActionDto>,
-)
+) {
+    companion object {
+        fun of(order: Order, service: OutboundOrderService) = OrderDetailDto(OrderDto.of(order), service.allowedActions(order).map(ActionDto::of))
+    }
+}
 
 @Schema(description = "Neuer Auftrag an einen Partner (wir sind Auftraggeber)")
 data class CreateOrderRequest(
@@ -133,4 +144,37 @@ data class SendMessageRequest(
             "`{\"verbindlicherLiefertermin\": \"2026-12-01\"}` bei ABM",
     )
     val attributes: JsonNode? = null,
+)
+
+@Schema(description = "Kündigung durch den Leistungserbringer (KUE-LE): Inhalt der KDLE (MeldungsattributeKDLEType)")
+data class TerminationRequest(
+    @field:Schema(description = "der Auftraggeber, dem wir kündigen", requiredMode = REQUIRED) val partnerId: Long,
+    @field:Schema(description = "von uns vergebene Nummer dieses Vorgangs", example = "KDLE-2026-0001", requiredMode = REQUIRED) val externalOrderNumber: String,
+    @field:Schema(description = "Vertragsnummer des Einzelvertrags", requiredMode = REQUIRED) val contractNumber: String,
+    @field:Schema(description = "Auftraggebernummer", requiredMode = REQUIRED) val clientNumber: String,
+    @field:Schema(description = "abschaltungstermin", requiredMode = REQUIRED) val shutdownDate: LocalDate,
+    @field:Schema(description = "abschaltungsgrund, z. B. Zahlungsverzug") val reason: String? = null,
+    @field:Schema(description = "LineID der Leitung; nicht Teil der KDLE, ordnet den Postausgang und hilft bei der Suche") val lineId: String? = null,
+    @field:Schema(requiredMode = REQUIRED) val codes: List<CodeDto>,
+    @field:Schema(description = "weitere `meldungsattribute` von MeldungsattributeKDLEType") val attributes: JsonNode? = null,
+)
+
+@Schema(description = "Providerwechsel-Anfrage: eine AKM-PV, die wir als abgebender EKP erhalten haben")
+data class PvRequestDto(
+    @field:Schema(requiredMode = REQUIRED) val order: OrderDto,
+    @field:Schema(description = "die RUEM-PV steht noch aus", requiredMode = REQUIRED) val replyDue: Boolean,
+    @field:Schema(description = "Id der AKM-PV im Nachrichtenarchiv (GET /messages/{id}, Scope nötig)") val announcementArchiveId: Long?,
+    @field:Schema(description = "aufnehmender Provider (providername der AKM-PV)") val newProvider: String?,
+    @field:Schema(description = "uebernahmedatumGeplant") val plannedTransferDate: LocalDate?,
+    @field:Schema(description = "antwortfrist: bis dahin muss die RUEM-PV gesendet sein") val replyDeadline: LocalDate?,
+    @field:Schema(description = "bisherige LineID (anschluss)") val lineId: String?,
+)
+
+@Schema(description = "RUEM-PV: Antwort auf eine AKM-PV. Vertrags- und Auftragsnummern, VorabstimmungsID und `anschluss` übernimmt open-spri aus der AKM-PV.")
+data class PvReplyRequest(
+    @field:Schema(description = "zustimmungProviderwechsel: true = J, false = N", requiredMode = REQUIRED) val consent: Boolean,
+    @field:Schema(description = "providername (unser Name)") val providerName: String? = null,
+    @field:Schema(description = "antwortcode, z. B. bei Ablehnung") val answerCode: String? = null,
+    @field:Schema(description = "antworttext") val answerText: String? = null,
+    @field:Schema(requiredMode = REQUIRED) val codes: List<CodeDto>,
 )

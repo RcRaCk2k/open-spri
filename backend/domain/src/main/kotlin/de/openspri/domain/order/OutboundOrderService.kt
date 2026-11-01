@@ -40,22 +40,91 @@ class OutboundOrderService(
     private val transactions: Transactions,
     private val clock: Clock = Clock.systemDefaultZone(),
     private val events: EventLog = EventLog.NONE,
+    private val drafts: OrderDrafts? = null,
 ) {
 
     /** We order from a partner (we are Auftraggeber). [payload] is the annehmenAuftragRequest element. */
     fun submitOrder(partnerId: PartnerId, data: OrderData, payload: ByteArray): Order = transactions.run {
-        require(data.changeIndicator == ChangeIndicator.STANDARD) { "use requestChange for Storno and Terminverschiebung" }
-        if (orders.find(partnerId, OrderRole.AUFTRAGGEBER, data.externalOrderNumber) != null) {
-            throw OrderActionRejected(listOf("Die externe Auftragsnummer ${data.externalOrderNumber} ist bereits vergeben (11.4)"))
+        requireNewNumber(partnerId, data, except = null)
+        val now = clock.instant()
+        send(Order(null, partnerId, OrderRole.AUFTRAGGEBER, data, draftState(data), now, now), data, payload)
+    }
+
+    /**
+     * Saves our order as a draft (AUFGABE 5.6: Entwurf → Senden) or replaces the content of [existing].
+     * The external order number is reserved; content and order rules are checked again when it is sent.
+     */
+    fun saveDraft(partnerId: PartnerId, data: OrderData, content: ByteArray, existing: Order? = null): Order = transactions.run {
+        val store = requireNotNull(drafts) { "no draft store configured" }
+        if (existing != null && existing.state.phase != Phase.DRAFT) {
+            throw OrderActionRejected(listOf("Der Auftrag ist bereits gesendet und kein Entwurf mehr"), allowedActions(existing))
         }
+        requireNewNumber(partnerId, data, except = existing?.id)
+        val now = clock.instant()
+        val saved = orders.save(
+            existing?.copy(data = data, state = draftState(data), updatedAt = now)
+                ?: Order(null, partnerId, OrderRole.AUFTRAGGEBER, data, draftState(data), now, now),
+        )
+        store.put(requireNotNull(saved.id), content)
+        saved
+    }
+
+    fun draftContent(order: Order): ByteArray? = drafts?.get(requireNotNull(order.id))
+
+    /** Sends a draft: the same checks as [submitOrder], then DRAFT → SUBMITTED and into the outbox. */
+    fun sendDraft(order: Order, data: OrderData, payload: ByteArray): Order = transactions.run {
+        if (order.state.phase != Phase.DRAFT) throw OrderActionRejected(listOf("Nur ein Entwurf kann gesendet werden"), allowedActions(order))
+        if (data.externalOrderNumber != order.data.externalOrderNumber) {
+            throw OrderActionRejected(listOf("Die externe Auftragsnummer des Entwurfs hat sich geändert; Entwurf zuerst speichern"))
+        }
+        val sent = send(order.copy(data = data, state = draftState(data)), data, payload)
+        drafts?.remove(requireNotNull(order.id))
+        sent
+    }
+
+    /** Deletes a draft. A sent order cannot be deleted (it is ended by Storno or by the partner). */
+    fun deleteDraft(order: Order) = transactions.run {
+        if (order.state.phase != Phase.DRAFT) throw OrderActionRejected(listOf("Nur ein Entwurf kann gelöscht werden"), allowedActions(order))
+        drafts?.remove(requireNotNull(order.id))
+        orders.deleteDraft(requireNotNull(order.id))
+    }
+
+    /** [draft] may be unsaved (direct submit) or a stored draft. Checks first, so nothing is stored on rejection. */
+    private fun send(draft: Order, data: OrderData, payload: ByteArray): Order {
+        require(data.changeIndicator == ChangeIndicator.STANDARD) { "use requestChange for Storno and Terminverschiebung" }
         val findings = OrderRules.check(data, LocalDate.now(clock))
         if (findings.isNotEmpty()) throw OrderActionRejected(findings)
+        val transition = OrderLifecycle.apply(draft.state, OrderEvent.Send) as Transition.Accepted
         val now = clock.instant()
-        val state = OrderLifecycle.submitted(data.businessCase, connectivity = data.connectivity, bracketed = data.bracketId != null)
-        val order = orders.save(Order(null, partnerId, OrderRole.AUFTRAGGEBER, data, state, now, now, sequenceKey = keyFor(partnerId, data)))
+        val order = orders.save(draft.copy(state = transition.state, updatedAt = now, sequenceKey = keyFor(draft.partnerId, data)))
         enqueue(order, RequestType.ORDER, SoapOperation.ANNEHMEN_AUFTRAG, payload)
-        record(OrderHistoryEntry(order.id, partnerId, null, OrderHistoryEntry.Kind.ORDER, at = now, direction = OUTBOUND), order)
-        order
+        record(OrderHistoryEntry(order.id, order.partnerId, null, OrderHistoryEntry.Kind.ORDER, at = now, direction = OUTBOUND), order)
+        return order
+    }
+
+    private fun draftState(data: OrderData) =
+        OrderLifecycle.draft(data.businessCase, connectivity = data.connectivity, bracketed = data.bracketId != null)
+
+    private fun requireNewNumber(partnerId: PartnerId, data: OrderData, except: OrderId?) {
+        val existing = orders.find(partnerId, OrderRole.AUFTRAGGEBER, data.externalOrderNumber)
+        if (existing != null && existing.id != except) {
+            throw OrderActionRejected(listOf("Die externe Auftragsnummer ${data.externalOrderNumber} ist bereits vergeben (11.4)"))
+        }
+    }
+
+    /**
+     * Kündigung durch den Leistungserbringer (KUE-LE, Arbeitshandbuch: "eigenständige Meldung, KEIN Auftrag"):
+     * we create the order record ourselves and send the KDLE; ERLM and ENTM follow on the same record.
+     */
+    fun terminate(partnerId: PartnerId, data: OrderData, message: MessageInfo, payload: ByteArray): Order = transactions.run {
+        require(data.businessCase == BusinessCase.KUE_LE && message.type == MessageType.KDLE)
+        if (orders.find(partnerId, OrderRole.LEISTUNGSERBRINGER, data.externalOrderNumber) != null) {
+            throw OrderActionRejected(listOf("Die externe Auftragsnummer ${data.externalOrderNumber} ist bereits vergeben (11.4)"))
+        }
+        val now = clock.instant()
+        val draft = Order(null, partnerId, OrderRole.LEISTUNGSERBRINGER, data, OrderLifecycle.announcedByLeistungserbringer(), now, now)
+        precheckMessage(draft, message.type, message.changeIndicator, message.codes)
+        sendMessage(orders.save(draft), message, payload)
     }
 
     /** Storno, Terminverschiebung or Reklamation of our own order. [data] is the content of the change order. */
@@ -127,7 +196,7 @@ class OutboundOrderService(
      */
     fun allowedActions(order: Order): List<OrderEvent> = OrderLifecycle.allowedEvents(order.state).filter { event ->
         when (event) {
-            is OrderEvent.Request -> order.role == OrderRole.AUFTRAGGEBER
+            is OrderEvent.Request, OrderEvent.Send -> order.role == OrderRole.AUFTRAGGEBER
             is OrderEvent.Message -> event.type.sender == ourParty(order.role)
         }
     }

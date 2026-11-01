@@ -129,6 +129,24 @@ class OutboundPayloads(
         return built to requireNotNull(SpriPayloadMapper.message(built.element))
     }
 
+    /**
+     * `meldungsattribute` of a RUEM-PV: the identifying fields and `anschluss` of the AKM-PV ([announcement]:
+     * its `meldungsattribute` as JSON) and the answer `abgebenderProvider`.
+     */
+    fun providerChangeReply(announcement: JsonNode, reply: ProviderChangeReply): ObjectNode {
+        val source = announcement
+        val node = json.objectNode()
+        listOf("vertragsnummer", "externeAuftragsnummer", "auftraggebernummer", "vorabstimmungId", "anschluss").forEach { name ->
+            source.get(name)?.let { node.set(name, it.deepCopy()) }
+        }
+        val answer = node.putObject("abgebenderProvider")
+        reply.providerName?.let { answer.put("providername", it) }
+        answer.put("zustimmungProviderwechsel", if (reply.consent) "J" else "N")
+        reply.answerCode?.let { answer.put("antwortcode", it) }
+        reply.answerText?.let { answer.put("antworttext", it) }
+        return node
+    }
+
     private fun art(case: BusinessCase) = when (case) {
         BusinessCase.NEU -> "Bereitstellung"
         BusinessCase.KUE_AG, BusinessCase.KUE_LE -> "Kuendigung"

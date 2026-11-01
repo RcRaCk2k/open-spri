@@ -90,7 +90,7 @@ def verify(secret: str, header: str, body: bytes) -> bool:
 
 ## Idempotenz
 
-Alle POSTs, die eine S/PRI-Nachricht auslösen (`/orders`, `/orders/{id}/cancel|reschedule|complaint|messages`), akzeptieren den Header `Idempotency-Key`. Fremdsysteme sollten ihn immer setzen, z. B. mit ihrer eigenen Vorgangsnummer:
+Alle POSTs, die eine S/PRI-Nachricht auslösen (`/orders`, `/orders/{id}/send|cancel|reschedule|complaint|messages`, `/terminations`, `/pv-requests/{id}/reply`), akzeptieren den Header `Idempotency-Key`. Fremdsysteme sollten ihn immer setzen, z. B. mit ihrer eigenen Vorgangsnummer:
 
 ```bash
 curl -s -X POST $SPRI/api/v1/orders/77/messages -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \

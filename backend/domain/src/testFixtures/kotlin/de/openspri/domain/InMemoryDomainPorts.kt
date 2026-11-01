@@ -24,6 +24,7 @@ import java.time.Instant
 class InMemoryOrderRepository : OrderRepository, OrderQueries {
     val orders = mutableListOf<Order>()
     val history = mutableListOf<OrderHistoryEntry>()
+    private var nextId = 1L
 
     override fun find(partnerId: PartnerId, role: OrderRole, externalOrderNumber: String) =
         orders.firstOrNull { it.partnerId == partnerId && it.role == role && it.data.externalOrderNumber == externalOrderNumber }
@@ -35,13 +36,15 @@ class InMemoryOrderRepository : OrderRepository, OrderQueries {
         orders.any { it.role == role && it.data.infrastructureKey == infrastructureKey && !it.state.finished && it.id != except }
 
     override fun save(order: Order): Order {
-        val stored = if (order.id == null) order.copy(id = OrderId(orders.size + 1L)) else order
+        val stored = if (order.id == null) order.copy(id = OrderId(nextId++)) else order
         orders.removeIf { it.id == stored.id }
         orders += stored
         return stored
     }
 
     override fun append(entry: OrderHistoryEntry) { history += entry }
+
+    override fun deleteDraft(id: OrderId) = orders.removeIf { it.id == id && it.state.phase == de.openspri.domain.order.Phase.DRAFT }
 
     override fun get(id: OrderId) = orders.firstOrNull { it.id == id }
 
@@ -50,6 +53,7 @@ class InMemoryOrderRepository : OrderRepository, OrderQueries {
         .filter { filter.partnerId == null || it.partnerId == filter.partnerId }
         .filter { filter.businessCase == null || it.data.businessCase == filter.businessCase }
         .filter { filter.phase == null || it.state.phase == filter.phase }
+        .filter { filter.handover == null || it.state.handover == filter.handover }
         .filter { !filter.openOnly || !it.state.finished }
         .filter { filter.beforeId == null || it.id!!.value < filter.beforeId }
         .filter { o -> filter.text.isNullOrBlank() || listOfNotNull(o.data.externalOrderNumber, o.data.lineId, o.data.contractNumber).any { it.startsWith(filter.text) } }
@@ -61,6 +65,13 @@ class InMemoryOrderRepository : OrderRepository, OrderQueries {
 }
 
 /** Outbox with the ordering semantics of the JDBC outbox: per key, only the oldest unfinished entry is due. */
+class InMemoryOrderDrafts : de.openspri.domain.order.OrderDrafts {
+    val drafts = mutableMapOf<OrderId, ByteArray>()
+    override fun put(orderId: OrderId, content: ByteArray) { drafts[orderId] = content }
+    override fun get(orderId: OrderId) = drafts[orderId]
+    override fun remove(orderId: OrderId) { drafts.remove(orderId) }
+}
+
 class InMemoryOutbox : Outbox, DeliveryQueries {
     val entries = mutableListOf<OutboxEntry>()
 

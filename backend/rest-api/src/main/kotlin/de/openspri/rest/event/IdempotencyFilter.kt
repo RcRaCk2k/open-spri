@@ -96,8 +96,8 @@ class IdempotencyFilter(private val store: IdempotencyStore) : OncePerRequestFil
 
     companion object {
         const val HEADER = "Idempotency-Key"
-        /** Orders, requests and messages; never login, tokens or setup (their answers contain secrets). */
-        val SPRI_PATHS = Regex("^/api/v1/orders(/\\d+/(cancel|reschedule|complaint|messages))?/?$")
+        /** Orders, drafts, requests and messages; never login, tokens or setup (their answers contain secrets). */
+        val SPRI_PATHS = Regex("^/api/v1/(orders(/\\d+/(send|cancel|reschedule|complaint|messages))?|terminations|pv-requests/\\d+/reply)/?$")
     }
 }
 
@@ -107,6 +107,6 @@ class IdempotencyConfiguration {
     @Bean
     fun idempotencyFilter(store: IdempotencyStore) = FilterRegistrationBean(IdempotencyFilter(store)).apply {
         order = 0
-        addUrlPatterns("/api/v1/orders", "/api/v1/orders/*")
+        addUrlPatterns("/api/v1/orders", "/api/v1/orders/*", "/api/v1/terminations", "/api/v1/pv-requests/*")
     }
 }

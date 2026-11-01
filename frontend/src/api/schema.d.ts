@@ -389,8 +389,8 @@ export interface paths {
         get: operations["list_4"];
         put?: never;
         /**
-         * Auftrag an einen Partner senden
-         * @description Prüft gegen XSD, Anlage 1 und die Auftragsregeln und legt den Auftrag in den Postausgang. Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.
+         * Auftrag anlegen (Entwurf) oder sofort senden
+         * @description Prüft gegen XSD und Anlage 1. Ohne `send` entsteht ein Entwurf (201, Phase DRAFT), der mit POST /orders/{id}/send gesendet wird. Mit `send=true` prüft open-spri zusätzlich die Auftragsregeln und legt den Auftrag sofort in den Postausgang (202). Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.
          */
         post: operations["create_4"];
         delete?: never;
@@ -407,10 +407,18 @@ export interface paths {
             cookie?: never;
         };
         /** Auftrag mit zulässigen Aktionen lesen */
-        get: operations["get_3"];
-        put?: never;
+        get: operations["get_2"];
+        /**
+         * Entwurf ändern
+         * @description Ersetzt den Inhalt. 409, wenn der Auftrag schon gesendet ist.
+         */
+        put: operations["updateDraft"];
         post?: never;
-        delete?: never;
+        /**
+         * Entwurf löschen
+         * @description Nur Entwürfe; ein gesendeter Auftrag endet mit Storno oder durch den Partner (409).
+         */
+        delete: operations["deleteDraft"];
         options?: never;
         head?: never;
         patch?: never;
@@ -476,6 +484,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inhalt eines Entwurfs
+         * @description Das `auftrag`-JSON wie gespeichert. 404, wenn der Auftrag kein Entwurf ist.
+         */
+        get: operations["draft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{id}/history": {
         parameters: {
             query?: never;
@@ -530,6 +558,26 @@ export interface paths {
          * @description Der ursprüngliche Auftrag mit `terminNeu` (5.1.4).
          */
         post: operations["reschedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Entwurf senden
+         * @description Baut den Auftrag mit aktuellem Kopf neu, prüft XSD, Anlage 1 und Auftragsregeln und legt ihn in den Postausgang.
+         */
+        post: operations["send"];
         delete?: never;
         options?: never;
         head?: never;
@@ -602,7 +650,7 @@ export interface paths {
             cookie?: never;
         };
         /** Partner lesen */
-        get: operations["get_2"];
+        get: operations["get_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -669,6 +717,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/pv-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Providerwechsel-Anfragen (AKM-PV als abgebender EKP)
+         * @description Neueste zuerst. `open=true` (Standard): nur Anfragen, deren RUEM-PV noch aussteht. Blättern mit `cursor`.
+         */
+        get: operations["pvRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pv-requests/{id}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Providerwechsel-Anfrage beantworten (RUEM-PV)
+         * @description Zustimmung oder Ablehnung. Die übrigen Pflichtfelder der RUEM-PV kommen aus der AKM-PV. 409, wenn die RUEM-PV schon gesendet ist (`allowedActions`).
+         */
+        post: operations["reply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings": {
         parameters: {
             query?: never;
@@ -729,6 +817,26 @@ export interface paths {
          * @description Legt den ersten Administrator, die Firmendaten (inkl. ITU Carrier Code) und den Signaturschlüssel an. Nur einmal möglich und nur mit dem Setup-Token aus dem Container-Log (Header `X-Setup-Token`).
          */
         post: operations["complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/terminations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Kündigung durch den Leistungserbringer (KDLE)
+         * @description Legt den Auftrag KUE-LE an (Rolle LEISTUNGSERBRINGER) und sendet die KDLE. ERLM und ENTM folgen über POST /orders/{id}/messages. 409 bei vergebener Nummer oder unzulässigem Meldungscode.
+         */
+        post: operations["terminate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -893,7 +1001,7 @@ export interface components {
              * @example Standard
              */
             changeIndicator?: string | null;
-            /** @description MESSAGE (POST /orders/{id}/messages) oder REQUEST (STORNO: /cancel, TERMINVERSCHIEBUNG: /reschedule, REKLAMATION: /complaint) */
+            /** @description MESSAGE (POST /orders/{id}/messages), REQUEST (STORNO: /cancel, TERMINVERSCHIEBUNG: /reschedule, REKLAMATION: /complaint) oder SEND (Entwurf senden: /send) */
             kind: string;
             /**
              * @description bei MESSAGE: Meldungstyp
@@ -1314,7 +1422,7 @@ export interface components {
             /** Format: int64 */
             partnerId: number;
             /**
-             * @description Phase des Zustandsautomaten
+             * @description Phase des Zustandsautomaten; DRAFT = Entwurf, noch nicht gesendet
              * @example CONFIRMED
              */
             phase: string;
@@ -1347,6 +1455,43 @@ export interface components {
             name: string;
             /** @description technischer Kontakt; erhält die Ausfall-Mail (11.2.3.2) */
             technicalContactEmail?: string | null;
+        };
+        /** @description RUEM-PV: Antwort auf eine AKM-PV. Vertrags- und Auftragsnummern, VorabstimmungsID und `anschluss` übernimmt open-spri aus der AKM-PV. */
+        PvReplyRequest: {
+            /** @description antwortcode, z. B. bei Ablehnung */
+            answerCode?: string | null;
+            /** @description antworttext */
+            answerText?: string | null;
+            codes: components["schemas"]["CodeDto"][];
+            /** @description zustimmungProviderwechsel: true = J, false = N */
+            consent: boolean;
+            /** @description providername (unser Name) */
+            providerName?: string | null;
+        };
+        /** @description Providerwechsel-Anfrage: eine AKM-PV, die wir als abgebender EKP erhalten haben */
+        PvRequestDto: {
+            /**
+             * Format: int64
+             * @description Id der AKM-PV im Nachrichtenarchiv (GET /messages/{id}, Scope nötig)
+             */
+            announcementArchiveId?: number | null;
+            /** @description bisherige LineID (anschluss) */
+            lineId?: string | null;
+            /** @description aufnehmender Provider (providername der AKM-PV) */
+            newProvider?: string | null;
+            order: components["schemas"]["OrderDto"];
+            /**
+             * Format: date
+             * @description uebernahmedatumGeplant
+             */
+            plannedTransferDate?: string | null;
+            /**
+             * Format: date
+             * @description antwortfrist: bis dahin muss die RUEM-PV gesendet sein
+             */
+            replyDeadline?: string | null;
+            /** @description die RUEM-PV steht noch aus */
+            replyDue: boolean;
         };
         /** @description Terminverschiebung */
         RescheduleRequest: {
@@ -1415,6 +1560,35 @@ export interface components {
             /** @description KEYSTORE_FILE, DATABASE, TEMPORARY */
             source: string;
             subject: string;
+        };
+        /** @description Kündigung durch den Leistungserbringer (KUE-LE): Inhalt der KDLE (MeldungsattributeKDLEType) */
+        TerminationRequest: {
+            /** @description weitere `meldungsattribute` von MeldungsattributeKDLEType */
+            attributes?: components["schemas"]["JsonNode"] | null;
+            /** @description Auftraggebernummer */
+            clientNumber: string;
+            codes: components["schemas"]["CodeDto"][];
+            /** @description Vertragsnummer des Einzelvertrags */
+            contractNumber: string;
+            /**
+             * @description von uns vergebene Nummer dieses Vorgangs
+             * @example KDLE-2026-0001
+             */
+            externalOrderNumber: string;
+            /** @description LineID der Leitung; nicht Teil der KDLE, ordnet den Postausgang und hilft bei der Suche */
+            lineId?: string | null;
+            /**
+             * Format: int64
+             * @description der Auftraggeber, dem wir kündigen
+             */
+            partnerId: number;
+            /** @description abschaltungsgrund, z. B. Zahlungsverzug */
+            reason?: string | null;
+            /**
+             * Format: date
+             * @description abschaltungstermin
+             */
+            shutdownDate: string;
         };
         /** @description Ein API-Token. Das Geheimnis wird nie wieder angezeigt. */
         TokenResponse: {
@@ -1982,7 +2156,10 @@ export interface operations {
     };
     create_4: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description true: sofort senden statt Entwurf */
+                send?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1993,8 +2170,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted */
-            202: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2004,7 +2181,7 @@ export interface operations {
             };
         };
     };
-    get_3: {
+    get_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -2023,6 +2200,52 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OrderDetailDto"];
                 };
+            };
+        };
+    };
+    updateDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
+                };
+            };
+        };
+    };
+    deleteDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2096,6 +2319,28 @@ export interface operations {
             };
         };
     };
+    draft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateOrderRequest"];
+                };
+            };
+        };
+    };
     history: {
         parameters: {
             query?: never;
@@ -2158,6 +2403,28 @@ export interface operations {
                 "application/json": components["schemas"]["RescheduleRequest"];
             };
         };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
+                };
+            };
+        };
+    };
+    send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Accepted */
             202: {
@@ -2254,7 +2521,7 @@ export interface operations {
             };
         };
     };
-    get_2: {
+    get_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -2371,6 +2638,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PartnerDto"];
+                };
+            };
+        };
+    };
+    pvRequests: {
+        parameters: {
+            query?: {
+                /** @description nur Anfragen ohne RUEM-PV */
+                open?: boolean;
+                partnerId?: number;
+                /** @description Cursor: kleinste `order.id` der vorigen Seite */
+                cursor?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PvRequestDto"][];
+                };
+            };
+        };
+    };
+    reply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PvReplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
                 };
             };
         };
@@ -2506,6 +2826,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupStatus"];
+                };
+            };
+        };
+    };
+    terminate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TerminationRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
                 };
             };
         };

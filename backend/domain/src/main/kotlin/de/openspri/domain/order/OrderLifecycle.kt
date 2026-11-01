@@ -30,6 +30,8 @@ import de.openspri.domain.message.MessageType.ZWM_LE
  * messages before sending them.
  */
 enum class Phase(val terminal: Boolean = false) {
+    /** Our own order, saved but not sent yet (AUFGABE 5.6: Entwurf → Senden). */
+    DRAFT,
     /** KUE-LE only: the order is created by the Leistungserbringer with KDLE. */
     NOT_STARTED,
     /** Order sent / received (positive TEQ), no business answer yet. */
@@ -76,6 +78,9 @@ sealed interface OrderEvent {
 
     /** The Auftraggeber sends a Storno, Terminverschiebung or Reklamation for this order. */
     data class Request(val kind: RequestKind) : OrderEvent
+
+    /** We send our draft to the partner (DRAFT → SUBMITTED). */
+    data object Send : OrderEvent
 }
 
 /**
@@ -140,6 +145,10 @@ object OrderLifecycle {
         return OrderState(businessCase, Phase.SUBMITTED, connectivity = connectivity, bracketed = bracketed)
     }
 
+    /** Our own order before it is sent; [Send] turns it into [submitted]. */
+    fun draft(businessCase: BusinessCase, connectivity: Boolean = false, bracketed: Boolean = false): OrderState =
+        submitted(businessCase, connectivity, bracketed).copy(phase = Phase.DRAFT)
+
     /** Kündigung durch Leistungserbringer: the order record is created by the KDLE message (5.2.2). */
     fun announcedByLeistungserbringer(): OrderState = OrderState(BusinessCase.KUE_LE, Phase.NOT_STARTED)
 
@@ -147,7 +156,15 @@ object OrderLifecycle {
     fun handoverAnnounced(): OrderState =
         OrderState(BusinessCase.PV, Phase.NOT_STARTED, handoverOnly = true)
 
-    fun apply(state: OrderState, event: OrderEvent): Transition = when (event) {
+    fun apply(state: OrderState, event: OrderEvent): Transition = when {
+        event == OrderEvent.Send ->
+            if (state.phase == Phase.DRAFT) accept(state.copy(phase = Phase.SUBMITTED)) else reject("Nur ein Entwurf kann gesendet werden")
+        state.phase == Phase.DRAFT -> reject("Der Auftrag ist ein Entwurf und noch nicht gesendet")
+        else -> applyToSent(state, event)
+    }
+
+    private fun applyToSent(state: OrderState, event: OrderEvent): Transition = when (event) {
+        OrderEvent.Send -> error("handled in apply")
         is OrderEvent.Request -> request(state, event.kind)
         is OrderEvent.Message ->
             if (event.type in HANDOVER_MESSAGES) handover(state, event.type)
@@ -159,7 +176,7 @@ object OrderLifecycle {
     fun allowedEvents(state: OrderState): List<OrderEvent> {
         val candidates = MessageType.entries.flatMap { type ->
             ChangeIndicator.entries.map { OrderEvent.Message(type, it) }
-        } + RequestKind.entries.map { OrderEvent.Request(it) }
+        } + RequestKind.entries.map { OrderEvent.Request(it) } + OrderEvent.Send
         return candidates.filter { apply(state, it) is Transition.Accepted }
     }
 
