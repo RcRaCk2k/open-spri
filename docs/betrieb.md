@@ -69,7 +69,22 @@ docker compose -f compose.yaml -f compose.external-proxy.yaml up -d --build
 | `HTTP_PORT`, `HTTPS_PORT` | Ports des Proxys auf dem Host | `80`, `443` |
 | `OPENSPRI_BUILD_DIGEST` | Image-Digest, an dem zertifizierte Builds erkannt werden | leer |
 
+## Ersteinrichtung
+
+1. **Master-Schlüssel** einmalig erzeugen und in `.env` eintragen: `OPENSPRI_MASTER_KEY=$(openssl rand -base64 32)`. Mit ihm wird der Signaturschlüssel verschlüsselt, den der Setup-Assistent in der Datenbank ablegt (AES-256-GCM). Der Master-Schlüssel selbst liegt nie in der Datenbank. **Sichert ihn**, denn ohne ihn ist der gespeicherte Schlüssel unbrauchbar.
+2. `docker compose up -d` ausführen und im Log das **Setup-Token** suchen: `docker compose logs api | grep -A3 "setup token"`.
+3. Die Web-Oberfläche öffnen und das Token eingeben. Danach erfasst der Assistent Admin-Benutzer, Firmendaten mit ITU Carrier Code (ICC), Rollen, Optionen und den Signaturschlüssel (neu erzeugen oder vorhandenen PKCS#12 übernehmen). Per REST geht das mit `POST /api/v1/setup` und dem Header `X-Setup-Token` (siehe `docs/api/`).
+4. Nach dem Abschluss ist das Setup gesperrt. Änderungen laufen über die Einstellungen (`/api/v1/settings`).
+
 ## Signaturschlüssel (WS-Security)
+
+Es gibt zwei Wege, der erste hat Vorrang:
+- **Keystore-Datei** über `OPENSPRI_SOAP_SIGNING_KEYSTORE`, wie unten beschrieben. Damit liegt der Schlüssel außerhalb der Datenbank, er lässt sich dann aber nicht über die Oberfläche wechseln.
+- **Gespeichert durch den Setup-Assistenten** (verschlüsselt mit dem Master-Schlüssel). Ein Wechsel über `POST /api/v1/settings/signing-key` wirkt sofort, ohne Neustart. Teilt das neue Zertifikat vorher allen Partnern mit.
+
+Das Zertifikat für die Partner liefert `GET /api/v1/settings/signing-key` (Feld `certificatePem`).
+
+### Keystore-Datei
 
 Jede S/PRI-Nachricht wird signiert (AK-Sicherheitsdokument V3.0, Kap. 2.5): X.509 v3, SHA256withRSA, **RSA ≥ 3072 Bit**. Selbstsignierte Zertifikate sind erlaubt. Der AK empfiehlt einen **eigenen** Schlüssel, getrennt vom TLS-Zertifikat.
 

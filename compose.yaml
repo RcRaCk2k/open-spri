@@ -32,6 +32,8 @@ services:
       SPRING_DATASOURCE_USERNAME: openspri
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       OPENSPRI_BUILD_DIGEST: ${OPENSPRI_BUILD_DIGEST:-}
+      # Encrypts the signing key stored by the setup wizard; never stored in the database (docs/betrieb.md)
+      OPENSPRI_MASTER_KEY: ${OPENSPRI_MASTER_KEY:-}
       # WS-Security signing key (PKCS#12, RSA >= 3072). Without it a temporary key is generated (development only).
       OPENSPRI_SOAP_SIGNING_KEYSTORE: ${OPENSPRI_SOAP_SIGNING_KEYSTORE:-}
       OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD: ${OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD:-}

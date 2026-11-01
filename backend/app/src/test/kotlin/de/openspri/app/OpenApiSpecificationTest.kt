@@ -1,6 +1,6 @@
 package de.openspri.app
 
-import openspri.testapps.RestOnlyTestApplication
+import openspri.testapps.SoapInMemoryTestApplication
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
  * API-first check (CLAUDE.md, principle 4): the committed docs/api/openapi.json must match what the
  * application actually serves. Regenerate with `./gradlew :app:test -PupdateOpenApi`.
  */
-@SpringBootTest(classes = [RestOnlyTestApplication::class])
+@SpringBootTest(classes = [SoapInMemoryTestApplication::class], properties = ["openspri.inbox.initial-delay=1h", "openspri.outbox.initial-delay=1h"])
 @AutoConfigureMockMvc
 class OpenApiSpecificationTest(@Autowired private val mockMvc: MockMvc) {
 

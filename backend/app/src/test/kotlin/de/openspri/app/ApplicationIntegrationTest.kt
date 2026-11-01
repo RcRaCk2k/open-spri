@@ -36,10 +36,12 @@ class ApplicationIntegrationTest(
     @Autowired private val jdbc: JdbcTemplate,
     @Autowired private val partners: JdbcPartnerDirectory,
     @Autowired private val client: SpriClient,
-    @Autowired private val credentials: SigningCredentials,
+    @Autowired private val keys: de.openspri.soap.SigningKeyHolder,
 ) {
     @LocalServerPort
     private var port = 0
+
+    private val credentials: SigningCredentials get() = keys.current()
 
     companion object {
         @Container

@@ -53,13 +53,10 @@ class InMemoryAuditLog : de.openspri.auth.AuditLog {
     override fun record(actor: de.openspri.auth.Actor, action: String, target: String, details: String?) { entries += "${actor.label} $action $target" }
 }
 
-/** REST layer only, without database: used to compare the served OpenAPI specification. */
-@SpringBootConfiguration
-@EnableAutoConfiguration(excludeName = [DATASOURCE, FLYWAY])
-@ComponentScan("de.openspri.rest")
-class RestOnlyTestApplication : InMemoryAuthStores()
-
-/** SOAP interface with in-memory ports instead of the database (runs without Docker). */
+/**
+ * The whole application with in-memory ports instead of the database (runs without Docker).
+ * The master key is a fixed test value.
+ */
 @SpringBootConfiguration
 @EnableAutoConfiguration(excludeName = [DATASOURCE, FLYWAY])
 @Import(SpriSoapConfiguration::class)
@@ -73,4 +70,6 @@ class SoapInMemoryTestApplication : InMemoryAuthStores() {
     @Bean fun outbox() = de.openspri.domain.InMemoryOutbox()
     @Bean fun outageRegistry() = de.openspri.domain.InMemoryOutageRegistry()
     @Bean fun transactions(): de.openspri.domain.order.Transactions = de.openspri.domain.DirectTransactions
+    @Bean fun settingsRepository() = de.openspri.domain.InMemorySettings()
+    @Bean fun signingKeyRepository() = de.openspri.domain.InMemorySigningKeys()
 }

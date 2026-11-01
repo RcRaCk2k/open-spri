@@ -82,6 +82,17 @@ class WsSecuritySigner(
     }
 }
 
+/** Signs with the current key of [credentials]; the signer is rebuilt only when the key changes. */
+class CachingSigner(private val credentials: () -> SigningCredentials) {
+    @Volatile private var cached: Pair<SigningCredentials, WsSecuritySigner>? = null
+
+    fun sign(document: Document): Document {
+        val current = credentials()
+        val signer = cached?.takeIf { it.first === current }?.second ?: WsSecuritySigner(current).also { cached = current to it }
+        return signer.sign(document)
+    }
+}
+
 /** Reason why a signature was rejected. Logged and archived internally, never sent to the partner. */
 class SignatureRejectedException(message: String, cause: Throwable? = null) : Exception(message, cause)
 

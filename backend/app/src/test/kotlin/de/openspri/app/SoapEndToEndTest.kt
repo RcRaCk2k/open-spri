@@ -38,7 +38,7 @@ import kotlin.test.assertTrue
 )
 class SoapEndToEndTest(
     @Autowired private val client: SpriClient,
-    @Autowired private val credentials: SigningCredentials,
+    @Autowired private val keys: de.openspri.soap.SigningKeyHolder,
     @Autowired private val partners: InMemoryPartnerDirectory,
     @Autowired private val inbound: InMemoryInboundStore,
     @Autowired private val outbound: InMemoryOutboundArchive,
@@ -50,6 +50,9 @@ class SoapEndToEndTest(
 ) {
     @LocalServerPort
     private var port = 0
+
+    /** Always the current key (the setup test may replace it in a shared context). */
+    private val credentials: SigningCredentials get() = keys.current()
 
     private val endpoint get() = URI("http://localhost:$port/spri/v4")
 

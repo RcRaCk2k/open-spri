@@ -30,6 +30,19 @@ M4 macht open-spri bedienbar: Web-Oberfläche und Fremdsysteme steuern alles üb
 - Migration V6: `app_user`, `api_token`, `audit_log`
 - **Korrektur:** Die IP-Sperre von `/spri` setzt den Status 403 direkt. `sendError` hätte über `/error` die REST-Sicherheit durchlaufen und 401 geliefert.
 
+### Teil 2: Setup-Assistent und Einstellungen
+- `SetupGuard`: Solange das Setup nicht abgeschlossen ist, steht ein einmaliges Setup-Token im Container-Log. Der Vergleich läuft in konstanter Zeit, nach dem Abschluss ist das Setup gesperrt (409).
+- `POST /api/v1/setup`: Admin-Benutzer, Firmendaten (ICC, Rollen, Optionen, WBCI-Modus, öffentliche Endpunkt-URL) und Signaturschlüssel (neu erzeugen oder PKCS#12 übernehmen) in **einer** Transaktion. `GET /api/v1/setup` liefert den Stand.
+- `GET/PUT /api/v1/settings`, `GET/POST /api/v1/settings/signing-key` (Zertifikat als PEM für Partner, Schlüsselwechsel ohne Neustart)
+- **Signaturschlüssel:**
+  - `SigningKeyHolder` (aktueller Schlüssel, zur Laufzeit austauschbar), `CachingSigner` (TEQ-Antworten und Client signieren immer mit dem aktuellen Schlüssel)
+  - `KeyEncryption` (AES-256-GCM mit `OPENSPRI_MASTER_KEY`, der nie in der Datenbank liegt), `SigningKeyService`
+  - Reihenfolge beim Start: Keystore-Datei, dann gespeicherter Schlüssel, dann vorläufiger Schlüssel mit Warnung
+- Fachmodell `CompanySettings` (ICC nach ITU M.1400), `WbciMode`. Migration V7: `company_settings`, `signing_key`.
+- Compose und `.env.example`: `OPENSPRI_MASTER_KEY`. `docs/betrieb.md`: Abschnitt Ersteinrichtung.
+- **Korrektur während der Entwicklung:** Ein `Optional<…>`-Bean-Parameter wird von Spring als optionale Abhängigkeit auf den inneren Typ aufgelöst. Daher gibt es jetzt den eigenen Typ `MasterKey`.
+
 ## Tests
 
+- `SetupTest` (3): vor dem Setup Token nötig (403), Setup mit Token legt Admin, Firma und gespeicherten Schlüssel (3072 Bit) an, Login und Einstellungen funktionieren, kein zweites Setup (409)
 - `SecurityTest` (6, echtes HTTP): öffentliche Endpunkte, 401 ohne Anmeldung, Token mit Berechtigung und 403 ohne, ungültiges und widerrufenes Token, Berechtigungen nicht über die Rolle hinaus, Session-Login mit CSRF-Schutz (ohne Token 403, mit Token 201)

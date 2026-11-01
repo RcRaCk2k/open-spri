@@ -104,6 +104,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Firmendaten und Optionen */
+        get: operations["get"];
+        /** Firmendaten und Optionen ändern */
+        put: operations["put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/signing-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Unser Signaturzertifikat
+         * @description Inklusive PEM zur Weitergabe an Partner.
+         */
+        get: operations["signingKey"];
+        put?: never;
+        /**
+         * Signaturschlüssel wechseln
+         * @description Erzeugt einen neuen Schlüssel oder übernimmt einen PKCS#12-Keystore. Wirkt sofort für alle neuen Nachrichten. Das neue Zertifikat muss allen Partnern vorab mitgeteilt werden (Partner hinterlegen mehrere Zertifikate während des Wechsels).
+         */
+        post: operations["newSigningKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stand der Ersteinrichtung
+         * @description Ohne Anmeldung aufrufbar. Die Oberfläche zeigt bei `completed=false` den Setup-Assistenten.
+         */
+        get: operations["status"];
+        put?: never;
+        /**
+         * Ersteinrichtung abschließen
+         * @description Legt den ersten Administrator, die Firmendaten (inkl. ITU Carrier Code) und den Signaturschlüssel an. Nur einmal möglich und nur mit dem Setup-Token aus dem Container-Log (Header `X-Setup-Token`).
+         */
+        post: operations["complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tokens": {
         parameters: {
             query?: never;
@@ -212,6 +278,48 @@ export interface components {
              */
             version: string;
         };
+        /** @description Erster Administrator */
+        AdminAccount: {
+            /** @example Administration */
+            displayName: string;
+            /** @description mindestens 12 Zeichen */
+            password: string;
+            /** @example admin */
+            username: string;
+        };
+        /** @description Firmendaten und Optionen */
+        CompanySettingsDto: {
+            /**
+             * @description ITU Carrier Code (ICC), 1–6 Großbuchstaben/Ziffern
+             * @example BSPGMB
+             */
+            carrierCode: string;
+            city?: string | null;
+            connectivityEnabled?: boolean;
+            /**
+             * @description Empfänger für Ausfall- und Wartungsmeldungen
+             * @example betrieb@example.de
+             */
+            contactEmail: string;
+            diagEnabled?: boolean;
+            estEnabled?: boolean;
+            /** @example Beispiel GmbH */
+            name: string;
+            postalCode?: string | null;
+            /**
+             * @description Öffentliche Adresse unseres S/PRI-Endpunkts (für die WSDL)
+             * @example https://spri.example.de/spri/v4
+             */
+            publicSpriEndpoint?: string | null;
+            /** @description Wir bestellen bei Partnern */
+            roleAuftraggeber: boolean;
+            /** @description Wir bieten eigene Leitungen an */
+            roleLeistungserbringer: boolean;
+            street?: string | null;
+            thirdPartyOrdersEnabled?: boolean;
+            /** @enum {string} */
+            wbciMode?: "SERVICE_PROVIDER" | "OWN_INTERFACE" | "NONE";
+        };
         /** @description Neues Token */
         CreateTokenRequest: {
             /**
@@ -277,6 +385,56 @@ export interface components {
             id: string;
             /** @description true, wenn das Verfahren eine Anmeldung in der Oberfläche anbietet */
             interactiveLogin: boolean;
+        };
+        /** @description Neuen Signaturschlüssel erzeugen oder übernehmen */
+        NewSigningKey: {
+            commonName?: string | null;
+            pkcs12Base64?: string | null;
+            pkcs12Password?: string | null;
+        };
+        /** @description Alle Angaben der Ersteinrichtung; wird in einem Schritt übernommen */
+        SetupRequest: {
+            admin: components["schemas"]["AdminAccount"];
+            company: components["schemas"]["CompanySettingsDto"];
+            /** @description ohne Angabe wird ein neuer Schlüssel erzeugt */
+            signingKey?: components["schemas"]["SigningKeyChoice"];
+        };
+        /** @description Stand der Ersteinrichtung */
+        SetupStatus: {
+            completed: boolean;
+            /** @description Herkunft des aktuellen Signaturschlüssels: KEYSTORE_FILE, DATABASE, TEMPORARY */
+            signingKeySource: string;
+        };
+        /** @description Signaturschlüssel: neu erzeugen (Standard) oder einen vorhandenen PKCS#12-Keystore übernehmen */
+        SigningKeyChoice: {
+            /**
+             * @description Name im Zertifikat beim Erzeugen
+             * @example S/PRI Signatur Beispiel GmbH
+             */
+            commonName?: string | null;
+            /**
+             * @description true: neuen Schlüssel erzeugen (RSA 3072, selbstsigniert)
+             * @example true
+             */
+            generate?: boolean;
+            /** @description PKCS#12-Keystore (Base64) zum Übernehmen */
+            pkcs12Base64?: string | null;
+            /** @description Passwort des Keystores */
+            pkcs12Password?: string | null;
+        };
+        /** @description Unser Signaturzertifikat (WS-Security). Das PEM geht an jeden Partner. */
+        SigningKeyInfo: {
+            certificatePem: string;
+            issuer: string;
+            /** Format: int32 */
+            keyBits: number;
+            /** Format: date-time */
+            notAfter: string;
+            /** @description dezimal, wie im Feld signaturId/serial */
+            serialNumber: string;
+            /** @description KEYSTORE_FILE, DATABASE, TEMPORARY */
+            source: string;
+            subject: string;
         };
         /** @description Ein API-Token. Das Geheimnis wird nie wieder angezeigt. */
         TokenResponse: {
@@ -433,6 +591,141 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModuleResponse"][];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanySettingsDto"];
+                };
+            };
+        };
+    };
+    put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanySettingsDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanySettingsDto"];
+                };
+            };
+        };
+    };
+    signingKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SigningKeyInfo"];
+                };
+            };
+        };
+    };
+    newSigningKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewSigningKey"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SigningKeyInfo"];
+                };
+            };
+        };
+    };
+    status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatus"];
+                };
+            };
+        };
+    };
+    complete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description einmaliges Setup-Token aus dem Container-Log */
+                "X-Setup-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatus"];
                 };
             };
         };

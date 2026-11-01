@@ -6,7 +6,11 @@ import de.openspri.domain.partner.PartnerDirectory
 import de.openspri.soap.InboundProcessor
 import de.openspri.soap.RawRequestInterceptor
 import de.openspri.soap.SecurityHeaderUnderstoodInterceptor
+import de.openspri.domain.settings.SigningKeyRepository
+import de.openspri.soap.KeyEncryption
 import de.openspri.soap.SigningCredentials
+import de.openspri.soap.SigningKeyHolder
+import de.openspri.soap.SigningKeyService
 import de.openspri.soap.SpriClient
 import de.openspri.soap.SpriEndpoint
 import de.openspri.soap.SpriSchema
@@ -28,6 +32,9 @@ import java.nio.file.Path
  * Wires the S/PRI SOAP interface. The endpoint is published under `<cxf.path>/v4`, i.e. `/spri/v4`.
  * Ports (partners, archive) are implemented by module persistence.
  */
+/** The master key encryption, or null if OPENSPRI_MASTER_KEY is not set. */
+class MasterKey(val encryption: KeyEncryption?)
+
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(SpriSoapProperties::class)
 @org.springframework.context.annotation.Import(OrderProcessingConfiguration::class, DeliveryConfiguration::class)
@@ -38,20 +45,31 @@ class SpriSoapConfiguration {
     @Bean
     fun spriSchema(): SpriSchema = SpriSchema.load()
 
+    /**
+     * Master key for the stored signing key (OPENSPRI_MASTER_KEY), optional. Wrapped in [MasterKey]: an
+     * Optional parameter would be resolved by Spring as "optional KeyEncryption bean" instead.
+     */
     @Bean
-    fun signingCredentials(properties: SpriSoapProperties): SigningCredentials {
-        val keystore = properties.signingKeystore?.takeIf { it.isNotBlank() }
-        if (keystore == null) {
-            log.warn(
-                "No WS-Security signing key configured (openspri.soap.signing-keystore). A temporary key is used; " +
-                    "partners cannot verify our signatures after a restart. Do not use this in production.",
-            )
-            return SigningCredentials.generateSelfSigned("open-spri temporary key")
+    fun masterKey(@org.springframework.beans.factory.annotation.Value("\${openspri.master-key:}") masterKey: String) =
+        MasterKey(masterKey.takeIf { it.isNotBlank() }?.let(::KeyEncryption))
+
+    /**
+     * Our signing key: keystore file (OPENSPRI_SOAP_SIGNING_KEYSTORE) if configured, otherwise the key stored by
+     * the setup wizard, otherwise a temporary key (warning in the log).
+     */
+    @Bean
+    fun signingKeyHolder(properties: SpriSoapProperties, keys: SigningKeyRepository, master: MasterKey): SigningKeyHolder {
+        val file = properties.signingKeystore?.takeIf { it.isNotBlank() }?.let { keystore ->
+            Files.newInputStream(Path.of(keystore)).use {
+                SigningCredentials.fromPkcs12(it, properties.signingKeystorePassword.orEmpty().toCharArray(), properties.signingKeyAlias)
+            }.requireAkCompliant()
         }
-        return Files.newInputStream(Path.of(keystore)).use {
-            SigningCredentials.fromPkcs12(it, properties.signingKeystorePassword.orEmpty().toCharArray(), properties.signingKeyAlias)
-        }.requireAkCompliant()
+        return SigningKeyService.load(file, keys, master.encryption)
     }
+
+    @Bean
+    fun signingKeyService(holder: SigningKeyHolder, keys: SigningKeyRepository, master: MasterKey) =
+        SigningKeyService(holder, keys, master.encryption)
 
     @Bean
     fun wsSecurityVerifier(properties: SpriSoapProperties) = WsSecurityVerifier(properties.minimumPartnerKeyBits)
@@ -62,22 +80,22 @@ class SpriSoapConfiguration {
         store: InboundStore,
         schema: SpriSchema,
         verifier: WsSecurityVerifier,
-        credentials: SigningCredentials,
+        keys: SigningKeyHolder,
         properties: SpriSoapProperties,
     ) = InboundProcessor(
-        partners, store, schema, verifier, TeqResponder(credentials),
+        partners, store, schema, verifier, TeqResponder(keys::current),
         attributes = AttributeValidator(), attributeMode = properties.attributeRules.inbound,
     )
 
     @Bean
     fun spriClient(
-        credentials: SigningCredentials,
+        keys: SigningKeyHolder,
         schema: SpriSchema,
         verifier: WsSecurityVerifier,
         archive: OutboundArchive,
         properties: SpriSoapProperties,
     ) = SpriClient(
-        credentials, schema, verifier, archive,
+        keys::current, schema, verifier, archive,
         SpriClient.Settings(
             connectTimeout = properties.client.connectTimeout,
             receiveTimeout = properties.client.receiveTimeout,

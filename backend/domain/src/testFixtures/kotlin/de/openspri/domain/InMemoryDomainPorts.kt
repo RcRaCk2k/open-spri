@@ -95,3 +95,18 @@ class RecordingNotifier : Notifier {
 object DirectTransactions : Transactions {
     override fun <T> run(block: () -> T): T = block()
 }
+
+class InMemorySettings : de.openspri.domain.settings.SettingsRepository {
+    var settings: de.openspri.domain.settings.CompanySettings? = null
+    var completed = false
+    override fun load() = settings
+    override fun save(settings: de.openspri.domain.settings.CompanySettings) { this.settings = settings }
+    override fun setupCompleted() = completed
+    override fun markSetupCompleted(at: Instant) { completed = true }
+}
+
+class InMemorySigningKeys : de.openspri.domain.settings.SigningKeyRepository {
+    val keys = mutableListOf<de.openspri.domain.settings.StoredSigningKey>()
+    override fun active() = keys.lastOrNull()
+    override fun activate(key: de.openspri.domain.settings.StoredSigningKey) = key.copy(id = keys.size + 1L).also { keys += it }
+}

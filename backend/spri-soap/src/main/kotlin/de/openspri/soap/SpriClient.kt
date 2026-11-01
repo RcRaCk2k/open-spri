@@ -30,13 +30,22 @@ import javax.xml.transform.stream.StreamSource
  * (specification 11.2.3). Retries, ordering and the outbox follow in M3; this class performs exactly one attempt.
  */
 class SpriClient(
-    credentials: SigningCredentials,
+    credentials: () -> SigningCredentials,
     private val schema: SpriSchema,
     private val verifier: WsSecurityVerifier,
     private val archive: OutboundArchive,
     private val settings: Settings = Settings(),
     private val clock: Clock = Clock.systemUTC(),
 ) {
+    constructor(
+        credentials: SigningCredentials,
+        schema: SpriSchema,
+        verifier: WsSecurityVerifier,
+        archive: OutboundArchive,
+        settings: Settings = Settings(),
+        clock: Clock = Clock.systemUTC(),
+    ) : this({ credentials }, schema, verifier, archive, settings, clock)
+
     data class Settings(
         val connectTimeout: Duration = Duration.ofSeconds(10),
         /** Specification 11.4: max. 30 s without attachments, up to 120 s with attachments. */
@@ -72,7 +81,7 @@ class SpriClient(
     }
 
     private val log = LoggerFactory.getLogger(javaClass)
-    private val signer = WsSecuritySigner(credentials)
+    private val signer = CachingSigner(credentials)
     private val attributes = AttributeValidator()
 
     /** [payload] is the annehmenAuftragRequest or annehmenMeldungRequest element. */

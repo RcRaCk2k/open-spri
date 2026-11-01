@@ -22,10 +22,12 @@ import javax.xml.datatype.DatatypeFactory
  * and 11.2.3. The response is signed with our key (policy.xml: RecipientToken "Always").
  */
 class TeqResponder(
-    private val credentials: SigningCredentials,
+    private val credentials: () -> SigningCredentials,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) {
-    private val signer = WsSecuritySigner(credentials)
+    constructor(credentials: SigningCredentials, clock: Clock = Clock.systemDefaultZone()) : this({ credentials }, clock)
+
+    private val signer = CachingSigner(credentials)
     private val factory = ObjectFactory()
     private val datatypes = DatatypeFactory.newInstance()
 
@@ -59,9 +61,10 @@ class TeqResponder(
         )
         majorRelease = InterfaceVersion.CURRENT.major.toString()
         minorRelease = InterfaceVersion.CURRENT.minor.toString()
+        val certificate = credentials().certificate
         signaturId = SignaturIdType().apply {
-            issuer = credentials.certificate.issuerX500Principal.name
-            serial = credentials.certificate.serialNumber.toString()
+            issuer = certificate.issuerX500Principal.name
+            serial = certificate.serialNumber.toString()
         }
     }
 }

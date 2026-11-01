@@ -23,6 +23,12 @@
     "description" : "Anmeldung der Web-Oberfläche und Informationen zur aktuellen Anmeldung",
     "name" : "Anmeldung"
   }, {
+    "description" : "Ersteinrichtung einer neuen Installation (geschützt durch das Setup-Token aus dem Log)",
+    "name" : "Setup"
+  }, {
+    "description" : "Firmendaten, Optionen und Signaturschlüssel",
+    "name" : "Einstellungen"
+  }, {
     "description" : "Lokale Benutzer der Web-Oberfläche",
     "name" : "Benutzer"
   } ],
@@ -132,6 +138,157 @@
         },
         "summary" : "Anmeldeverfahren",
         "tags" : [ "Anmeldung" ]
+      }
+    },
+    "/api/v1/settings" : {
+      "get" : {
+        "operationId" : "get",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CompanySettingsDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Firmendaten und Optionen",
+        "tags" : [ "Einstellungen" ]
+      },
+      "put" : {
+        "operationId" : "put",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CompanySettingsDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CompanySettingsDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Firmendaten und Optionen ändern",
+        "tags" : [ "Einstellungen" ]
+      }
+    },
+    "/api/v1/settings/signing-key" : {
+      "get" : {
+        "description" : "Inklusive PEM zur Weitergabe an Partner.",
+        "operationId" : "signingKey",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SigningKeyInfo"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Unser Signaturzertifikat",
+        "tags" : [ "Einstellungen" ]
+      },
+      "post" : {
+        "description" : "Erzeugt einen neuen Schlüssel oder übernimmt einen PKCS#12-Keystore. Wirkt sofort für alle neuen Nachrichten. Das neue Zertifikat muss allen Partnern vorab mitgeteilt werden (Partner hinterlegen mehrere Zertifikate während des Wechsels).",
+        "operationId" : "newSigningKey",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NewSigningKey"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SigningKeyInfo"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Signaturschlüssel wechseln",
+        "tags" : [ "Einstellungen" ]
+      }
+    },
+    "/api/v1/setup" : {
+      "get" : {
+        "description" : "Ohne Anmeldung aufrufbar. Die Oberfläche zeigt bei `completed=false` den Setup-Assistenten.",
+        "operationId" : "status",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SetupStatus"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Stand der Ersteinrichtung",
+        "tags" : [ "Setup" ]
+      },
+      "post" : {
+        "description" : "Legt den ersten Administrator, die Firmendaten (inkl. ITU Carrier Code) und den Signaturschlüssel an. Nur einmal möglich und nur mit dem Setup-Token aus dem Container-Log (Header `X-Setup-Token`).",
+        "operationId" : "complete",
+        "parameters" : [ {
+          "description" : "einmaliges Setup-Token aus dem Container-Log",
+          "in" : "header",
+          "name" : "X-Setup-Token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SetupRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SetupStatus"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Ersteinrichtung abschließen",
+        "tags" : [ "Setup" ]
       }
     },
     "/api/v1/tokens" : {
@@ -328,6 +485,84 @@
         },
         "required" : [ "certifiedBuild", "name", "spriVersion", "version" ]
       },
+      "AdminAccount" : {
+        "type" : "object",
+        "description" : "Erster Administrator",
+        "properties" : {
+          "displayName" : {
+            "type" : "string",
+            "example" : "Administration"
+          },
+          "password" : {
+            "type" : "string",
+            "description" : "mindestens 12 Zeichen"
+          },
+          "username" : {
+            "type" : "string",
+            "example" : "admin"
+          }
+        },
+        "required" : [ "displayName", "password", "username" ]
+      },
+      "CompanySettingsDto" : {
+        "type" : "object",
+        "description" : "Firmendaten und Optionen",
+        "properties" : {
+          "carrierCode" : {
+            "type" : "string",
+            "description" : "ITU Carrier Code (ICC), 1–6 Großbuchstaben/Ziffern",
+            "example" : "BSPGMB"
+          },
+          "city" : {
+            "type" : [ "string", "null" ]
+          },
+          "connectivityEnabled" : {
+            "type" : "boolean"
+          },
+          "contactEmail" : {
+            "type" : "string",
+            "description" : "Empfänger für Ausfall- und Wartungsmeldungen",
+            "example" : "betrieb@example.de"
+          },
+          "diagEnabled" : {
+            "type" : "boolean"
+          },
+          "estEnabled" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string",
+            "example" : "Beispiel GmbH"
+          },
+          "postalCode" : {
+            "type" : [ "string", "null" ]
+          },
+          "publicSpriEndpoint" : {
+            "type" : [ "string", "null" ],
+            "description" : "Öffentliche Adresse unseres S/PRI-Endpunkts (für die WSDL)",
+            "example" : "https://spri.example.de/spri/v4"
+          },
+          "roleAuftraggeber" : {
+            "type" : "boolean",
+            "description" : "Wir bestellen bei Partnern"
+          },
+          "roleLeistungserbringer" : {
+            "type" : "boolean",
+            "description" : "Wir bieten eigene Leitungen an"
+          },
+          "street" : {
+            "type" : [ "string", "null" ]
+          },
+          "thirdPartyOrdersEnabled" : {
+            "type" : "boolean"
+          },
+          "wbciMode" : {
+            "type" : "string",
+            "enum" : [ "SERVICE_PROVIDER", "OWN_INTERFACE", "NONE" ]
+          }
+        },
+        "required" : [ "carrierCode", "contactEmail", "name", "roleAuftraggeber", "roleLeistungserbringer" ]
+      },
       "CreateTokenRequest" : {
         "type" : "object",
         "description" : "Neues Token",
@@ -449,6 +684,108 @@
           }
         },
         "required" : [ "displayName", "id", "interactiveLogin" ]
+      },
+      "NewSigningKey" : {
+        "type" : "object",
+        "description" : "Neuen Signaturschlüssel erzeugen oder übernehmen",
+        "properties" : {
+          "commonName" : {
+            "type" : [ "string", "null" ]
+          },
+          "pkcs12Base64" : {
+            "type" : [ "string", "null" ]
+          },
+          "pkcs12Password" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "SetupRequest" : {
+        "type" : "object",
+        "description" : "Alle Angaben der Ersteinrichtung; wird in einem Schritt übernommen",
+        "properties" : {
+          "admin" : {
+            "$ref" : "#/components/schemas/AdminAccount"
+          },
+          "company" : {
+            "$ref" : "#/components/schemas/CompanySettingsDto"
+          },
+          "signingKey" : {
+            "$ref" : "#/components/schemas/SigningKeyChoice",
+            "description" : "ohne Angabe wird ein neuer Schlüssel erzeugt"
+          }
+        },
+        "required" : [ "admin", "company" ]
+      },
+      "SetupStatus" : {
+        "type" : "object",
+        "description" : "Stand der Ersteinrichtung",
+        "properties" : {
+          "completed" : {
+            "type" : "boolean"
+          },
+          "signingKeySource" : {
+            "type" : "string",
+            "description" : "Herkunft des aktuellen Signaturschlüssels: KEYSTORE_FILE, DATABASE, TEMPORARY"
+          }
+        },
+        "required" : [ "completed", "signingKeySource" ]
+      },
+      "SigningKeyChoice" : {
+        "type" : "object",
+        "description" : "Signaturschlüssel: neu erzeugen (Standard) oder einen vorhandenen PKCS#12-Keystore übernehmen",
+        "properties" : {
+          "commonName" : {
+            "type" : [ "string", "null" ],
+            "description" : "Name im Zertifikat beim Erzeugen",
+            "example" : "S/PRI Signatur Beispiel GmbH"
+          },
+          "generate" : {
+            "type" : "boolean",
+            "description" : "true: neuen Schlüssel erzeugen (RSA 3072, selbstsigniert)",
+            "example" : true
+          },
+          "pkcs12Base64" : {
+            "type" : [ "string", "null" ],
+            "description" : "PKCS#12-Keystore (Base64) zum Übernehmen"
+          },
+          "pkcs12Password" : {
+            "type" : [ "string", "null" ],
+            "description" : "Passwort des Keystores"
+          }
+        }
+      },
+      "SigningKeyInfo" : {
+        "type" : "object",
+        "description" : "Unser Signaturzertifikat (WS-Security). Das PEM geht an jeden Partner.",
+        "properties" : {
+          "certificatePem" : {
+            "type" : "string"
+          },
+          "issuer" : {
+            "type" : "string"
+          },
+          "keyBits" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "notAfter" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "serialNumber" : {
+            "type" : "string",
+            "description" : "dezimal, wie im Feld signaturId/serial"
+          },
+          "source" : {
+            "type" : "string",
+            "description" : "KEYSTORE_FILE, DATABASE, TEMPORARY"
+          },
+          "subject" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "certificatePem", "issuer", "keyBits", "notAfter", "serialNumber", "source", "subject" ]
       },
       "TokenResponse" : {
         "type" : "object",

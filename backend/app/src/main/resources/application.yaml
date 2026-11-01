@@ -52,6 +52,8 @@ springdoc:
   writer-with-order-by-keys: true
 
 openspri:
+  # Encrypts the signing key stored by the setup wizard (AES-256-GCM). base64, 32 bytes: openssl rand -base64 32
+  master-key: ${OPENSPRI_MASTER_KEY:}
   # Message code table (Anlage 5), AK export from Confluence or neutral CSV; imported at startup when new.
   message-codes:
     file: ${OPENSPRI_MESSAGE_CODES_FILE:}
