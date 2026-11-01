@@ -1,12 +1,12 @@
 # Central version catalog. Versions managed by the Spring Boot BOM are not repeated here.
 [versions]
-kotlin = "2.3.21"            # aligned with spring-boot-dependencies 4.1.1
-spring-boot = "4.1.1"
+kotlin = "2.4.21"            # aligned with spring-boot-dependencies 4.1.1
+spring-boot = "4.1.2"
 cxf = "4.2.4"
 wss4j = "4.0.2"             # version used by CXF 4.2.4 (cxf.jakarta.wss4j.version)                # built against Spring Boot 4.1 / Spring 7 (used from M1)
-springdoc = "3.1.1"          # Spring Boot 4.1 line
+springdoc = "3.2.0"          # Spring Boot 4.1 line
 archunit = "1.5.1"
-flyway-mysql = "12.4.0"
+flyway-mysql = "13.11.1"
 bouncycastle = "1.86"      # same as CXF 4.2.4 (cxf.bcprov.version)      # keep in sync with flyway.version of the Boot BOM
 
 [libraries]
