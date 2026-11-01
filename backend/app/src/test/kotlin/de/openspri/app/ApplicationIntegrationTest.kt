@@ -44,6 +44,9 @@ class ApplicationIntegrationTest(
     @Autowired private val events: de.openspri.persistence.JdbcEvents,
     @Autowired private val idempotency: de.openspri.persistence.JdbcIdempotencyStore,
     @Autowired private val drafts: de.openspri.persistence.JdbcOrderDrafts,
+    @Autowired private val agreements: de.openspri.persistence.JdbcPartnerAgreements,
+    @Autowired private val products: de.openspri.persistence.JdbcProductCatalog,
+    @Autowired private val maintenance: de.openspri.persistence.JdbcMaintenanceAnnouncements,
 ) {
     @LocalServerPort
     private var port = 0
@@ -178,6 +181,51 @@ class ApplicationIntegrationTest(
         assertEquals(false, orderRepository.deleteDraft(pv.id!!), "only drafts can be deleted")
         assertEquals(listOf(pv.id), orderRepository.search(de.openspri.domain.query.OrderFilter(partnerId = partner, handover = de.openspri.domain.order.HandoverPhase.ANNOUNCED)).map { it.id })
         assertEquals(emptyList(), orderRepository.search(de.openspri.domain.query.OrderFilter(partnerId = partner, handover = de.openspri.domain.order.HandoverPhase.REPLIED)))
+    }
+
+    @Test
+    fun `agreements, products, change matrix and maintenance announcements on MariaDB`() {
+        val partner = partners.create(name = "Stammdaten", carrierCode = "DEU.MASTER", certificates = listOf(credentials.certificate), networks = emptyList())
+        val other = partners.create(name = "Andere", carrierCode = "DEU.OTHER", certificates = listOf(credentials.certificate), networks = emptyList())
+        val today = java.time.LocalDate.now()
+        val validity = de.openspri.domain.partner.Validity(today, today.plusDays(10))
+
+        val contract = agreements.saveContract(de.openspri.domain.partner.FrameworkContract(null, partner, de.openspri.domain.order.OrderRole.LEISTUNGSERBRINGER, "AG1", null, "R", validity))
+        agreements.saveContract(contract.copy(serviceNumber = "LN1"))
+        assertEquals(listOf("LN1"), agreements.contracts(partner).map { it.serviceNumber })
+        assertEquals(validity, agreements.contracts(partner).single().validity)
+        org.junit.jupiter.api.assertThrows<NoSuchElementException> { agreements.saveContract(contract.copy(partnerId = other)) }
+        assertEquals(false, agreements.deleteContract(other, contract.id!!))
+
+        val power = agreements.savePowerOfAttorney(de.openspri.domain.partner.PowerOfAttorney(null, partner, "B1", "BL1", "AG1", "LN1"))
+        assertEquals(true, agreements.saveDocument(partner, power.id!!, de.openspri.domain.partner.AgreementDocument("v.pdf", "application/pdf", byteArrayOf(1, 2, 3))))
+        assertEquals(false, agreements.saveDocument(other, power.id!!, de.openspri.domain.partner.AgreementDocument("v.pdf", "application/pdf", byteArrayOf(1))))
+        assertEquals("v.pdf", agreements.powersOfAttorney(partner).single().documentName)
+        assertEquals(listOf<Byte>(1, 2, 3), agreements.document(partner, power.id!!)!!.content.toList())
+        assertEquals(null, agreements.document(other, power.id!!))
+
+        agreements.saveProject(de.openspri.domain.partner.ProjectAgreement(null, partner, "P1"))
+        assertEquals(listOf("P1"), agreements.projects(partner).map { it.projectId })
+
+        val global = products.save(de.openspri.domain.partner.Product(null, null, de.openspri.domain.order.OrderRole.LEISTUNGSERBRINGER, "FTTH 100"))
+        products.save(de.openspri.domain.partner.Product(null, other, de.openspri.domain.order.OrderRole.LEISTUNGSERBRINGER, "Nur Andere"))
+        assertEquals(listOf("FTTH 100"), products.list(partner, de.openspri.domain.order.OrderRole.LEISTUNGSERBRINGER).map { it.identifier })
+        products.save(global.copy(active = false))
+        assertEquals(false, products.get(global.id!!)!!.active)
+
+        val lae = de.openspri.domain.partner.ProductChange(null, "FTTH 10", "FTTH 20", de.openspri.domain.BusinessCase.LAE)
+        products.replaceChanges(null, listOf(lae))
+        products.replaceChanges(partner, listOf(lae.copy(partnerId = partner, businessCase = de.openspri.domain.BusinessCase.AEN_LMAE)))
+        products.replaceChanges(null, listOf(lae))
+        assertEquals(listOf(lae), products.changes(null))
+        assertEquals(de.openspri.domain.BusinessCase.AEN_LMAE, products.changes(partner).single().businessCase)
+
+        val now = java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
+        val saved = maintenance.save(de.openspri.domain.partner.MaintenanceAnnouncement(null, now, now.plusSeconds(3600), "W", "T", listOf(partner, other), now, "user:admin", 1, listOf("a", "b")))
+        val listed = maintenance.list(1).single()
+        assertEquals(saved.id, listed.id)
+        assertEquals(listOf(partner, other), listed.partnerIds)
+        assertEquals(listOf("a", "b"), listed.warnings)
     }
 
     @Test

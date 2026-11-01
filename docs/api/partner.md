@@ -59,3 +59,33 @@ curl -s $SPRI/api/v1/partners/wsdl -H "Authorization: Bearer $TOKEN" -o open-spr
 ```
 
 Das Onboarding-Blatt enthält unseren ITU Carrier Code, den S/PRI-Endpunkt, unsere Outbound-IPs zum Freischalten, unser Signaturzertifikat (PEM), den technischen Kontakt und die S/PRI-Version. Die WSDL ist die AK-WSDL, in der nur der Endpunkt auf unseren angepasst ist (Spezifikation 3.3).
+
+## Rahmenverträge, Vollmachten, Projektvereinbarungen
+
+Je Partner hinterlegt man, unter welchen Nummern Aufträge laufen und wer in wessen Namen bestellen darf (AUFGABE 5.7, 5.9). Lesen mit `partners:read`, Ändern mit `partners:admin`. Alle drei haben `validFrom`/`validTo` (einschließlich, leer = offen).
+
+| Pfad | Inhalt | Wirkung |
+|---|---|---|
+| `/partners/{id}/contracts` | Rahmenvertrag: `role` (unsere Rolle), `clientNumber` (Auftraggebernummer), `serviceNumber` (Leistungsnummer, leer = alle) | Sobald ein Vertrag mit `role=LEISTUNGSERBRINGER` hinterlegt ist, bekommt ein eingehender Auftrag mit unbekannter Nummer den Befund „Rahmenvertrag“ |
+| `/partners/{id}/powers-of-attorney` | Vollmacht: Besteller (`ordererClientNumber`, `ordererServiceNumber`) darf für den Auftraggeber (`clientNumber`, `serviceNumber`) bestellen. Der Partner ist der Besteller. | Ein eingehender Auftrag mit Block `besteller` ohne gültige Vollmacht bekommt den Befund R-11 (Grundlage für die ABBM) |
+| `/partners/{id}/projects` | Projektvereinbarung: `projectId` (Projektkenner) | Ohne gültige Vereinbarung: eigener Auftrag 409, eingehender Auftrag Befund R-12 |
+
+```bash
+curl -s -X POST $SPRI/api/v1/partners/7/contracts -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"role": "LEISTUNGSERBRINGER", "clientNumber": "AG4711", "serviceNumber": "LN0815", "validFrom": "2026-01-01"}'   # 201
+
+curl -s -X POST $SPRI/api/v1/partners/7/powers-of-attorney -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"ordererClientNumber": "B0042", "ordererServiceNumber": "BL0042", "clientNumber": "AG4711", "serviceNumber": "LN0815", "validTo": "2027-12-31"}'
+
+# unterschriebene Vollmacht hinterlegen (PDF, PNG oder JPEG, höchstens 10 MB) und wieder abrufen
+curl -s -X PUT "$SPRI/api/v1/partners/7/powers-of-attorney/3/document?name=vollmacht.pdf" -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/pdf" --data-binary @vollmacht.pdf                                                       # 204
+curl -s $SPRI/api/v1/partners/7/powers-of-attorney/3/document -H "Authorization: Bearer $TOKEN" -o vollmacht.pdf
+
+curl -s -X POST $SPRI/api/v1/partners/7/projects -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"projectId": "PRJ-2026-01", "description": "Ausbau Musterstadt"}'
+```
+
+Ändern mit `PUT …/{eintrag}`, löschen mit `DELETE …/{eintrag}` (204). Das Vollmachtsdokument enthält personenbezogene Daten (Unterschriften): Jeder Abruf steht im Audit-Log, und es wird mit der Vollmacht gelöscht. Ein doppelter Projektkenner ergibt 409.
+
+Die Befunde stehen im Verlauf des Auftrags (`GET /orders/{id}/history`, Feld `findings`). Ob daraus eine ABBM wird, entscheidet der Leistungserbringer (Arbeitsvorrat, M5). Rahmenvertrag und Produktkatalog werden erst geprüft, wenn für den Partner Einträge gepflegt sind, damit eine neue Installation nicht jeden Auftrag beanstandet. Vollmacht und Projektkenner werden immer geprüft, weil R-11 und R-12 sie ohne Vereinbarung ausschließen.

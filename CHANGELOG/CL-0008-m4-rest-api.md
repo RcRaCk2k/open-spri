@@ -96,11 +96,18 @@ M4 macht open-spri bedienbar: Web-Oberfläche und Fremdsysteme steuern alles üb
 - **`GET /pv-requests`, `POST /pv-requests/{id}/reply`:** AKM-PV als abgebender EKP mit Antwortfrist, aufnehmendem Provider und bisheriger LineID aus der archivierten AKM-PV. Die RUEM-PV übernimmt Vertrags- und Auftragsnummern, VorabstimmungsID und `anschluss` aus der AKM-PV (SA-012).
 - Idempotenz gilt jetzt auch für `/orders/{id}/send`, `/terminations` und `/pv-requests/{id}/reply`.
 
+### Teil 7: Verträge, Vollmachten, Projekte, Produkte, Wartung
+- **Vereinbarungen je Partner** (`PartnerAgreements`, AUFGABE 5.7/5.9): `/partners/{id}/contracts` (Rahmenverträge), `/powers-of-attorney` (Vollmachten, Dokument als PDF/PNG/JPEG bis 10 MB, Abruf im Audit-Log), `/projects` (Projektvereinbarungen), jeweils mit Gültigkeit von/bis.
+- **Prüfungen** (`AgreementRules`): Eingehende Aufträge bekommen Befunde für fehlende Vollmacht (R-11), Projektkenner ohne Vereinbarung (R-12), unbekannten Rahmenvertrag und unbekanntes Produkt. Rahmenvertrag und Produkt werden erst geprüft, wenn für den Partner Einträge gepflegt sind. Ein eigener Auftrag mit Projektkenner ohne Vereinbarung wird mit 409 abgewiesen.
+- **Produktkatalog** `CRUD /products` (je Partner oder für alle, Rolle, aktiv/inaktiv) und **Produktwechselmatrix** `GET/PUT /product-change-matrix`, `POST /product-change-matrix/import` (CSV im Layout von Anlage 6, SA-013), `GET /product-change-matrix/lookup`. Eine eigene Matrix des Partners ersetzt die Vorgabe. Die Prüfung von LAE/AEN-LMAE gegen den Bestand folgt mit M5.
+- **Wartung ankündigen** (NF-08, Spezifikation 11.5): `POST/GET /maintenance-announcements`. Mail an den technischen Kontakt jedes (bzw. jedes genannten) aktiven Partners. Weniger als 5 Werktage Vorlauf und Partner ohne Kontaktadresse stehen in `warnings`.
+- Migration V11: `partner_contract`, `partner_power_of_attorney`, `partner_project`, `product`, `product_change`, `maintenance_announcement`.
+
 ### Noch offen in M4
-- Partner: `/contracts`, `/powers-of-attorney`, `/projects`; `CRUD /products` und `/product-change-matrix`; `POST /maintenance-announcements`
 - Bestand, Diagnose, Verfügbarkeit, Replikat: mit M5/M6, weil die Fachlogik dort entsteht
 
 ## Tests
+- Teil 7: `AgreementsTest` (R-11 mit abgelaufener, gültiger und fremder Vollmacht; R-12; Vertrag und Produkt erst nach Pflege; Matrix-Import im Layout von Anlage 6 mit Testdaten; Wartung an Partner mit Kontakt, Warnung bei kurzer Frist, Werktage), `InboundOrderServiceTest` (Befunde R-11/R-12 im Verlauf), `OutboundOrderServiceTest` (eigener Auftrag mit Projektkenner), `MasterDataApiTest` (alle Endpunkte, 400/403/404/409/415, Dokument hoch- und herunterladen, Import und Abfrage der Matrix, Wartung), `ApplicationIntegrationTest` (Vereinbarungen nur im eigenen Partner, Dokument, Produkte für alle und je Partner, Matrix je Partner und Vorgabe, Ankündigungen)
 - Teil 6: `OrderLifecycleTest` (Entwurf: nur Senden), `OutboundOrderServiceTest` (Entwurf reserviert die Nummer, wird erst beim Senden eingereiht, bleibt bei Regelverstoß Entwurf, Löschen gibt die Nummer frei; KDLE legt KUE-LE an, keine Spuren bei Abweisung, ERLM folgt), `OrderApiTest` (Entwurf anlegen/ändern/senden/löschen, 409 nach dem Senden; KDLE mit Scope und Dublette; AKM-PV mit Frist → RUEM-PV mit Feldern aus der AKM-PV, zweite RUEM-PV 409), `ApplicationIntegrationTest` (Entwurf ändert alle Spalten, Löschen samt Inhalt, Filter nach Übergabephase)
 
 - `SpriJsonTest` (3): XML → JSON → XML für Auftrag und QEB bleibt XSD-gültig, Fehlermeldungen mit Pfad und Vorschlägen

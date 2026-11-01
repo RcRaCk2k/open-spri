@@ -149,4 +149,7 @@ interface OutageRegistry {
 interface Notifier {
     fun partnerInterfaceDown(partnerId: PartnerId, outage: PartnerOutage, lastError: String?)
     fun undeliverable(entry: OutboxEntry)
+
+    /** Maintenance window to the partner's technical contact (NF-08). False if the partner has no address. */
+    fun maintenance(partner: de.openspri.domain.partner.Partner, announcement: de.openspri.domain.partner.MaintenanceAnnouncement): Boolean = false
 }

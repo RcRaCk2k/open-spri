@@ -157,7 +157,7 @@ Angenommene Aufträge und Meldungen landen in der Warteschlange `inbox_message`.
 - Aufträge (wir sind Leistungserbringer) werden in `spri_order` angelegt.
 - Meldungen bewegen den Auftrag weiter durch seinen Zustandsautomaten.
 
-Was die Prüfungen finden, steht in `spri_order_history.findings` und `inbox_message.findings`. Das sind zum Beispiel Dubletten, R-05 (Termin mehr als 180 Tage in der Zukunft), R-10 (offener Auftrag am selben Anschluss) und Meldungen außerhalb der Reihenfolge. Status `FAILED` bedeutet einen technischen Fehler, die Ursache steht in `inbox_message.error`.
+Was die Prüfungen finden, steht in `spri_order_history.findings` und `inbox_message.findings`. Das sind zum Beispiel Dubletten, R-05 (Termin mehr als 180 Tage in der Zukunft), R-10 (offener Auftrag am selben Anschluss), R-11 (keine gültige Vollmacht), R-12 (Projektkenner ohne Vereinbarung), unbekannter Rahmenvertrag oder unbekanntes Produkt (siehe [api/partner.md](api/partner.md#rahmenverträge-vollmachten-projektvereinbarungen)) und Meldungen außerhalb der Reihenfolge. Status `FAILED` bedeutet einen technischen Fehler, die Ursache steht in `inbox_message.error`.
 
 Mehrere Instanzen dürfen parallel laufen. Je Auftrag wird streng in der Reihenfolge des Eingangs verarbeitet (ADR-0007). Ein Eintrag mit `FAILED` hält die folgenden Einträge desselben Auftrags an, bis er neu verarbeitet wurde.
 
@@ -196,6 +196,7 @@ Ereignisse enthalten Nummern, Status und Meldungscodes, aber keine Endkundendate
 |---|---|
 | Schnittstelle eines Partners nicht erreichbar (höchstens einmal je Ausfall und Tag, Spezifikation 11.2.3.2) | technischer Kontakt des Partners und `OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL` |
 | Nachricht nicht zustellbar | `OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL` |
+| Wartung angekündigt (`POST /maintenance-announcements`, 5 Werktage Vorlauf nach Spezifikation 11.5) | technischer Kontakt jedes Partners und `OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL` |
 
 Mailserver in `.env` eintragen:
 ```

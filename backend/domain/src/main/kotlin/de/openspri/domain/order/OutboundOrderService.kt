@@ -13,6 +13,7 @@ import de.openspri.domain.message.CodeCheck
 import de.openspri.domain.message.MessageCodeCatalog
 import de.openspri.domain.message.MessageType
 import de.openspri.domain.message.Party
+import de.openspri.domain.partner.AgreementRules
 import de.openspri.domain.partner.PartnerId
 import java.time.Clock
 import java.time.LocalDate
@@ -41,6 +42,7 @@ class OutboundOrderService(
     private val clock: Clock = Clock.systemDefaultZone(),
     private val events: EventLog = EventLog.NONE,
     private val drafts: OrderDrafts? = null,
+    private val agreements: AgreementRules? = null,
 ) {
 
     /** We order from a partner (we are Auftraggeber). [payload] is the annehmenAuftragRequest element. */
@@ -92,7 +94,8 @@ class OutboundOrderService(
     /** [draft] may be unsaved (direct submit) or a stored draft. Checks first, so nothing is stored on rejection. */
     private fun send(draft: Order, data: OrderData, payload: ByteArray): Order {
         require(data.changeIndicator == ChangeIndicator.STANDARD) { "use requestChange for Storno and Terminverschiebung" }
-        val findings = OrderRules.check(data, LocalDate.now(clock))
+        val today = LocalDate.now(clock)
+        val findings = OrderRules.check(data, today) + agreements?.checkProject(draft.partnerId, data, today).orEmpty()
         if (findings.isNotEmpty()) throw OrderActionRejected(findings)
         val transition = OrderLifecycle.apply(draft.state, OrderEvent.Send) as Transition.Accepted
         val now = clock.instant()

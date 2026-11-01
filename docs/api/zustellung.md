@@ -72,3 +72,24 @@ curl -s $SPRI/api/v1/messages/815/response -H "Authorization: Bearer $TOKEN"   #
 ```
 
 `rejectionReason` erklärt eine negative TEQ intern (z. B. „Signatur ungültig“). Der Partner erhält laut Spezifikation nur die Fehlernummer. Rohnachrichten enthalten Endkundendaten; jeder Abruf von `/raw` steht im Audit-Log.
+
+## Wartung ankündigen (`partners:admin`)
+
+Wartungsarbeiten, die die Schnittstelle beeinträchtigen, sind allen Partnern mit **5 Werktagen Vorlauf** per Mail anzuzeigen (Spezifikation 11.5, NF-08).
+
+```bash
+curl -s -X POST $SPRI/api/v1/maintenance-announcements -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"start": "2026-11-20T20:00:00Z", "end": "2026-11-20T22:00:00Z", "subject": "Wartung der S/PRI-Schnittstelle",
+       "text": "Wir spielen eine neue Version ein."}'
+```
+
+```json
+{"id": 4, "start": "2026-11-20T20:00:00Z", "end": "2026-11-20T22:00:00Z", "subject": "Wartung der S/PRI-Schnittstelle",
+ "text": "Wir spielen eine neue Version ein.", "partnerIds": [7, 9], "recipients": 1,
+ "warnings": ["Partner Glasfaser Süd hat keine Kontaktadresse"], "createdAt": "2026-11-02T09:00:00Z", "createdBy": "user:admin"}
+```
+
+- Ohne `partnerIds` geht die Mail an alle aktiven Partner, sonst nur an die genannten.
+- Empfänger ist der technische Kontakt des Partners, in Kopie `OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL`.
+- Eine kürzere Frist ist möglich (z. B. für eine dringende Korrektur), steht aber in `warnings`. Werktage sind Montag bis Freitag; Feiertage berücksichtigt open-spri nicht, weil sie je Bundesland verschieden sind.
+- `GET /maintenance-announcements` (`partners:read`) listet die bisherigen Ankündigungen, neueste zuerst.

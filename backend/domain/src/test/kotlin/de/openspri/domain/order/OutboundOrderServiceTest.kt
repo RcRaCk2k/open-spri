@@ -94,6 +94,15 @@ class OutboundOrderServiceTest {
     }
 
     @Test
+    fun `our order with a Projektkenner needs a project agreement (R-12)`() {
+        val agreements = de.openspri.domain.InMemoryAgreements()
+        val checked = OutboundOrderService(orders, outbox, { catalog }, DirectTransactions, clock, agreements = de.openspri.domain.partner.AgreementRules(agreements, agreements))
+        assertContains(assertThrows<OrderActionRejected> { checked.submitOrder(partner, data.copy(projectId = "P1"), ByteArray(0)) }.message!!, "R-12")
+        agreements.saveProject(de.openspri.domain.partner.ProjectAgreement(null, partner, "P1"))
+        checked.submitOrder(partner, data.copy(projectId = "P1"), ByteArray(0))
+    }
+
+    @Test
     fun `KDLE creates the KUE-LE order of the Leistungserbringer, ERLM and ENTM follow`() {
         val kdle = MessageInfo(MessageType.KDLE, BusinessCase.KUE_LE, ChangeIndicator.STANDARD, "LE-K-1", listOf("8006"))
         val data = OrderData("LE-K-1", BusinessCase.KUE_LE, contractNumber = "V1", clientNumber = "AG1")

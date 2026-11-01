@@ -8,6 +8,7 @@ import de.openspri.domain.exchange.Direction.INBOUND
 import de.openspri.domain.message.CodeCheck
 import de.openspri.domain.message.MessageCodeCatalog
 import de.openspri.domain.message.MessageType
+import de.openspri.domain.partner.AgreementRules
 import de.openspri.domain.partner.PartnerId
 import java.time.Clock
 import java.time.LocalDate
@@ -38,6 +39,7 @@ class InboundOrderService(
     private val codes: () -> MessageCodeCatalog,
     private val clock: Clock = Clock.systemDefaultZone(),
     private val events: EventLog = EventLog.NONE,
+    private val agreements: AgreementRules? = null,
 ) {
 
     /** An order of a partner to us (we are Leistungserbringer). */
@@ -54,6 +56,7 @@ class InboundOrderService(
                 return ProcessingResult(existing.id, findings)
             }
             val findings = OrderRules.check(data, today).toMutableList()
+            agreements?.let { findings += it.checkInbound(partnerId, data, today) }
             data.infrastructureKey?.let { key ->
                 if (orders.hasOpenOrder(OrderRole.LEISTUNGSERBRINGER, key, except = null)) {
                     findings += "R-10: Für die technische Infrastruktur liegt bereits ein offener Auftrag vor"

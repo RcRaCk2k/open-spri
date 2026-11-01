@@ -38,6 +38,15 @@ class InboundOrderServiceTest {
         MessageInfo(type, BusinessCase.NEU, indicator, number, codes.toList())
 
     @Test
+    fun `agreement checks become findings of the order (R-11, R-12)`() {
+        val agreements = de.openspri.domain.InMemoryAgreements()
+        val checked = InboundOrderService(repository, { catalog }, clock, events, de.openspri.domain.partner.AgreementRules(agreements, agreements))
+        val result = checked.receiveOrder(partner, neu().copy(clientNumber = "AG1", serviceNumber = "LN1", ordererClientNumber = "B1", ordererServiceNumber = "BL1", projectId = "P1"), 1)
+        assertEquals(listOf("R-11", "R-12"), result.findings.map { it.substringBefore(':') })
+        assertEquals(result.findings, repository.history.single().findings)
+    }
+
+    @Test
     fun `new order is stored as submitted`() {
         val result = service.receiveOrder(partner, neu(), archiveId = 10)
         assertEquals(emptyList(), result.findings)

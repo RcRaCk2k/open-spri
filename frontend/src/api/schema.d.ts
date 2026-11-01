@@ -115,7 +115,7 @@ export interface paths {
          * Postausgang
          * @description Neueste zuerst. Blättern mit `cursor`.
          */
-        get: operations["list_5"];
+        get: operations["list_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -132,7 +132,7 @@ export interface paths {
             cookie?: never;
         };
         /** Eine ausgehende Nachricht */
-        get: operations["get_6"];
+        get: operations["get_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -281,6 +281,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/maintenance-announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bisherige Ankündigungen
+         * @description Neueste zuerst.
+         */
+        get: operations["list_6"];
+        put?: never;
+        /**
+         * Wartung ankündigen
+         * @description Schickt eine Mail an den technischen Kontakt jedes Partners (Kopie an OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL). Die Spezifikation verlangt 5 Werktage Vorlauf (11.5); eine kürzere Frist ist möglich, steht aber in `warnings`.
+         */
+        post: operations["announce"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/message-codes": {
         parameters: {
             query?: never;
@@ -292,7 +316,7 @@ export interface paths {
          * Aktive Meldungscodetabelle
          * @description Optional gefiltert nach Meldungstyp, z. B. `?messageType=ABM`.
          */
-        get: operations["get_5"];
+        get: operations["get_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -314,7 +338,7 @@ export interface paths {
          * Neue Version importieren
          * @description Die Datei so, wie sie aus dem AK-Confluence exportiert wurde (UTF-16-TSV oder CSV). Sie wird versioniert gespeichert und sofort aktiv. Bei mehreren Instanzen übernehmen die anderen die Version beim nächsten Neustart.
          */
-        post: operations["import"];
+        post: operations["import_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -329,7 +353,7 @@ export interface paths {
             cookie?: never;
         };
         /** Metadaten einer archivierten Nachricht */
-        get: operations["get_4"];
+        get: operations["get_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -386,13 +410,13 @@ export interface paths {
          * Aufträge suchen
          * @description Neueste zuerst. Blättern mit `cursor` = kleinste `id` der vorigen Seite.
          */
-        get: operations["list_4"];
+        get: operations["list_5"];
         put?: never;
         /**
          * Auftrag anlegen (Entwurf) oder sofort senden
          * @description Prüft gegen XSD und Anlage 1. Ohne `send` entsteht ein Entwurf (201, Phase DRAFT), der mit POST /orders/{id}/send gesendet wird. Mit `send=true` prüft open-spri zusätzlich die Auftragsregeln und legt den Auftrag sofort in den Postausgang (202). Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.
          */
-        post: operations["create_4"];
+        post: operations["create_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -407,7 +431,7 @@ export interface paths {
             cookie?: never;
         };
         /** Auftrag mit zulässigen Aktionen lesen */
-        get: operations["get_2"];
+        get: operations["get_3"];
         /**
          * Entwurf ändern
          * @description Ersetzt den Inhalt. 409, wenn der Auftrag schon gesendet ist.
@@ -592,10 +616,10 @@ export interface paths {
             cookie?: never;
         };
         /** Partner auflisten */
-        get: operations["list_3"];
+        get: operations["list_4"];
         put?: never;
         /** Partner anlegen */
-        post: operations["create_3"];
+        post: operations["create_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -650,14 +674,14 @@ export interface paths {
             cookie?: never;
         };
         /** Partner lesen */
-        get: operations["get_3"];
+        get: operations["get_4"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Partner ändern */
-        patch: operations["update_2"];
+        patch: operations["update_3"];
         trace?: never;
     };
     "/api/v1/partners/{id}/certificates": {
@@ -712,6 +736,260 @@ export interface paths {
         put: operations["networks"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partnerId}/contracts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rahmenverträge des Partners */
+        get: operations["contracts"];
+        put?: never;
+        /**
+         * Rahmenvertrag anlegen
+         * @description Sobald ein Vertrag (Rolle LEISTUNGSERBRINGER) hinterlegt ist, prüft open-spri eingehende Aufträge dagegen.
+         */
+        post: operations["createContract"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partnerId}/contracts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Rahmenvertrag ändern */
+        put: operations["updateContract"];
+        post?: never;
+        /** Rahmenvertrag löschen */
+        delete: operations["deleteContract"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partnerId}/powers-of-attorney": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vollmachten für Bestellungen im Namen Dritter
+         * @description Der Partner ist der Besteller, der uns die Aufträge schickt.
+         */
+        get: operations["powers"];
+        put?: never;
+        /**
+         * Vollmacht anlegen
+         * @description Ein eingehender Auftrag mit Block besteller ohne gültige Vollmacht erhält den Befund R-11 (Grundlage für die ABBM).
+         */
+        post: operations["createPower"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partnerId}/powers-of-attorney/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Vollmacht ändern */
+        put: operations["updatePower"];
+        post?: never;
+        /** Vollmacht löschen (samt Dokument) */
+        delete: operations["deletePower"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partnerId}/powers-of-attorney/{id}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Hinterlegte Vollmacht herunterladen
+         * @description Das Dokument enthält personenbezogene Daten; jeder Abruf wird im Audit-Log festgehalten.
+         */
+        get: operations["document"];
+        /**
+         * Vollmacht als Dokument hinterlegen
+         * @description PDF, PNG oder JPEG, höchstens 10 MB. Ersetzt ein vorhandenes Dokument.
+         */
+        put: operations["uploadDocument"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partnerId}/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Projektvereinbarungen des Partners */
+        get: operations["projects"];
+        put?: never;
+        /**
+         * Projektvereinbarung anlegen
+         * @description Ohne gültige Vereinbarung wird ein Auftrag mit diesem Projektkenner abgewiesen (eigener: 409, eingehender: Befund R-12).
+         */
+        post: operations["createProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partnerId}/projects/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Projektvereinbarung ändern */
+        put: operations["updateProject"];
+        post?: never;
+        /** Projektvereinbarung löschen */
+        delete: operations["deleteProject"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-change-matrix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Produktwechselmatrix
+         * @description Ohne `partnerId` die Vorgabe für alle Partner.
+         */
+        get: operations["matrix"];
+        /**
+         * Produktwechselmatrix ersetzen
+         * @description Ersetzt die Matrix vollständig. Eine eigene Matrix eines Partners gilt anstelle der Vorgabe; eine leere Liste löscht sie.
+         */
+        put: operations["replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-change-matrix/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Produktwechselmatrix aus Anlage 6 importieren
+         * @description CSV-Export der Tabelle aus Anlage 6 (Kopfzeile mit Zielprodukten, je Bestandsprodukt eine Zeile mit LAE/AEN-LMAE). `FTTx` im Ziel wird durch die Technologie des Bestandsprodukts ersetzt (SA-013). Ersetzt die Matrix vollständig.
+         */
+        post: operations["import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-change-matrix/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Geschäftsfall für einen Produktwechsel
+         * @description Die eigene Matrix des Partners, sonst die Vorgabe.
+         */
+        get: operations["lookup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Produkte
+         * @description Mit `partnerId` die Produkte dieses Partners einschließlich derer für alle Partner.
+         */
+        get: operations["list_3"];
+        put?: never;
+        /**
+         * Produkt anlegen
+         * @description Sobald ein aktives Produkt (Rolle LEISTUNGSERBRINGER) für einen Partner gilt, prüft open-spri dessen Aufträge gegen den Katalog.
+         */
+        post: operations["create_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Produkt lesen */
+        get: operations["get_2"];
+        /** Produkt ändern */
+        put: operations["update_1"];
+        post?: never;
+        /**
+         * Produkt löschen
+         * @description Bestehende Aufträge bleiben unverändert; zum Auslaufen lassen besser `active=false`.
+         */
+        delete: operations["delete_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -919,7 +1197,7 @@ export interface paths {
          * Benutzer ändern
          * @description Name, Rolle, Sperre oder Passwort.
          */
-        patch: operations["update_1"];
+        patch: operations["update_2"];
         trace?: never;
     };
     "/api/v1/webhooks": {
@@ -1020,6 +1298,47 @@ export interface components {
             /** @example admin */
             username: string;
         };
+        /** @description Eine versendete Ankündigung */
+        AnnouncementDto: {
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: string;
+            /** Format: date-time */
+            end: string;
+            /** Format: int64 */
+            id: number;
+            partnerIds: number[];
+            /**
+             * Format: int32
+             * @description Partner, an deren technischen Kontakt die Mail ging
+             */
+            recipients: number;
+            /** Format: date-time */
+            start: string;
+            subject: string;
+            text: string;
+            /** @description z. B. weniger als 5 Werktage Vorlauf (NF-08), Partner ohne Kontaktadresse */
+            warnings: string[];
+        };
+        /** @description Ankündigung eines Wartungsfensters */
+        AnnouncementRequest: {
+            /**
+             * Format: date-time
+             * @example 2026-11-20T22:00:00Z
+             */
+            end: string;
+            /** @description nur an diese Partner; leer = an alle aktiven Partner */
+            partnerIds?: number[] | null;
+            /**
+             * Format: date-time
+             * @example 2026-11-20T20:00:00Z
+             */
+            start: string;
+            /** @example Wartung der S/PRI-Schnittstelle */
+            subject: string;
+            /** @description Text der Mail, z. B. Grund und Auswirkung */
+            text: string;
+        };
         /** @description Eine archivierte SOAP-Nachricht mit Antwort (NF-09) */
         ArchiveEntryDto: {
             /** @description INBOUND oder OUTBOUND */
@@ -1060,6 +1379,21 @@ export interface components {
         /** @description Ein Zertifikat als PEM */
         CertificateRequest: {
             pem: string;
+        };
+        /** @description Ein Wechsel der Produktwechselmatrix */
+        ChangeDto: {
+            /** @description LAE oder AEN-LMAE */
+            businessCase: string;
+            /**
+             * @description Bestand
+             * @example FTTH 25
+             */
+            from: string;
+            /**
+             * @description Ziel
+             * @example FTTH 50
+             */
+            to: string;
         };
         /** @description Ein Meldungscode; ohne Text wird der Text aus der Meldungscodetabelle übernommen */
         CodeDto: {
@@ -1111,6 +1445,28 @@ export interface components {
         ComplaintRequest: {
             /** @description der Entstörauftrag mit `reklamation` (wie bei POST /orders) */
             auftrag: components["schemas"]["JsonNode"];
+        };
+        /** @description Rahmenvertrag: Auftraggeber- und Leistungsnummer, unter denen Aufträge laufen */
+        ContractDto: {
+            /**
+             * @description Auftraggebernummer
+             * @example AG4711
+             */
+            clientNumber: string;
+            description?: string | null;
+            /** Format: int64 */
+            readonly id?: number | null;
+            /** @description unsere Rolle: AUFTRAGGEBER (wir bestellen beim Partner) oder LEISTUNGSERBRINGER (der Partner bestellt bei uns) */
+            role: string;
+            /**
+             * @description Leistungsnummer; leer = alle
+             * @example LN0815
+             */
+            serviceNumber?: string | null;
+            /** Format: date */
+            validFrom?: string | null;
+            /** Format: date */
+            validTo?: string | null;
         };
         /** @description Neuer Auftrag an einen Partner (wir sind Auftraggeber) */
         CreateOrderRequest: {
@@ -1329,6 +1685,24 @@ export interface components {
             /** @example admin */
             username: string;
         };
+        /** @description Ergebnis der Abfrage: mit welchem Geschäftsfall wechselt man von `from` nach `to` */
+        LookupDto: {
+            /** @description LAE, AEN-LMAE oder leer: Wechsel nur mit NEU und KUE-AG */
+            businessCase?: string | null;
+            from: string;
+            /** @description PARTNER (eigene Matrix des Partners), DEFAULT (Vorgabe) oder NONE */
+            source: string;
+            to: string;
+        };
+        /** @description Die Produktwechselmatrix eines Partners oder die Vorgabe für alle */
+        MatrixDto: {
+            changes: components["schemas"]["ChangeDto"][];
+            /**
+             * Format: int64
+             * @description leer = Vorgabe für alle Partner
+             */
+            partnerId?: number | null;
+        };
         /** @description Die angemeldete Person bzw. das Token */
         MeResponse: {
             /** @description USER, TOKEN, SETUP */
@@ -1455,6 +1829,60 @@ export interface components {
             name: string;
             /** @description technischer Kontakt; erhält die Ausfall-Mail (11.2.3.2) */
             technicalContactEmail?: string | null;
+        };
+        /** @description Vollmacht: der Auftraggeber erlaubt dem Besteller, in seinem Namen zu bestellen (R-11) */
+        PowerOfAttorneyDto: {
+            /** @description Auftraggebernummer des Vollmachtgebers */
+            clientNumber: string;
+            description?: string | null;
+            /** @description Dateiname der hinterlegten Vollmacht (GET …/document) */
+            readonly documentName?: string | null;
+            /** Format: int64 */
+            readonly id?: number | null;
+            /** @description Auftraggebernummer des Bestellers (Block besteller) */
+            ordererClientNumber: string;
+            /** @description Leistungsnummer des Bestellers */
+            ordererServiceNumber: string;
+            /** @description Leistungsnummer des Vollmachtgebers */
+            serviceNumber: string;
+            /** Format: date */
+            validFrom?: string | null;
+            /** Format: date */
+            validTo?: string | null;
+        };
+        /** @description Ein Produkt des Katalogs */
+        ProductDto: {
+            /** @description inaktive Produkte zählen bei der Prüfung eingehender Aufträge nicht */
+            active?: boolean;
+            description?: string | null;
+            /** Format: int64 */
+            readonly id?: number | null;
+            /**
+             * @description Produktbezeichner wie im Auftrag (`produkt/bezeichner`)
+             * @example FTTH 100
+             */
+            identifier: string;
+            /**
+             * Format: int64
+             * @description leer = gilt für alle Partner
+             */
+            partnerId?: number | null;
+            /** @example FTTH */
+            productGroup?: string | null;
+            /** @description AUFTRAGGEBER: Produkt des Partners, das wir bestellen; LEISTUNGSERBRINGER: unser Produkt, das der Partner bestellt */
+            role: string;
+        };
+        /** @description Projektvereinbarung: Projektkenner, die mit dem Partner vereinbart sind (R-12) */
+        ProjectDto: {
+            description?: string | null;
+            /** Format: int64 */
+            readonly id?: number | null;
+            /** @description Projektkenner */
+            projectId: string;
+            /** Format: date */
+            validFrom?: string | null;
+            /** Format: date */
+            validTo?: string | null;
         };
         /** @description RUEM-PV: Antwort auf eine AKM-PV. Vertrags- und Auftragsnummern, VorabstimmungsID und `anschluss` übernimmt open-spri aus der AKM-PV. */
         PvReplyRequest: {
@@ -1794,7 +2222,7 @@ export interface operations {
             };
         };
     };
-    list_5: {
+    list_7: {
         parameters: {
             query?: {
                 status?: string;
@@ -1820,7 +2248,7 @@ export interface operations {
             };
         };
     };
-    get_6: {
+    get_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -2001,7 +2429,53 @@ export interface operations {
             };
         };
     };
-    get_5: {
+    list_6: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementDto"][];
+                };
+            };
+        };
+    };
+    announce: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementDto"];
+                };
+            };
+        };
+    };
+    get_6: {
         parameters: {
             query?: {
                 messageType?: string;
@@ -2023,7 +2497,7 @@ export interface operations {
             };
         };
     };
-    import: {
+    import_1: {
         parameters: {
             query?: {
                 /**
@@ -2055,7 +2529,7 @@ export interface operations {
             };
         };
     };
-    get_4: {
+    get_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -2121,7 +2595,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    list_5: {
         parameters: {
             query?: {
                 role?: string;
@@ -2154,7 +2628,7 @@ export interface operations {
             };
         };
     };
-    create_4: {
+    create_5: {
         parameters: {
             query?: {
                 /** @description true: sofort senden statt Entwurf */
@@ -2181,7 +2655,7 @@ export interface operations {
             };
         };
     };
-    get_2: {
+    get_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -2437,7 +2911,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -2457,7 +2931,7 @@ export interface operations {
             };
         };
     };
-    create_3: {
+    create_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -2521,7 +2995,7 @@ export interface operations {
             };
         };
     };
-    get_3: {
+    get_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -2543,7 +3017,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -2639,6 +3113,563 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PartnerDto"];
                 };
+            };
+        };
+    };
+    contracts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"][];
+                };
+            };
+        };
+    };
+    createContract: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"];
+                };
+            };
+        };
+    };
+    updateContract: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"];
+                };
+            };
+        };
+    };
+    deleteContract: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    powers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerOfAttorneyDto"][];
+                };
+            };
+        };
+    };
+    createPower: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PowerOfAttorneyDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerOfAttorneyDto"];
+                };
+            };
+        };
+    };
+    updatePower: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PowerOfAttorneyDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerOfAttorneyDto"];
+                };
+            };
+        };
+    };
+    deletePower: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    document: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    uploadDocument: {
+        parameters: {
+            query?: {
+                /** @description Dateiname */
+                name?: string;
+            };
+            header: {
+                "Content-Type": string;
+            };
+            path: {
+                partnerId: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/pdf": string;
+                "image/jpeg": string;
+                "image/png": string;
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    projects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDto"][];
+                };
+            };
+        };
+    };
+    createProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDto"];
+                };
+            };
+        };
+    };
+    updateProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDto"];
+                };
+            };
+        };
+    };
+    deleteProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    matrix: {
+        parameters: {
+            query?: {
+                partnerId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatrixDto"];
+                };
+            };
+        };
+    };
+    replace: {
+        parameters: {
+            query?: {
+                partnerId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeDto"][];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatrixDto"];
+                };
+            };
+        };
+    };
+    import: {
+        parameters: {
+            query?: {
+                partnerId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "text/csv": string;
+                "text/plain": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatrixDto"];
+                };
+            };
+        };
+    };
+    lookup: {
+        parameters: {
+            query: {
+                partnerId?: number;
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LookupDto"];
+                };
+            };
+        };
+    };
+    list_3: {
+        parameters: {
+            query?: {
+                partnerId?: number;
+                role?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDto"][];
+                };
+            };
+        };
+    };
+    create_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDto"];
+                };
+            };
+        };
+    };
+    get_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDto"];
+                };
+            };
+        };
+    };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDto"];
+                };
+            };
+        };
+    };
+    delete_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2962,7 +3993,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;

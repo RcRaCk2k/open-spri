@@ -5,6 +5,9 @@ import de.openspri.domain.exchange.InboxQueue
 import de.openspri.domain.message.MessageCodeCatalog
 import de.openspri.domain.message.MessageCodeStore
 import de.openspri.domain.order.InboundOrderService
+import de.openspri.domain.partner.AgreementRules
+import de.openspri.domain.partner.PartnerAgreements
+import de.openspri.domain.partner.ProductCatalog
 import de.openspri.domain.order.OrderRepository
 import de.openspri.soap.InboxWorker
 import org.slf4j.LoggerFactory
@@ -62,8 +65,11 @@ class OrderProcessingConfiguration {
     }
 
     @Bean
-    fun inboundOrderService(orders: OrderRepository, codes: MessageCodeCatalogHolder, events: EventLog) =
-        InboundOrderService(orders, codes::get, events = events)
+    fun inboundOrderService(orders: OrderRepository, codes: MessageCodeCatalogHolder, events: EventLog, agreements: AgreementRules) =
+        InboundOrderService(orders, codes::get, events = events, agreements = agreements)
+
+    @Bean
+    fun agreementRules(agreements: PartnerAgreements, products: ProductCatalog) = AgreementRules(agreements, products)
 
     @Bean
     fun inboxWorker(queue: InboxQueue, service: InboundOrderService) = InboxWorker(queue, service)

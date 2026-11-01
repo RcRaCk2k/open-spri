@@ -13,6 +13,12 @@ import de.openspri.domain.order.OrderDrafts
 import de.openspri.domain.order.OrderRepository
 import de.openspri.domain.order.OutboundOrderService
 import de.openspri.domain.order.Transactions
+import de.openspri.domain.partner.AgreementRules
+import de.openspri.domain.partner.MaintenanceAnnouncement
+import de.openspri.domain.partner.MaintenanceAnnouncements
+import de.openspri.domain.partner.MaintenanceService
+import de.openspri.domain.partner.Partner
+import de.openspri.domain.partner.PartnerAdministration
 import de.openspri.domain.partner.PartnerDirectory
 import de.openspri.domain.partner.PartnerId
 import de.openspri.domain.query.ArchiveQueries
@@ -88,8 +94,19 @@ class DeliveryConfiguration {
     fun outboxSender(partners: PartnerDirectory, client: SpriClient) = OutboxSender(partners, client)
 
     @Bean
-    fun outboundOrderService(orders: OrderRepository, outbox: Outbox, codes: MessageCodeCatalogHolder, transactions: Transactions, events: EventLog, drafts: OrderDrafts) =
-        OutboundOrderService(orders, outbox, codes::get, transactions, events = events, drafts = drafts)
+    fun outboundOrderService(
+        orders: OrderRepository,
+        outbox: Outbox,
+        codes: MessageCodeCatalogHolder,
+        transactions: Transactions,
+        events: EventLog,
+        drafts: OrderDrafts,
+        agreements: AgreementRules,
+    ) = OutboundOrderService(orders, outbox, codes::get, transactions, events = events, drafts = drafts, agreements = agreements)
+
+    @Bean
+    fun maintenanceService(partners: PartnerAdministration, notifier: Notifier, store: MaintenanceAnnouncements) =
+        MaintenanceService(partners, notifier, store)
 
     @Bean
     fun outboundPayloads(schema: SpriSchema, keys: SigningKeyHolder) = OutboundPayloads(schema, keys::current)
@@ -172,6 +189,30 @@ class MailNotifier(
             |oder verworfen wurde (Zustellmonitor).
             """.trimMargin(),
         )
+    }
+
+    override fun maintenance(partner: Partner, announcement: MaintenanceAnnouncement): Boolean {
+        val contact = partner.technicalContactEmail ?: return false
+        val zone = java.time.ZoneId.of("Europe/Berlin")
+        val format = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+        send(
+            listOfNotNull(contact, properties.operatorEmail),
+            "S/PRI: ${announcement.subject}",
+            """
+            |Guten Tag,
+            |
+            |wir kündigen eine Wartung unserer S/PRI-Schnittstelle an:
+            |
+            |Beginn: ${format.format(announcement.start.atZone(zone))} Uhr
+            |Ende:   ${format.format(announcement.end.atZone(zone))} Uhr
+            |
+            |${announcement.text}
+            |
+            |In dieser Zeit ist die Schnittstelle nicht oder nur eingeschränkt erreichbar.
+            |Diese Ankündigung erfolgt gemäß S/PRI-Spezifikation 11.5 (5 Werktage Vorlauf).
+            """.trimMargin(),
+        )
+        return true
     }
 
     private fun send(to: List<String>, subject: String, text: String) {

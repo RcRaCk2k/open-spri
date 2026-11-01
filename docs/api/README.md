@@ -12,9 +12,10 @@ Die REST-API ist die **einzige** Programmierschnittstelle von open-spri. Die Web
 |---|---|
 | [setup.md](setup.md) | Ersteinrichtung mit dem Setup-Token |
 | [auth.md](auth.md) | Anmeldung, Tokens, Benutzer, Rollen und Scopes |
-| [partner.md](partner.md) | Partner, Zertifikate, IP-Freigaben, WSDL, Onboarding-Blatt |
+| [partner.md](partner.md) | Partner, Zertifikate, IP-Freigaben, WSDL, Onboarding-Blatt, Rahmenverträge, Vollmachten, Projektvereinbarungen |
+| [produkte.md](produkte.md) | Produktkatalog und Produktwechselmatrix (Anlage 4 und 6) |
 | [auftraege.md](auftraege.md) | Aufträge in allen Rollen, Entwürfe, Storno, Terminverschiebung, Reklamation, Meldungen, Kündigung durch den Leistungserbringer, Providerwechsel-Anfragen |
-| [zustellung.md](zustellung.md) | Postausgang, Eingang, Nachrichtenarchiv |
+| [zustellung.md](zustellung.md) | Postausgang, Eingang, Nachrichtenarchiv, Wartung ankündigen |
 | [ereignisse.md](ereignisse.md) | Event-Feed, Webhooks mit HMAC-Signatur, Idempotenz |
 | [meldungscodes.md](meldungscodes.md) | Meldungscodetabelle anzeigen und importieren |
 | [ablaeufe.md](ablaeufe.md) | Ende-zu-Ende: NEU als Auftraggeber, eingehenden Auftrag als Leistungserbringer bearbeiten |

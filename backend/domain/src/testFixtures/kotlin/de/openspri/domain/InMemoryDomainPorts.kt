@@ -130,6 +130,9 @@ class RecordingNotifier : Notifier {
     val undeliverable = mutableListOf<OutboxEntry>()
     override fun partnerInterfaceDown(partnerId: PartnerId, outage: PartnerOutage, lastError: String?) { outages += outage }
     override fun undeliverable(entry: OutboxEntry) { undeliverable += entry }
+    val maintenance = mutableListOf<Pair<de.openspri.domain.partner.Partner, de.openspri.domain.partner.MaintenanceAnnouncement>>()
+    override fun maintenance(partner: de.openspri.domain.partner.Partner, announcement: de.openspri.domain.partner.MaintenanceAnnouncement) =
+        (partner.technicalContactEmail != null).also { if (it) maintenance += partner to announcement }
 }
 
 object DirectTransactions : Transactions {
@@ -235,4 +238,56 @@ class InMemoryIdempotencyStore : de.openspri.domain.event.IdempotencyStore {
     @Synchronized
     override fun release(id: Long) { rows.entries.removeIf { it.value.id == id } }
     override fun purgeBefore(time: Instant) = 0
+}
+
+class InMemoryAgreements : de.openspri.domain.partner.PartnerAgreements, de.openspri.domain.partner.ProductCatalog, de.openspri.domain.partner.MaintenanceAnnouncements {
+    val contracts = mutableListOf<de.openspri.domain.partner.FrameworkContract>()
+    val powers = mutableListOf<de.openspri.domain.partner.PowerOfAttorney>()
+    val documents = mutableMapOf<Long, de.openspri.domain.partner.AgreementDocument>()
+    val projects = mutableListOf<de.openspri.domain.partner.ProjectAgreement>()
+    val products = mutableListOf<de.openspri.domain.partner.Product>()
+    val changes = mutableListOf<de.openspri.domain.partner.ProductChange>()
+    val announcements = mutableListOf<de.openspri.domain.partner.MaintenanceAnnouncement>()
+    private var nextId = 1L
+
+    private fun <T> MutableList<T>.upsert(item: T, id: Long?, idOf: (T) -> Long?, withId: (T, Long) -> T): T {
+        if (id != null && none { idOf(it) == id }) throw NoSuchElementException("Eintrag $id existiert nicht")
+        val stored = if (id == null) withId(item, nextId++) else item
+        removeIf { idOf(it) == idOf(stored) }
+        add(stored)
+        return stored
+    }
+
+    override fun contracts(partnerId: PartnerId) = contracts.filter { it.partnerId == partnerId }
+    override fun saveContract(contract: de.openspri.domain.partner.FrameworkContract) = contracts.upsert(contract, contract.id, { it.id }) { c, id -> c.copy(id = id) }
+    override fun deleteContract(partnerId: PartnerId, id: Long) = contracts.removeIf { it.partnerId == partnerId && it.id == id }
+
+    override fun powersOfAttorney(partnerId: PartnerId) = powers.filter { it.partnerId == partnerId }.map { it.copy(documentName = documents[it.id]?.name) }
+    override fun savePowerOfAttorney(power: de.openspri.domain.partner.PowerOfAttorney) =
+        powers.upsert(power, power.id, { it.id }) { p, id -> p.copy(id = id) }.let { p -> p.copy(documentName = documents[p.id]?.name) }
+    override fun deletePowerOfAttorney(partnerId: PartnerId, id: Long) = powers.removeIf { it.partnerId == partnerId && it.id == id }.also { documents.remove(id) }
+    override fun document(partnerId: PartnerId, powerOfAttorneyId: Long) = documents[powerOfAttorneyId]?.takeIf { powers.any { it.id == powerOfAttorneyId && it.partnerId == partnerId } }
+    override fun saveDocument(partnerId: PartnerId, powerOfAttorneyId: Long, document: de.openspri.domain.partner.AgreementDocument): Boolean {
+        if (powers.none { it.id == powerOfAttorneyId && it.partnerId == partnerId }) return false
+        documents[powerOfAttorneyId] = document
+        return true
+    }
+
+    override fun projects(partnerId: PartnerId) = projects.filter { it.partnerId == partnerId }
+    override fun saveProject(project: de.openspri.domain.partner.ProjectAgreement) = projects.upsert(project, project.id, { it.id }) { p, id -> p.copy(id = id) }
+    override fun deleteProject(partnerId: PartnerId, id: Long) = projects.removeIf { it.partnerId == partnerId && it.id == id }
+
+    override fun list(partnerId: PartnerId?, role: OrderRole?) =
+        products.filter { (partnerId == null || it.partnerId == null || it.partnerId == partnerId) && (role == null || it.role == role) }.sortedBy { it.identifier }
+    override fun get(id: Long) = products.firstOrNull { it.id == id }
+    override fun save(product: de.openspri.domain.partner.Product) = products.upsert(product, product.id, { it.id }) { p, id -> p.copy(id = id) }
+    override fun delete(id: Long) = products.removeIf { it.id == id }
+    override fun changes(partnerId: PartnerId?) = changes.filter { it.partnerId == partnerId }
+    override fun replaceChanges(partnerId: PartnerId?, changes: List<de.openspri.domain.partner.ProductChange>) {
+        this.changes.removeIf { it.partnerId == partnerId }
+        this.changes += changes.map { it.copy(partnerId = partnerId) }
+    }
+
+    override fun save(announcement: de.openspri.domain.partner.MaintenanceAnnouncement) = announcement.copy(id = nextId++).also { announcements += it }
+    override fun list(limit: Int) = announcements.reversed().take(limit)
 }

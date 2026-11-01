@@ -69,6 +69,7 @@ class SoapInMemoryTestApplication : InMemoryAuthStores() {
     @Bean fun outboundArchive() = InMemoryOutboundArchive()
     @Bean fun orderRepository() = de.openspri.domain.InMemoryOrderRepository()
     @Bean fun orderDrafts() = de.openspri.domain.InMemoryOrderDrafts()
+    @Bean fun agreements() = de.openspri.domain.InMemoryAgreements()
     @Bean fun messageCodeStore() = de.openspri.soap.InMemoryMessageCodeStore()
     @Bean fun outbox() = de.openspri.domain.InMemoryOutbox()
     @Bean fun outageRegistry() = de.openspri.domain.InMemoryOutageRegistry()

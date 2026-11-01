@@ -14,9 +14,6 @@
     "description" : "diese Instanz"
   } ],
   "tags" : [ {
-    "description" : "Meldungscodetabelle des AK (Anlage 5): anzeigen und neue Version importieren",
-    "name" : "Meldungscodes"
-  }, {
     "description" : "Nachrichtenarchiv: SOAP-Nachrichten byte-genau, wie sie über die Leitung gingen",
     "name" : "Archiv"
   }, {
@@ -29,17 +26,14 @@
     "description" : "Anmeldung der Web-Oberfläche und Informationen zur aktuellen Anmeldung",
     "name" : "Anmeldung"
   }, {
-    "description" : "Ersteinrichtung einer neuen Installation (geschützt durch das Setup-Token aus dem Log)",
-    "name" : "Setup"
-  }, {
     "description" : "Aufträge in allen Rollen, Änderungen und Meldungen (AUFGABE 5.5/5.6)",
     "name" : "Aufträge"
   }, {
-    "description" : "Event-Feed per Polling und Webhooks (D-14)",
-    "name" : "Ereignisse"
-  }, {
     "description" : "Postausgang und Eingang überwachen und eingreifen (AUFGABE 5.7, 11.2.3.2)",
     "name" : "Zustellung"
+  }, {
+    "description" : "Zustellung, Eingang, Archiv und Wartung",
+    "name" : "Betrieb"
   }, {
     "description" : "Gegenstellen: Endpunkt, Signaturzertifikate, freigeschaltete IPs (AUFGABE 5.9)",
     "name" : "Partner"
@@ -49,6 +43,18 @@
   }, {
     "description" : "Lokale Benutzer der Web-Oberfläche",
     "name" : "Benutzer"
+  }, {
+    "description" : "Meldungscodetabelle des AK (Anlage 5): anzeigen und neue Version importieren",
+    "name" : "Meldungscodes"
+  }, {
+    "description" : "Ersteinrichtung einer neuen Installation (geschützt durch das Setup-Token aus dem Log)",
+    "name" : "Setup"
+  }, {
+    "description" : "Produktkatalog je Partner und Produktwechselmatrix (AUFGABE 5.9, Anlage 4 und 6)",
+    "name" : "Produkte"
+  }, {
+    "description" : "Event-Feed per Polling und Webhooks (D-14)",
+    "name" : "Ereignisse"
   } ],
   "paths" : {
     "/api/v1/about" : {
@@ -161,7 +167,7 @@
     "/api/v1/deliveries" : {
       "get" : {
         "description" : "Neueste zuerst. Blättern mit `cursor`.",
-        "operationId" : "list_5",
+        "operationId" : "list_7",
         "parameters" : [ {
           "in" : "query",
           "name" : "status",
@@ -217,7 +223,7 @@
     },
     "/api/v1/deliveries/{id}" : {
       "get" : {
-        "operationId" : "get_6",
+        "operationId" : "get_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -485,10 +491,71 @@
         "tags" : [ "Zustellung" ]
       }
     },
+    "/api/v1/maintenance-announcements" : {
+      "get" : {
+        "description" : "Neueste zuerst.",
+        "operationId" : "list_6",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AnnouncementDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Bisherige Ankündigungen",
+        "tags" : [ "Betrieb" ]
+      },
+      "post" : {
+        "description" : "Schickt eine Mail an den technischen Kontakt jedes Partners (Kopie an OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL). Die Spezifikation verlangt 5 Werktage Vorlauf (11.5); eine kürzere Frist ist möglich, steht aber in `warnings`.",
+        "operationId" : "announce",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AnnouncementRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AnnouncementDto"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Wartung ankündigen",
+        "tags" : [ "Betrieb" ]
+      }
+    },
     "/api/v1/message-codes" : {
       "get" : {
         "description" : "Optional gefiltert nach Meldungstyp, z. B. `?messageType=ABM`.",
-        "operationId" : "get_5",
+        "operationId" : "get_6",
         "parameters" : [ {
           "in" : "query",
           "name" : "messageType",
@@ -516,7 +583,7 @@
     "/api/v1/message-codes/import" : {
       "post" : {
         "description" : "Die Datei so, wie sie aus dem AK-Confluence exportiert wurde (UTF-16-TSV oder CSV). Sie wird versioniert gespeichert und sofort aktiv. Bei mehreren Instanzen übernehmen die anderen die Version beim nächsten Neustart.",
-        "operationId" : "import",
+        "operationId" : "import_1",
         "parameters" : [ {
           "description" : "Dateiname zur Nachverfolgung",
           "example" : "SPRI_Meldungscodetabelle.csv",
@@ -569,7 +636,7 @@
     },
     "/api/v1/messages/{id}" : {
       "get" : {
-        "operationId" : "get_4",
+        "operationId" : "get_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -657,7 +724,7 @@
     "/api/v1/orders" : {
       "get" : {
         "description" : "Neueste zuerst. Blättern mit `cursor` = kleinste `id` der vorigen Seite.",
-        "operationId" : "list_4",
+        "operationId" : "list_5",
         "parameters" : [ {
           "in" : "query",
           "name" : "role",
@@ -744,7 +811,7 @@
       },
       "post" : {
         "description" : "Prüft gegen XSD und Anlage 1. Ohne `send` entsteht ein Entwurf (201, Phase DRAFT), der mit POST /orders/{id}/send gesendet wird. Mit `send=true` prüft open-spri zusätzlich die Auftragsregeln und legt den Auftrag sofort in den Postausgang (202). Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.",
-        "operationId" : "create_4",
+        "operationId" : "create_5",
         "parameters" : [ {
           "description" : "true: sofort senden statt Entwurf",
           "in" : "query",
@@ -803,7 +870,7 @@
         "tags" : [ "Aufträge" ]
       },
       "get" : {
-        "operationId" : "get_2",
+        "operationId" : "get_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -1136,7 +1203,7 @@
     },
     "/api/v1/partners" : {
       "get" : {
-        "operationId" : "list_3",
+        "operationId" : "list_4",
         "responses" : {
           "200" : {
             "content" : {
@@ -1156,7 +1223,7 @@
         "tags" : [ "Partner" ]
       },
       "post" : {
-        "operationId" : "create_3",
+        "operationId" : "create_4",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -1225,7 +1292,7 @@
     },
     "/api/v1/partners/{id}" : {
       "get" : {
-        "operationId" : "get_3",
+        "operationId" : "get_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -1251,7 +1318,7 @@
         "tags" : [ "Partner" ]
       },
       "patch" : {
-        "operationId" : "update_2",
+        "operationId" : "update_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -1396,6 +1463,842 @@
         },
         "summary" : "Freigeschaltete IPs ersetzen",
         "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{partnerId}/contracts" : {
+      "get" : {
+        "operationId" : "contracts",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ContractDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Rahmenverträge des Partners",
+        "tags" : [ "Partner" ]
+      },
+      "post" : {
+        "description" : "Sobald ein Vertrag (Rolle LEISTUNGSERBRINGER) hinterlegt ist, prüft open-spri eingehende Aufträge dagegen.",
+        "operationId" : "createContract",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ContractDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ContractDto"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Rahmenvertrag anlegen",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{partnerId}/contracts/{id}" : {
+      "delete" : {
+        "operationId" : "deleteContract",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Rahmenvertrag löschen",
+        "tags" : [ "Partner" ]
+      },
+      "put" : {
+        "operationId" : "updateContract",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ContractDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ContractDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Rahmenvertrag ändern",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{partnerId}/powers-of-attorney" : {
+      "get" : {
+        "description" : "Der Partner ist der Besteller, der uns die Aufträge schickt.",
+        "operationId" : "powers",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PowerOfAttorneyDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Vollmachten für Bestellungen im Namen Dritter",
+        "tags" : [ "Partner" ]
+      },
+      "post" : {
+        "description" : "Ein eingehender Auftrag mit Block besteller ohne gültige Vollmacht erhält den Befund R-11 (Grundlage für die ABBM).",
+        "operationId" : "createPower",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PowerOfAttorneyDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PowerOfAttorneyDto"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Vollmacht anlegen",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{partnerId}/powers-of-attorney/{id}" : {
+      "delete" : {
+        "operationId" : "deletePower",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Vollmacht löschen (samt Dokument)",
+        "tags" : [ "Partner" ]
+      },
+      "put" : {
+        "operationId" : "updatePower",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PowerOfAttorneyDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PowerOfAttorneyDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Vollmacht ändern",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{partnerId}/powers-of-attorney/{id}/document" : {
+      "get" : {
+        "description" : "Das Dokument enthält personenbezogene Daten; jeder Abruf wird im Audit-Log festgehalten.",
+        "operationId" : "document",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "byte"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Hinterlegte Vollmacht herunterladen",
+        "tags" : [ "Partner" ]
+      },
+      "put" : {
+        "description" : "PDF, PNG oder JPEG, höchstens 10 MB. Ersetzt ein vorhandenes Dokument.",
+        "operationId" : "uploadDocument",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "description" : "Dateiname",
+          "in" : "query",
+          "name" : "name",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "vollmacht"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Content-Type",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/pdf" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            },
+            "image/jpeg" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            },
+            "image/png" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Vollmacht als Dokument hinterlegen",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{partnerId}/projects" : {
+      "get" : {
+        "operationId" : "projects",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ProjectDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Projektvereinbarungen des Partners",
+        "tags" : [ "Partner" ]
+      },
+      "post" : {
+        "description" : "Ohne gültige Vereinbarung wird ein Auftrag mit diesem Projektkenner abgewiesen (eigener: 409, eingehender: Befund R-12).",
+        "operationId" : "createProject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProjectDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjectDto"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Projektvereinbarung anlegen",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{partnerId}/projects/{id}" : {
+      "delete" : {
+        "operationId" : "deleteProject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Projektvereinbarung löschen",
+        "tags" : [ "Partner" ]
+      },
+      "put" : {
+        "operationId" : "updateProject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProjectDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjectDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Projektvereinbarung ändern",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/product-change-matrix" : {
+      "get" : {
+        "description" : "Ohne `partnerId` die Vorgabe für alle Partner.",
+        "operationId" : "matrix",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "partnerId",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MatrixDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Produktwechselmatrix",
+        "tags" : [ "Produkte" ]
+      },
+      "put" : {
+        "description" : "Ersetzt die Matrix vollständig. Eine eigene Matrix eines Partners gilt anstelle der Vorgabe; eine leere Liste löscht sie.",
+        "operationId" : "replace",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "partnerId",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/components/schemas/ChangeDto"
+                }
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MatrixDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Produktwechselmatrix ersetzen",
+        "tags" : [ "Produkte" ]
+      }
+    },
+    "/api/v1/product-change-matrix/import" : {
+      "post" : {
+        "description" : "CSV-Export der Tabelle aus Anlage 6 (Kopfzeile mit Zielprodukten, je Bestandsprodukt eine Zeile mit LAE/AEN-LMAE). `FTTx` im Ziel wird durch die Technologie des Bestandsprodukts ersetzt (SA-013). Ersetzt die Matrix vollständig.",
+        "operationId" : "import",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "partnerId",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "text/csv" : {
+              "schema" : {
+                "type" : "string"
+              }
+            },
+            "text/plain" : {
+              "schema" : {
+                "type" : "string"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MatrixDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Produktwechselmatrix aus Anlage 6 importieren",
+        "tags" : [ "Produkte" ]
+      }
+    },
+    "/api/v1/product-change-matrix/lookup" : {
+      "get" : {
+        "description" : "Die eigene Matrix des Partners, sonst die Vorgabe.",
+        "operationId" : "lookup",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "partnerId",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LookupDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Geschäftsfall für einen Produktwechsel",
+        "tags" : [ "Produkte" ]
+      }
+    },
+    "/api/v1/products" : {
+      "get" : {
+        "description" : "Mit `partnerId` die Produkte dieses Partners einschließlich derer für alle Partner.",
+        "operationId" : "list_3",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "partnerId",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "role",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ProductDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Produkte",
+        "tags" : [ "Produkte" ]
+      },
+      "post" : {
+        "description" : "Sobald ein aktives Produkt (Rolle LEISTUNGSERBRINGER) für einen Partner gilt, prüft open-spri dessen Aufträge gegen den Katalog.",
+        "operationId" : "create_3",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProductDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDto"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Produkt anlegen",
+        "tags" : [ "Produkte" ]
+      }
+    },
+    "/api/v1/products/{id}" : {
+      "delete" : {
+        "description" : "Bestehende Aufträge bleiben unverändert; zum Auslaufen lassen besser `active=false`.",
+        "operationId" : "delete_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Produkt löschen",
+        "tags" : [ "Produkte" ]
+      },
+      "get" : {
+        "operationId" : "get_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Produkt lesen",
+        "tags" : [ "Produkte" ]
+      },
+      "put" : {
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProductDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Produkt ändern",
+        "tags" : [ "Produkte" ]
       }
     },
     "/api/v1/pv-requests" : {
@@ -1801,7 +2704,7 @@
     "/api/v1/users/{id}" : {
       "patch" : {
         "description" : "Name, Rolle, Sperre oder Passwort.",
-        "operationId" : "update_1",
+        "operationId" : "update_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2050,6 +2953,90 @@
         },
         "required" : [ "displayName", "password", "username" ]
       },
+      "AnnouncementDto" : {
+        "type" : "object",
+        "description" : "Eine versendete Ankündigung",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "end" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "partnerIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "recipients" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Partner, an deren technischen Kontakt die Mail ging"
+          },
+          "start" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "subject" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "warnings" : {
+            "type" : "array",
+            "description" : "z. B. weniger als 5 Werktage Vorlauf (NF-08), Partner ohne Kontaktadresse",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "createdAt", "createdBy", "end", "id", "partnerIds", "recipients", "start", "subject", "text", "warnings" ]
+      },
+      "AnnouncementRequest" : {
+        "type" : "object",
+        "description" : "Ankündigung eines Wartungsfensters",
+        "properties" : {
+          "end" : {
+            "type" : "string",
+            "format" : "date-time",
+            "example" : "2026-11-20T22:00:00Z"
+          },
+          "partnerIds" : {
+            "type" : [ "array", "null" ],
+            "description" : "nur an diese Partner; leer = an alle aktiven Partner",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "start" : {
+            "type" : "string",
+            "format" : "date-time",
+            "example" : "2026-11-20T20:00:00Z"
+          },
+          "subject" : {
+            "type" : "string",
+            "example" : "Wartung der S/PRI-Schnittstelle"
+          },
+          "text" : {
+            "type" : "string",
+            "description" : "Text der Mail, z. B. Grund und Auswirkung"
+          }
+        },
+        "required" : [ "end", "start", "subject", "text" ]
+      },
       "ArchiveEntryDto" : {
         "type" : "object",
         "description" : "Eine archivierte SOAP-Nachricht mit Antwort (NF-09)",
@@ -2140,6 +3127,27 @@
           }
         },
         "required" : [ "pem" ]
+      },
+      "ChangeDto" : {
+        "type" : "object",
+        "description" : "Ein Wechsel der Produktwechselmatrix",
+        "properties" : {
+          "businessCase" : {
+            "type" : "string",
+            "description" : "LAE oder AEN-LMAE"
+          },
+          "from" : {
+            "type" : "string",
+            "description" : "Bestand",
+            "example" : "FTTH 25"
+          },
+          "to" : {
+            "type" : "string",
+            "description" : "Ziel",
+            "example" : "FTTH 50"
+          }
+        },
+        "required" : [ "businessCase", "from", "to" ]
       },
       "CodeDto" : {
         "type" : "object",
@@ -2232,6 +3240,43 @@
           }
         },
         "required" : [ "auftrag" ]
+      },
+      "ContractDto" : {
+        "type" : "object",
+        "description" : "Rahmenvertrag: Auftraggeber- und Leistungsnummer, unter denen Aufträge laufen",
+        "properties" : {
+          "clientNumber" : {
+            "type" : "string",
+            "description" : "Auftraggebernummer",
+            "example" : "AG4711"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "readOnly" : true
+          },
+          "role" : {
+            "type" : "string",
+            "description" : "unsere Rolle: AUFTRAGGEBER (wir bestellen beim Partner) oder LEISTUNGSERBRINGER (der Partner bestellt bei uns)"
+          },
+          "serviceNumber" : {
+            "type" : [ "string", "null" ],
+            "description" : "Leistungsnummer; leer = alle",
+            "example" : "LN0815"
+          },
+          "validFrom" : {
+            "type" : [ "string", "null" ],
+            "format" : "date"
+          },
+          "validTo" : {
+            "type" : [ "string", "null" ],
+            "format" : "date"
+          }
+        },
+        "required" : [ "clientNumber", "role" ]
       },
       "CreateOrderRequest" : {
         "type" : "object",
@@ -2678,6 +3723,45 @@
         },
         "required" : [ "password", "username" ]
       },
+      "LookupDto" : {
+        "type" : "object",
+        "description" : "Ergebnis der Abfrage: mit welchem Geschäftsfall wechselt man von `from` nach `to`",
+        "properties" : {
+          "businessCase" : {
+            "type" : [ "string", "null" ],
+            "description" : "LAE, AEN-LMAE oder leer: Wechsel nur mit NEU und KUE-AG"
+          },
+          "from" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string",
+            "description" : "PARTNER (eigene Matrix des Partners), DEFAULT (Vorgabe) oder NONE"
+          },
+          "to" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "from", "source", "to" ]
+      },
+      "MatrixDto" : {
+        "type" : "object",
+        "description" : "Die Produktwechselmatrix eines Partners oder die Vorgabe für alle",
+        "properties" : {
+          "changes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChangeDto"
+            }
+          },
+          "partnerId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "leer = Vorgabe für alle Partner"
+          }
+        },
+        "required" : [ "changes" ]
+      },
       "MeResponse" : {
         "type" : "object",
         "description" : "Die angemeldete Person bzw. das Token",
@@ -2969,6 +4053,114 @@
           }
         },
         "required" : [ "allowedSourceNetworks", "carrierCode", "certificates", "enabled", "id", "name" ]
+      },
+      "PowerOfAttorneyDto" : {
+        "type" : "object",
+        "description" : "Vollmacht: der Auftraggeber erlaubt dem Besteller, in seinem Namen zu bestellen (R-11)",
+        "properties" : {
+          "clientNumber" : {
+            "type" : "string",
+            "description" : "Auftraggebernummer des Vollmachtgebers"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "documentName" : {
+            "type" : [ "string", "null" ],
+            "description" : "Dateiname der hinterlegten Vollmacht (GET …/document)",
+            "readOnly" : true
+          },
+          "id" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "readOnly" : true
+          },
+          "ordererClientNumber" : {
+            "type" : "string",
+            "description" : "Auftraggebernummer des Bestellers (Block besteller)"
+          },
+          "ordererServiceNumber" : {
+            "type" : "string",
+            "description" : "Leistungsnummer des Bestellers"
+          },
+          "serviceNumber" : {
+            "type" : "string",
+            "description" : "Leistungsnummer des Vollmachtgebers"
+          },
+          "validFrom" : {
+            "type" : [ "string", "null" ],
+            "format" : "date"
+          },
+          "validTo" : {
+            "type" : [ "string", "null" ],
+            "format" : "date"
+          }
+        },
+        "required" : [ "clientNumber", "ordererClientNumber", "ordererServiceNumber", "serviceNumber" ]
+      },
+      "ProductDto" : {
+        "type" : "object",
+        "description" : "Ein Produkt des Katalogs",
+        "properties" : {
+          "active" : {
+            "type" : "boolean",
+            "description" : "inaktive Produkte zählen bei der Prüfung eingehender Aufträge nicht"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "readOnly" : true
+          },
+          "identifier" : {
+            "type" : "string",
+            "description" : "Produktbezeichner wie im Auftrag (`produkt/bezeichner`)",
+            "example" : "FTTH 100"
+          },
+          "partnerId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "leer = gilt für alle Partner"
+          },
+          "productGroup" : {
+            "type" : [ "string", "null" ],
+            "example" : "FTTH"
+          },
+          "role" : {
+            "type" : "string",
+            "description" : "AUFTRAGGEBER: Produkt des Partners, das wir bestellen; LEISTUNGSERBRINGER: unser Produkt, das der Partner bestellt"
+          }
+        },
+        "required" : [ "identifier", "role" ]
+      },
+      "ProjectDto" : {
+        "type" : "object",
+        "description" : "Projektvereinbarung: Projektkenner, die mit dem Partner vereinbart sind (R-12)",
+        "properties" : {
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "readOnly" : true
+          },
+          "projectId" : {
+            "type" : "string",
+            "description" : "Projektkenner"
+          },
+          "validFrom" : {
+            "type" : [ "string", "null" ],
+            "format" : "date"
+          },
+          "validTo" : {
+            "type" : [ "string", "null" ],
+            "format" : "date"
+          }
+        },
+        "required" : [ "projectId" ]
       },
       "PvReplyRequest" : {
         "type" : "object",
