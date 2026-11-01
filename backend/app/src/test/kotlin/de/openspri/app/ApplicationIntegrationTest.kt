@@ -24,7 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 /** Boots the full application against a real MariaDB. Skipped automatically without Docker. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = [OpenSpriApplication::class], webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @Testcontainers(disabledWithoutDocker = true)
 class ApplicationIntegrationTest(

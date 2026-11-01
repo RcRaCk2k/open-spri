@@ -11,6 +11,7 @@ import de.openspri.soap.InMemoryPartnerDirectory
 import de.openspri.soap.SigningCredentials
 import de.openspri.soap.SpriClient
 import de.openspri.soap.TestData
+import openspri.testapps.SoapInMemoryTestApplication
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired

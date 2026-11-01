@@ -1,4 +1,6 @@
-package de.openspri.app
+package openspri.testapps
+
+// Deliberately outside de.openspri: the component scan of OpenSpriApplication must not pick these up.
 
 import de.openspri.soap.InMemoryInboundStore
 import de.openspri.soap.InMemoryOutboundArchive
