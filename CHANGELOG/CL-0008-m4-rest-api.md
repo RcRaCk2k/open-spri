@@ -81,6 +81,12 @@ M4 macht open-spri bedienbar: Web-Oberfläche und Fremdsysteme steuern alles üb
 - **`DeliveryOperations`** (Fachmodell): Eingriffe im Postausgang erzeugen Ereignisse. **Korrektur:** Ein Auftrag im Status `UNCLEAR` lässt sich nicht mehr erneut senden (NF-05, 11.2.3.1). Er wird mit neuer Nummer neu gestellt und der alte Eintrag zurückgezogen.
 - Migration V9: `spri_order_history.direction`, `event`, `webhook_subscription`, `idempotency_key`.
 
+### Teil 5: API-Dokumentation
+- `docs/api/README.md`: Übersicht, Konventionen (Fehler, Scopes, Idempotenz, Cursor, asynchrones Senden), Fehlerformat mit `reasons` und `allowedActions`
+- je Bereich eine Seite mit curl-Beispielen und Antworten: `setup.md`, `auth.md` (inkl. Rollen- und Scope-Tabelle), `partner.md`, `auftraege.md` (JSON-Format nach XSD, alle Rollen), `zustellung.md`, `ereignisse.md` (Webhook-Signatur mit Prüfbeispiel in Shell und Python), `meldungscodes.md`
+- `ablaeufe.md`: NEU als Auftraggeber bis ENTM über den Event-Feed, eingehenden Auftrag als Leistungserbringer bearbeiten, Zustellproblem beheben
+- `docs/betrieb.md`: Zustellmonitor per REST, Abschnitt Ereignisse und Webhooks
+
 ### Noch offen in M4
 - Auftragsentwürfe (`POST /orders` als Entwurf, `POST /orders/{id}/send`): heute wird ein Auftrag sofort geprüft und gesendet. Entwürfe kommen mit dem Auftragsassistenten des Frontends (M7) und brauchen eigene Speicherung.
 - `POST /terminations` (KUE-LE mit KDLE) und `GET /pv-requests` + `POST /pv-requests/{id}/reply` (RUEM-PV) als eigene Pfade. Fachlich ist beides schon über `POST /orders/{id}/messages` möglich, KDLE braucht aber einen neuen Auftragsdatensatz.
