@@ -23,7 +23,7 @@ dependencyResolutionManagement {
 // Backend modules live under backend/<name>; see docs/AUFGABE-SPRI.md, chapter 8.2.
 // Further modules (outbox, replikat, auth-api, auth-local, auth-token, setup, simulator)
 // are added with their milestones.
-listOf("domain", "spri-schema", "spri-soap", "persistence", "rest-api", "app").forEach { name ->
+listOf("domain", "spri-schema", "spri-rules", "spri-soap", "persistence", "rest-api", "app").forEach { name ->
     include(name)
     project(":$name").projectDir = file("backend/$name")
 }

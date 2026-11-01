@@ -1,0 +1,29 @@
+# Conditions from the column "Anmerkung" of Anlage 1 that the cardinality columns cannot express.
+# Each entry quotes its source row. Format:
+#
+#   <sheet>:<label path> = only GF <list>    attribute exists only in these business cases (else: not allowed)
+#   <sheet>:<label path> = not GF <list>     attribute not allowed in these business cases
+#   <sheet>:<label path> = only AKZ <list>   attribute exists only for these change indicators (else: not allowed)
+#   <sheet>:<label path> = choice            alternative of an XSD choice: the mandatory part is checked by the
+#                                            choice row, the alternative itself is optional (minimum 0)
+#
+# GF uses the values of the messages (NEU, KUE-AG, KUE-LE, AEN-LMAE, LAE, PV, EST, GET, SET).
+# Every entry must be used; the build fails otherwise.
+
+# Zeile 160: "Nur zulässig (dann jedoch Pflicht) bei Änderungskennzeichen Terminverschiebung"
+Auftragsstruktur:Auftrag/Termin Neu = only AKZ Terminverschiebung
+
+# Zeile 76/100: "Es müssen entweder die Angaben zur Person ODER aber die Angaben zur Firma getätigt werden."
+Auftragsstruktur:Auftrag/Geschaeftsfall/Auftragsposition/Geschäftsfall-Produkt/StandortA/Firma = choice
+Auftragsstruktur:Auftrag/Geschaeftsfall/Auftragsposition/Geschäftsfall-Produkt/StandortVersand/Firma = choice
+
+# Meldungsstruktur Zeile 22: "Wird ausschließlich im GF Entstörung genutzt, dann als Pflichtattribut."
+Meldungsstruktur:Meldung/Meldungstyp/Meldungsattribute/Störungsnr. Leistungserbringer = only GF EST
+# Zeile 37: "Wird ausschließlich im GF Entstörung genutzt, dann als Pflichtattribut."
+Meldungsstruktur:Meldung/Meldungstyp/Meldungsattribute/Entstör-Ergebnis = only GF EST
+# Zeile 41: "nicht verwendet für GF GET, SET"
+Meldungsstruktur:Meldung/Meldungstyp/Meldungsattribute/Anlagen = not GF GET,SET
+# Zeile 75: "ABM, ABBM: nur für GF PV, dann aber ein MUSS" (the PV messages belong to GF PV anyway)
+Meldungsstruktur:Meldung/Meldungstyp/Meldungsattribute/abgebender Provider = only GF PV
+# Zeile 80: "Wird ausschließlich im GF GET, SET genutzt, dann als Pflichtattribut."
+Meldungsstruktur:Meldung/Meldungstyp/Meldungsattribute/Diagnoseergebnis = only GF GET,SET

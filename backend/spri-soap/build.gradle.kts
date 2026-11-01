@@ -8,6 +8,7 @@ plugins {
 dependencies {
     api(project(":domain"))
     api(project(":spri-schema"))
+    api(project(":spri-rules"))
     implementation(libs.cxf.frontend.jaxws)
     implementation(libs.cxf.transports.http)
     runtimeOnly(libs.saaj.impl)                  // SAAJ for CXF in JAX-WS MESSAGE mode

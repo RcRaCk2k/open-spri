@@ -12,6 +12,7 @@ import de.openspri.soap.SpriEndpoint
 import de.openspri.soap.SpriSchema
 import de.openspri.soap.TeqResponder
 import de.openspri.soap.WsSecurityVerifier
+import de.openspri.rules.AttributeValidator
 import jakarta.xml.ws.Endpoint
 import org.apache.cxf.Bus
 import org.apache.cxf.jaxws.EndpointImpl
@@ -61,7 +62,11 @@ class SpriSoapConfiguration {
         schema: SpriSchema,
         verifier: WsSecurityVerifier,
         credentials: SigningCredentials,
-    ) = InboundProcessor(partners, store, schema, verifier, TeqResponder(credentials))
+        properties: SpriSoapProperties,
+    ) = InboundProcessor(
+        partners, store, schema, verifier, TeqResponder(credentials),
+        attributes = AttributeValidator(), attributeMode = properties.attributeRules.inbound,
+    )
 
     @Bean
     fun spriClient(
@@ -77,6 +82,7 @@ class SpriSoapConfiguration {
             receiveTimeout = properties.client.receiveTimeout,
             requireSignedResponse = properties.client.requireSignedResponse,
             outboundProxy = properties.client.outboundProxyUri(),
+            attributeMode = properties.attributeRules.outbound,
         ),
     )
 

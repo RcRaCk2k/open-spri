@@ -84,6 +84,17 @@ class SoapEndToEndTest(
     }
 
     @Test
+    fun `own orders violating Anlage 1 are not sent`() {
+        // Terminverschiebung without terminNeu (Anlage 1 row 160)
+        val payload = TestData.payload("neu-auftrag.xml", credentials) { document ->
+            document.getElementsByTagNameNS("*", "aenderungskennzeichen").item(0).textContent = "Terminverschiebung"
+        }
+        val outcome = client.send(self(), endpoint, SoapOperation.ANNEHMEN_AUFTRAG, payload, "TEST-0001")
+        assertIs<SpriClient.Outcome.NotSent>(outcome, outcome.toString())
+        assertTrue(outbound.exchanges.isEmpty() && inbound.accepted.isEmpty(), "nothing may go over the wire")
+    }
+
+    @Test
     fun `addresses that are not allowlisted get HTTP 403`() {
         partners.partners.clear()
         partners.partners += self(allowed = "")

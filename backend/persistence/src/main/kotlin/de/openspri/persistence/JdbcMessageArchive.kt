@@ -39,9 +39,9 @@ class JdbcMessageArchive(private val jdbc: JdbcClient) : InboundStore, OutboundA
         val keyHolder = GeneratedKeyHolder()
         jdbc.sql(
             """INSERT INTO soap_archive (tenant_id, direction, operation, partner_id, remote_address, started_at, duration_ms,
-                   teq_code, rejection_reason, signer_subject, signer_serial, external_order_number, request, request_sha256, response)
+                   teq_code, rejection_reason, findings, signer_subject, signer_serial, external_order_number, request, request_sha256, response)
                VALUES (:tenant, :direction, :operation, :partner, :remote, :started, :duration,
-                   :teq, :reason, :subject, :serial, :order, :request, :sha, :response)""",
+                   :teq, :reason, :findings, :subject, :serial, :order, :request, :sha, :response)""",
         )
             .param("tenant", Tenant.DEFAULT)
             .param("direction", exchange.direction.name)
@@ -52,6 +52,7 @@ class JdbcMessageArchive(private val jdbc: JdbcClient) : InboundStore, OutboundA
             .param("duration", exchange.durationMillis)
             .param("teq", exchange.teqCode?.code)
             .param("reason", exchange.rejectionReason?.take(2000))
+            .param("findings", exchange.findings?.take(4000))
             .param("subject", exchange.signerSubject?.take(500))
             .param("serial", exchange.signerSerial)
             .param("order", exchange.externalOrderNumber?.take(20))

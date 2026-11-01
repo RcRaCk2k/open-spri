@@ -24,7 +24,14 @@ data class SpriSoapProperties(
     val maxRequestBytes: Int = 30 * 1024 * 1024,
     val publishedEndpointUrl: String? = null,
     val client: Client = Client(),
+    /** Anlage 1 checks (ADR-0006): inbound default report, outbound default enforce. */
+    val attributeRules: AttributeRulesModes = AttributeRulesModes(),
 ) {
+    data class AttributeRulesModes(
+        val inbound: de.openspri.soap.AttributeMode = de.openspri.soap.AttributeMode.REPORT,
+        val outbound: de.openspri.soap.AttributeMode = de.openspri.soap.AttributeMode.ENFORCE,
+    )
+
     data class Client(
         val connectTimeout: Duration = Duration.ofSeconds(10),
         val receiveTimeout: Duration = Duration.ofSeconds(30),

@@ -1,0 +1,35 @@
+# Assignment of Anlage-1 labels to XML elements of the S/PRI schema, where the name matching of the
+# generator (Anlage1Generator) does not find the element by itself.
+#
+# Format:  <sheet>:<label path> = <element name>        child element of the parent's XML element
+#          <sheet>:<label path> = -                     structural level without own element (e.g. "choice")
+#          <sheet>:<label path> = ignore <reason>       not checked; the reason is mandatory
+#
+# Every entry must be used; the build fails for unused entries and for rows that cannot be resolved.
+
+# --- Control header ----------------------------------------------------------------------------
+Auftragsstruktur:Kontrollattribute/Minor-Version = minorRelease
+Meldungsstruktur:Kontrollattribute/Minor-Version = minorRelease
+
+# --- Attachments: Anlage 1 "Dateiinhalt"/"Anlagetyp", XSD "inhalt"/"anlagentyp" -----------------
+Auftragsstruktur:Auftrag/Geschaeftsfall/Anlagen/Dateiinhalt = inhalt
+Auftragsstruktur:Auftrag/Geschaeftsfall/Anlagen/Anlagetyp = anlagentyp
+Meldungsstruktur:Meldung/Meldungstyp/Meldungsattribute/Anlagen/Dateiinhalt = inhalt
+Meldungsstruktur:Meldung/Meldungstyp/Meldungsattribute/Anlagen/Anlagetyp = anlagentyp
+
+# --- Dates: Anlage 1 lists "Termin/Datum", the XSD has termine/auftraggeberWunschtermin/datum ----
+Auftragsstruktur:Auftrag/Geschaeftsfall/Termin/Datum = auftraggeberWunschtermin/datum
+Auftragsstruktur:Auftrag/Geschaeftsfall/Termin/Zeitfenster = auftraggeberWunschtermin/zeitfenster
+
+# --- "choice": XSD choices. Anlage 1 lists the fields of the alternatives below the choice row; the
+# cardinality of the choice row applies to "one of the alternatives" (alternative group a|b).
+Auftragsstruktur:Auftrag/Geschaeftsfall/Auftragsposition/Geschäftsfall-Produkt/StandortA/choice = person|firma
+Auftragsstruktur:Auftrag/Geschaeftsfall/Auftragsposition/Geschäftsfall-Produkt/StandortVersand/choice = person|firma
+Auftragsstruktur:Auftrag/Geschaeftsfall/Auftragsposition/Geschäftsfall-Produkt/rufnummernPortierung/choice = anlagenanschluss|einzelanschluss
+Auftragsstruktur:Auftrag/Geschaeftsfall/Auftragsposition/Geschäftsfall-Produkt/rufnummernPortierung/einzelanschluss/choice = alleRufnummern|rufnummernliste
+
+# --- Message attributes with different names in the XSD -----------------------------------------
+Meldungsstruktur:Meldung/Meldungstyp/Meldungsattribute/Abschalttermin = abschaltungstermin
+Meldungsstruktur:Meldung/Meldungstyp/Meldungsattribute/Abschaltgrund = abschaltungsgrund
+# The XSD element is misspelled "dignoseergebnis" (Anlage 3, XSD 4.00.03).
+Meldungsstruktur:Meldung/Meldungstyp/Meldungsattribute/Diagnoseergebnis = dignoseergebnis

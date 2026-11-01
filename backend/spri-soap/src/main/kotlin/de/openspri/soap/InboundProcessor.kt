@@ -10,6 +10,7 @@ import de.openspri.domain.exchange.TeqCode
 import de.openspri.domain.partner.Partner
 import de.openspri.domain.partner.PartnerDirectory
 import de.telekom.spri.oss.v4.envelope.WholesaleMessageType
+import de.openspri.rules.AttributeValidator
 import org.slf4j.LoggerFactory
 import org.w3c.dom.Element
 import java.math.BigInteger
@@ -29,6 +30,7 @@ import javax.security.auth.x500.X500Principal
  * | 2 | WS-Security signature (see [WsSecurityVerifier])           | 0999         |
  * | 3 | payload valid against the S/PRI XSD                          | 0995         |
  * | 4 | major release = 4, version fields well-formed               | 0993         |
+ * | 4b| attributes according to Anlage 1 ([AttributeValidator])     | 0995 (enforce) / archived finding (report) |
  * | 5 | signaturId in the control header matches the signing cert  | 0999         |
  * | 6 | archived and queued for business processing                 | 0999 on error|
  *
@@ -42,6 +44,8 @@ class InboundProcessor(
     private val verifier: WsSecurityVerifier,
     private val responder: TeqResponder,
     private val clock: Clock = Clock.systemUTC(),
+    private val attributes: AttributeValidator? = null,
+    private val attributeMode: AttributeMode = AttributeMode.REPORT,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -88,6 +92,7 @@ class InboundProcessor(
             signerSubject = context.signer?.subjectX500Principal?.name,
             signerSerial = context.signer?.serialNumber?.toString(),
             externalOrderNumber = context.externalOrderNumber,
+            findings = context.findings,
         )
         return try {
             if (code.isPositive) {
@@ -154,6 +159,20 @@ class InboundProcessor(
             throw Rejected(TeqCode.VERSION_INVALID, "major release ${version.major} not supported (implemented: ${InterfaceVersion.CURRENT})")
         }
 
+        // 4b - attributes (Anlage 1, specification 10.4 checks 4 and 5)
+        attributes?.let { validator ->
+            val violations = when (context.operation!!) {
+                SoapOperation.ANNEHMEN_AUFTRAG -> validator.validateOrder(schemaPayload)
+                SoapOperation.ANNEHMEN_MELDUNG -> validator.validateMessage(schemaPayload)
+            }
+            if (violations.isNotEmpty()) {
+                val summary = "Anlage 1: " + violations.joinToString(" | ")
+                if (attributeMode == AttributeMode.ENFORCE) throw Rejected(TeqCode.STRUCTURE_INVALID, summary)
+                context.findings = summary
+                log.info("S/PRI request {} violates Anlage 1 (report mode): {}", context.externalOrderNumber, summary)
+            }
+        }
+
         // 5 - signaturId
         if (!matches(control, context.signer!!)) {
             throw Rejected(
@@ -203,7 +222,16 @@ class InboundProcessor(
         var clientNumber: String? = null
         var payloadXml: ByteArray? = null
         var reason: String? = null
+        var findings: String? = null
     }
 
     private class Rejected(val code: TeqCode, message: String) : Exception(message)
+}
+
+/** How violations of Anlage 1 are handled (ADR-0006). */
+enum class AttributeMode {
+    /** Reject: TEQ 0995 for inbound requests, not sent for outbound requests. */
+    ENFORCE,
+    /** Accept, log and archive the finding. */
+    REPORT,
 }

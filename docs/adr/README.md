@@ -25,3 +25,4 @@ Status: vorgeschlagen | Datum: JJJJ-MM-TT
 | [ADR-0003](ADR-0003-all-in-one-proxy-ip-trennung.md) | All-in-One-Stack mit nginx/certbot, getrennte Inbound-/Outbound-IPs | angenommen |
 | [ADR-0004](ADR-0004-technik-versionen.md) | Technikversionen: Spring Boot 4.1, JDK 25 | angenommen |
 | [ADR-0005](ADR-0005-soap-pruefkette.md) | SOAP-Schicht mit eigener Prüfkette, CXF als Transport, WSS4J direkt | angenommen |
+| [ADR-0006](ADR-0006-anlage1-regeln.md) | Attributprüfung nach Anlage 1: generierte Regeln, Modi enforce/report | angenommen |

@@ -13,6 +13,8 @@ import jakarta.xml.ws.soap.SOAPBinding
 import org.apache.cxf.endpoint.Client
 import org.apache.cxf.transport.http.HTTPConduit
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy
+import de.openspri.rules.AttributeValidator
+import de.openspri.rules.AttributeViolation
 import org.slf4j.LoggerFactory
 import org.w3c.dom.Element
 import java.io.ByteArrayInputStream
@@ -43,6 +45,8 @@ class SpriClient(
         val requireSignedResponse: Boolean = true,
         /** Optional egress proxy with a fixed outbound IP (AUFGABE chapter 7.6), e.g. "http://proxy:3128". */
         val outboundProxy: URI? = null,
+        /** Anlage 1 check of our own requests before sending (ADR-0006). */
+        val attributeMode: AttributeMode = AttributeMode.ENFORCE,
     )
 
     sealed interface Outcome {
@@ -58,13 +62,29 @@ class SpriClient(
 
         /** No valid TEQ (timeout, transport error, invalid or unsigned response). */
         data class NotAcknowledged(override val operation: SoapOperation, val reason: String) : Outcome
+
+        /** Not sent: our own request violates Anlage 1 (enforce mode). Nothing went over the wire. */
+        data class NotSent(override val operation: SoapOperation, val violations: List<AttributeViolation>) : Outcome
     }
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val signer = WsSecuritySigner(credentials)
+    private val attributes = AttributeValidator()
 
     /** [payload] is the annehmenAuftragRequest or annehmenMeldungRequest element. */
     fun send(partner: Partner, endpoint: URI, operation: SoapOperation, payload: Element, externalOrderNumber: String?): Outcome {
+        val violations = when (operation) {
+            SoapOperation.ANNEHMEN_AUFTRAG -> attributes.validateOrder(payload)
+            SoapOperation.ANNEHMEN_MELDUNG -> attributes.validateMessage(payload)
+        }
+        var findings: String? = null
+        if (violations.isNotEmpty()) {
+            if (settings.attributeMode == AttributeMode.ENFORCE) {
+                log.warn("S/PRI {} {} not sent, violates Anlage 1: {}", operation.wsdlName, externalOrderNumber, violations)
+                return Outcome.NotSent(operation, violations)
+            }
+            findings = "Anlage 1: " + violations.joinToString(" | ")
+        }
         val started = clock.instant()
         val request = SecureXml.serialize(signer.sign(SoapEnvelope.wrap(payload)))
         var response: ByteArray? = null
@@ -87,11 +107,15 @@ class SpriClient(
                 request = request,
                 response = response,
                 teqCode = (outcome as? Outcome.Acknowledged)?.teq,
-                rejectionReason = (outcome as? Outcome.NotAcknowledged)?.reason
-                    ?: (outcome as Outcome.Acknowledged).takeIf { it.teq != TeqCode.OK }?.let { "TEQ ${it.teqCode}: ${it.teqText}" },
+                rejectionReason = when (outcome) {
+                    is Outcome.NotAcknowledged -> outcome.reason
+                    is Outcome.Acknowledged -> outcome.takeIf { it.teq != TeqCode.OK }?.let { "TEQ ${it.teqCode}: ${it.teqText}" }
+                    is Outcome.NotSent -> null
+                },
                 signerSubject = null,
                 signerSerial = null,
                 externalOrderNumber = externalOrderNumber,
+                findings = findings,
             ),
         )
         return outcome

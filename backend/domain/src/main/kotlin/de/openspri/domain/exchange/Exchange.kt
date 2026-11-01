@@ -35,6 +35,8 @@ data class ArchivedExchange(
     val signerSubject: String?,
     val signerSerial: String?,
     val externalOrderNumber: String?,
+    /** Observations that did not lead to a rejection, e.g. Anlage 1 violations in report mode. */
+    val findings: String? = null,
 )
 
 /** A validated inbound order or message, handed over to business processing (M2). */

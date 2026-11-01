@@ -146,4 +146,42 @@ class InboundProcessorTest {
         store.failure = IllegalStateException("database down")
         assertEquals(TeqCode.TECHNICAL_ERROR, answer(TestData.signedRequest("neu-auftrag.xml", TestData.partnerKey)).teq)
     }
+
+    private fun withAttributes(mode: AttributeMode) = InboundProcessor(
+        partners = InMemoryPartnerDirectory(partner),
+        store = store,
+        schema = schema,
+        verifier = WsSecurityVerifier(),
+        responder = TeqResponder(TestData.ownKey),
+        attributes = de.openspri.rules.AttributeValidator(),
+        attributeMode = mode,
+    )
+
+    /** Terminverschiebung without terminNeu: XSD-valid (terminNeu is optional), Anlage 1 row 160: mandatory. */
+    private val rescheduleWithoutDate = TestData.signedRequest("neu-auftrag.xml", TestData.partnerKey) { document ->
+        document.getElementsByTagNameNS("*", "aenderungskennzeichen").item(0).textContent = "Terminverschiebung"
+    }
+
+    @Test
+    fun `Anlage 1 violation is answered with 0995 in enforce mode`() {
+        val result = assertIs<InboundProcessor.Result.Answered>(withAttributes(AttributeMode.ENFORCE).process(rescheduleWithoutDate, partnerAddress, null))
+        assertEquals(TeqCode.STRUCTURE_INVALID, result.teq)
+        assertContains(store.rejected.single().rejectionReason!!, "Anlage 1")
+    }
+
+    @Test
+    fun `Anlage 1 violation is archived as finding in report mode`() {
+        val result = assertIs<InboundProcessor.Result.Answered>(withAttributes(AttributeMode.REPORT).process(rescheduleWithoutDate, partnerAddress, null))
+        assertEquals(TeqCode.OK, result.teq)
+        assertContains(store.accepted.single().first.findings!!, "Termin Neu")
+    }
+
+    @Test
+    fun `compliant order passes the Anlage 1 check`() {
+        val result = assertIs<InboundProcessor.Result.Answered>(
+            withAttributes(AttributeMode.ENFORCE).process(TestData.signedRequest("neu-auftrag.xml", TestData.partnerKey), partnerAddress, null),
+        )
+        assertEquals(TeqCode.OK, result.teq)
+        assertEquals(null, store.accepted.single().first.findings)
+    }
 }
