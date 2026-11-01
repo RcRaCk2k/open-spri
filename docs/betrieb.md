@@ -78,10 +78,17 @@ mkdir -p secrets
 keytool -genkeypair -alias spri-signature -keyalg RSA -keysize 3072 -sigalg SHA256withRSA \
   -validity 3650 -dname "CN=S/PRI Signatur, O=Beispiel GmbH, C=DE" \
   -storetype PKCS12 -keystore secrets/spri-signature.p12
-chmod 600 secrets/spri-signature.p12
+# Nur der Container-Benutzer (UID 10001) darf den Schlüssel lesen:
+sudo chown 10001:10001 secrets/spri-signature.p12
+sudo chmod 600 secrets/spri-signature.p12
 ```
 
-In `.env`:
+Wichtig:
+- Die Datei gehört nach **`./secrets/`** im Projektverzeichnis. `/run/openspri/…` ist der Pfad **im Container**. Compose bindet `./secrets` dorthin ein. Auf dem Host liegt `/run` außerdem im RAM und ist nach einem Neustart leer.
+- Für `-dname` den echten Firmennamen verwenden. Partner sehen ihn im Zertifikat.
+- Den Keystore sichern, aber nie ins Repository einchecken (`secrets/` ist in `.gitignore`). Bei Verlust muss allen Partnern ein neues Zertifikat übermittelt werden.
+
+In `.env` (Pfad im Container):
 ```
 OPENSPRI_SOAP_SIGNING_KEYSTORE=/run/openspri/spri-signature.p12
 OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD=<Passwort>

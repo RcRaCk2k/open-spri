@@ -8,7 +8,8 @@ COPY backend backend
 RUN --mount=type=cache,target=/root/.gradle ./gradlew :app:bootJar --no-daemon --console=plain
 
 FROM eclipse-temurin:25-jre-noble
-RUN groupadd --system openspri && useradd --system --gid openspri --home-dir /app openspri
+# Fixed UID/GID 10001 so that mounted secrets can be given to exactly this user (docs/betrieb.md).
+RUN groupadd --system --gid 10001 openspri && useradd --system --uid 10001 --gid openspri --home-dir /app openspri
 WORKDIR /app
 COPY --from=build /src/backend/app/build/libs/open-spri.jar app.jar
 USER openspri
