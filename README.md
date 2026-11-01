@@ -9,7 +9,7 @@ Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requ
 **S/PRI in beiden Rollen**
 - **Auftraggeber:** Leitungen bei Partnern bestellen, ändern, kündigen und entstören. Als abgebender Provider Wechselanfragen (AKM-PV) beantworten.
 - **Leistungserbringer:** Aufträge anderer Provider für eigene Leitungen annehmen, im Arbeitsvorrat bearbeiten und alle Meldungen zurücksenden (QEB, ABM, ERLM, ENTM, ABBM, VZM, TAM …)
-- Geschäftsfälle: Bereitstellung (NEU), Kündigung (KUE-AG/KUE-LE), Leistungsmerkmaländerung (AEN-LMAE), Leistungsänderung (LAE), Providerwechsel (PV), Entstörung (EST). Jeweils mit Storno, Terminverschiebung und Reklamation, wo der Geschäftsfall sie vorsieht.
+- Geschäftsfälle: Bereitstellung (NEU), Kündigung (KUE-AG/KUE-LE), Leistungsmerkmaländerung (AEN-LMAE), Leistungsänderung (LAE), Providerwechsel (PV), Entstörung (EST), Diagnose (DIAG-GET/SET). Jeweils mit Storno, Terminverschiebung und Reklamation, wo der Geschäftsfall sie vorsieht.
 - FTTH-Konnektivitätsauftrag (Ausbau), HomeID, Bestellung im Namen Dritter, Projekt- und Auftragskenner
 - SOAP 1.1 mit WS-Security-Signatur, XSD-Validierung, Meldungsreihenfolge, Wiederholungen und Nachrichtenarchiv, wie von der Spezifikation gefordert
 
@@ -24,7 +24,7 @@ Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requ
 - Webhooks und Event-Feed für Statusänderungen
 
 **Betrieb**
-- Docker-Compose-Stack: API, MariaDB, Frontend (optional TLS-Proxy mit Let's Encrypt)
+- Docker-Compose-Stack: API, MariaDB, Frontend. Läuft hinter einem vorhandenen Reverse-Proxy (geprüfte nginx-Konfiguration inklusive) oder mit dem optionalen TLS-Proxy-Container (Let's Encrypt).
 - Setup-Assistent beim ersten Start (Firmendaten, ITU Carrier Code, Rollen, Zertifikate)
 - Eingebauter Simulator, der die Testfälle des Konformitätstests nachbildet
 
@@ -43,6 +43,8 @@ Die Software soll in beiden Rollen den Konformitätstest (KFT) bestehen und ein 
 | [`CHANGELOG/`](CHANGELOG/) | Beschreibungen größerer Änderungen |
 | [`CLAUDE.md`](CLAUDE.md) | Grundsätze und Arbeitsregeln für Entwickler |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Mitarbeit |
+| [`SECURITY.md`](SECURITY.md) | Sicherheitslücken melden |
+| [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Verhaltenskodex |
 
 ## Spezifikationsdokumente
 

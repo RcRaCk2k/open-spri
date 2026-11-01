@@ -23,4 +23,8 @@ Doku, Commits, Issues und UI sind auf Deutsch. Code-Bezeichner und Kommentare si
 
 ## Sicherheitslücken
 
-Bitte **nicht** als öffentliches Issue melden. Der Meldeweg wird in `SECURITY.md` beschrieben (folgt mit M0).
+Bitte **nicht** als öffentliches Issue melden. Der Meldeweg steht in [`SECURITY.md`](SECURITY.md).
+
+## Verhalten
+
+Es gilt der [Verhaltenskodex](CODE_OF_CONDUCT.md).

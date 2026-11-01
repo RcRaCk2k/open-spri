@@ -37,3 +37,4 @@ Welche Tests belegen die Änderung?
 | Nr. | Titel | Datum |
 |---|---|---|
 | [CL-0001](CL-0001-projektspezifikation.md) | Projektspezifikation und Grundsätze | 2026-11-01 |
+| [CL-0002](CL-0002-scope-final-diagnose.md) | Scope final, Diagnose in v1, Security-Meldeweg | 2026-11-01 |

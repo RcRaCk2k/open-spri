@@ -20,4 +20,5 @@ Status: vorgeschlagen | Datum: JJJJ-MM-TT
 
 | Nr. | Titel | Status |
 |---|---|---|
-| [ADR-0001](ADR-0001-ausgangsentscheidungen.md) | Ausgangsentscheidungen der Spezifikationsphase | angenommen |
+| [ADR-0001](ADR-0001-ausgangsentscheidungen.md) | Ausgangsentscheidungen der Spezifikationsphase | angenommen, ergänzt durch ADR-0002 |
+| [ADR-0002](ADR-0002-scope-bestaetigung-diagnose.md) | Scope bestätigt, Diagnose in v1, Betrieb hinter nginx | angenommen |

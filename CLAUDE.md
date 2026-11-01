@@ -4,7 +4,7 @@ Diese Datei gilt für alle, die an open-spri arbeiten: Menschen und KI-Assistent
 
 ## Worum es geht
 
-open-spri ist eine MIT-lizenzierte Implementierung der **S/PRI-Schnittstelle V4.4** des Arbeitskreises Schnittstellen & Prozesse (AK S&P, https://ak-spri.de). Sie deckt **beide Rollen** ab: Auftraggeber (Leitungen bei Partnern bestellen) und Leistungserbringer (eigene Leitungen anbieten). Dazu kommen eine öffentliche REST-API, ein Web-Frontend, Replikate und eine Online-Verfügbarkeitsabfrage. Ziel ist ein Softwarezertifikat des AK nach erfolgreichem Konformitätstest (KFT) bei Enghouse.
+open-spri ist eine MIT-lizenzierte Implementierung der **S/PRI-Schnittstelle V4.4** des Arbeitskreises Schnittstellen & Prozesse (AK S&P, https://ak-spri.de). Sie umfasst alle Geschäftsfälle einschließlich EST und DIAG, und sie deckt **beide Rollen** ab: Auftraggeber (Leitungen bei Partnern bestellen) und Leistungserbringer (eigene Leitungen anbieten). Dazu kommen eine öffentliche REST-API, ein Web-Frontend, Replikate und eine Online-Verfügbarkeitsabfrage. Ziel ist ein Softwarezertifikat des AK nach erfolgreichem Konformitätstest (KFT) bei Enghouse.
 
 - Maßgebliche Aufgabenbeschreibung: `docs/AUFGABE-SPRI.md`. Sie ist die einzige verbindliche Quelle für Scope und Anforderungen.
 - KFT-Testfälle: `docs/ANHANG-A-Testfaelle.md`, lokal erzeugt mit `scripts/gen-testmatrix.py`

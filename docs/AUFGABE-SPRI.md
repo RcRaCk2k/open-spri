@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Dokumentstatus** | ENTWURF v0.2, wartet auf Entwicklungsfreigabe |
+| **Dokumentstatus** | v0.3, Scope vollständig entschieden, Freigabe steht aus (Kap. 16) |
 | **Projekt** | **open-spri**, `git@github.com:RcRaCk2k/open-spri.git` |
 | **Umsetzung** | Claude Opus, alle Arbeitspakete (Entscheidung vom 2026-11-01) |
 | **Stand** | 2026-11-01 |
@@ -76,10 +76,12 @@ Daraus folgt eine technische Anforderung: **Das Release, das in den KFT geht, wi
 
 Wir lassen **beide Rollen** zertifizieren, gegen **S/PRI V4.4**. Der Umfang ergibt sich aus [Anhang A](ANHANG-A-Testfaelle.md):
 
-| Rolle | PFLICHT | PFLICHT (Scope) | EMPFOHLEN | OUT (v2) |
+| Rolle | PFLICHT | PFLICHT (Scope) | EMPFOHLEN (D-10, umgesetzt) | Summe |
 |---|---|---|---|---|
-| Auftraggeber (Blatt „Partner“) | 72 | 11 | 21 | 4 |
-| Leistungserbringer (Blatt „Supplier“) | 69 | 11 | 19 | 4 |
+| Auftraggeber (Blatt „Partner“) | 76 | 11 | 21 | **108** |
+| Leistungserbringer (Blatt „Supplier“) | 73 | 11 | 19 | **103** |
+
+Damit setzen wir **alle Testfälle beider Blätter** um. Darin sind die 4 Diagnose-Testfälle je Rolle enthalten (D-03).
 
 Wichtig sind diese Regeln der Testfallliste:
 - Optionale Geschäftsfälle wie EST werden **komplett Pflicht**, sobald wir sie anmelden.
@@ -93,18 +95,20 @@ Wichtig sind diese Regeln der Testfallliste:
 |---|---|---|
 | D-01 | Beide Rollen: AG (inkl. abgebender EKP beim PV) und LE | entschieden |
 | D-02 | Produktgruppen: FTTH, FTTB, FTTC. KOAX/HFC werden nicht aktiv angeboten, Datenmodell und Produktkatalog lassen sie aber zu. | entschieden |
-| D-03 | Geschäftsfälle: NEU, KUE-AG, KUE-LE, AEN-LMAE, LAE, PV, **EST**. **DIAG-GET/SET erst in v2.** Das Datenmodell sieht Diagnose bereits vor. | entschieden (DIAG nicht genannt, daher v2) |
+| D-03 | Geschäftsfälle: NEU, KUE-AG, KUE-LE, AEN-LMAE, LAE, PV, **EST** und **DIAG-GET/SET** (Kap. 5.11). Begründung für DIAG in v1: Laut Vorgabe des Auftraggebers kommt Diagnose sofort in v1, falls ein späteres Nachrüsten zusätzliche Prüfkosten auslöst. Das ist der Fall: Ein Geschäftsfall, der nachträglich zertifiziert wird, braucht einen erneuten KFT bei Enghouse, und dieser ist kostenpflichtig (Spezifikation 10.5, ak-spri.de „Schnittstellenzertifikate müssen für jede Version einmal beantragt werden“). Der Aufwand ist gering: 4 TF je Rolle, keine Änderungskennzeichen. | entschieden 2026-11-01 (ADR-0002) |
 | D-04 | Konnektivitätsauftrag (FTTH-Ausbau, 2-stufig), HomeID und Bestellung im Namen Dritter sind im Scope | entschieden |
 | D-05 | Verfügbarkeit: Replikat erzeugen (LE) und importieren (AG), Online-Abfrage anbieten (LE) und nutzen (AG) | entschieden |
 | D-06 | WBCI/Vorabstimmung: wird im Setup konfiguriert, als „eigene WBCI-Schnittstelle“ oder „über Dienstleister“ (Kap. 5.8). v1 enthält keine eigene WBCI-Implementierung. | entschieden |
 | D-07 | Das Frontend benutzt ausschließlich die öffentliche REST-API | entschieden |
 | D-08 | ICC, Firmendaten und Rollen werden beim ersten Start im Setup-Assistenten der Web-Oberfläche abgefragt | entschieden |
 | D-09 | Technik: Kotlin, Spring Boot 3, Apache CXF 4 (WSS4J), React + TypeScript, MariaDB | entschieden |
-| D-10 | **Alle optionalen Testfälle außer DIAG umsetzen** (VZM, ZWM-LE, Projekt- und Auftragskenner, WITA-MC, neg. TEQ …). Begründung: Als öffentliche Software müssen wir die Wünsche aller künftigen Nutzer abdecken, und ein Nachzertifizieren ist teuer. | **Vorschlag, bitte bestätigen** |
-| D-11 | Auftragsklammer (bis 20 Aufträge) und Kopplungskenner werden technisch übertragen und gespeichert. Die Koordination der Klammer auf LE-Seite (gemeinsamer Termin) bleibt ein manueller Workflow. | **Vorschlag, bitte bestätigen** |
-| D-12 | v1 ist **Single-Tenant** (eine Installation = ein ICC). Mandantenfähigkeit für Dienstleister kommt in v2, die Datenbank bekommt aber schon jetzt eine `tenant_id`-Spalte. | **Vorschlag, bitte bestätigen** |
-| D-13 | Die Datenquelle für eigene Verfügbarkeiten (LE) ist eine eigene Tabelle, gefüllt per REST-API oder CSV/XML-Import. Eine direkte Anbindung an GIS oder Netzinventar ist nicht Teil von v1. | **Vorschlag, bitte bestätigen** |
-| D-14 | Für Ereignisse an Fremdsysteme gibt es **Webhooks** (HMAC-signiert) und zusätzlich einen Event-Feed per Polling (`GET /events?after=`) | **Vorschlag, bitte bestätigen** |
+| D-10 | **Alle optionalen Testfälle umsetzen** (VZM, ZWM-LE, Projekt- und Auftragskenner, WITA-MC, neg. TEQ …). Begründung: Als öffentliche Software müssen wir die Wünsche aller künftigen Nutzer abdecken, und ein Nachzertifizieren ist teuer. | entschieden 2026-11-01 |
+| D-11 | Auftragsklammer (bis 20 Aufträge) und Kopplungskenner werden technisch übertragen und gespeichert. Die Koordination der Klammer auf LE-Seite (gemeinsamer Termin) bleibt ein manueller Workflow. | entschieden 2026-11-01 |
+| D-12 | v1 ist **Single-Tenant** (eine Installation = ein ICC). Mandantenfähigkeit für Dienstleister kommt in v2, die Datenbank bekommt aber schon jetzt eine `tenant_id`-Spalte. | entschieden 2026-11-01 |
+| D-13 | Die Datenquelle für eigene Verfügbarkeiten (LE) ist eine eigene Tabelle, gefüllt per REST-API oder CSV/XML-Import. Eine direkte Anbindung an GIS oder Netzinventar ist nicht Teil von v1. | entschieden 2026-11-01 |
+| D-14 | Für Ereignisse an Fremdsysteme gibt es **Webhooks** (HMAC-signiert) und zusätzlich einen Event-Feed per Polling (`GET /events?after=`) | entschieden 2026-11-01 |
+| D-15 | Der Betreiber nutzt einen **vorhandenen nginx-Reverse-Proxy mit Let's Encrypt** auf einer VM. Der Proxy-Container im Stack bleibt optional für andere Nutzer. Die Doku liefert eine geprüfte nginx-Konfiguration (Kap. 7.4). | entschieden 2026-11-01 |
+| D-16 | Security-Meldeweg: GitHub Private Vulnerability Reporting als primärer Kanal, `abuse@rsm-freilassing.de` als E-Mail-Alternative. Copyright-Vermerk der Lizenz: „open-spri contributors“. | entschieden 2026-11-01 |
 
 ## 5. Fachliche Anforderungen
 
@@ -118,6 +122,7 @@ Die WSDL hat genau zwei Operationen: `annehmenAuftrag` und `annehmenMeldung`. Je
 | QEB, ABM, ERLM, ENTM, ABBM, VZM, TAM, MTAM, ZWM-LE, TBK-LE, KDLE | | ✔ | ✔ | |
 | ZWM-AG, TBK-AG, ERLM-K | ✔ | | | ✔ |
 | AKM-PV, ABM-PV, ERLM-PV, ENTM-PV, ABBM-PV (an den **abgebenden** EKP) | | ✔ (als EKPab) | ✔ | |
+| DIAG-GET/SET (Auftrag) → ERLM mit Ergebniswerten oder ABBM | Auftrag | ERLM/ABBM | ERLM/ABBM | Auftrag |
 | RUEM-PV (vom abgebenden EKP) | ✔ (als EKPab) | | | ✔ |
 | TEQ | auf jede empfangene Nachricht | auf jede gesendete Nachricht | ↔ | ↔ |
 
@@ -136,6 +141,8 @@ Normative Quellen sind Spezifikation Kap. 5, 6, 7.2 und 8 sowie Anlage 7 (EPKs).
 | LAE | Standard, Storno, TV | QEB, ABM, ERLM, ENTM, ABBM, VZM, TAM, MTAM, ERLM-K |
 | PV | Standard, Storno, TV | wie LAE, zusätzlich AKM-PV, RUEM-PV, ABM-PV, ERLM-PV, ENTM-PV, ABBM-PV |
 | EST | Standard, Reklamation, Storno | QEB, ERLM, ENTM, ABBM, VZM, TAM, ZWM-LE, ZWM-AG, TBK-LE, TBK-AG |
+| DIAG-GET | – (kein Storno, keine TV) | ERLM (mit Rückgabewerten), ABBM |
+| DIAG-SET | – (kein Storno, keine TV) | ERLM, ABBM |
 
 **Diese Regeln müssen umgesetzt und getestet werden:**
 
@@ -159,7 +166,7 @@ Normative Quellen sind Spezifikation Kap. 5, 6, 7.2 und 8 sowie Anlage 7 (EPKs).
   - **Quelle:** Export aus dem Confluence des AK, `docs/spec-original/SPRI_Meldungscodetabelle.csv`. Format: UTF-16LE, Tab-getrennt, mehrzeilige Zellen. Spalten: `Page` (Excel-Formel `=HYPERLINK(url;"code")`), `Meldungstext`, `Meldungstyp (legacy)`, `Geschäftsfall (legacy)`, `Schnittstelle (legacy)`, `Gültig ab (legacy)`, `Prozessphase`, `Produktgruppe`. Listenwerte stehen zeilengetrennt in einer Zelle.
   - **Inhalt:** Stand Export 2026-11-01 sind es **214 Codes**, alle mit Schnittstelle S/PRI (teils zusätzlich WITA). Die Tabelle enthält auch Meldungstypen, die S/PRI V4.4 nicht kennt (`FAM`, `ERGM`, `ABBM-TR`, `VZM-PV`, WITA-Varianten). Der Importer übernimmt sie, markiert sie aber als „nicht S/PRI-V4.4-Meldungstyp“.
   - Der Importer (`POST /message-codes/import` und ein CLI-Befehl) liest genau dieses Format und zusätzlich ein neutrales UTF-8-CSV bzw. JSON. Er versioniert die Tabelle (Importdatum, Prüfsumme) und erzeugt daraus die Zulässigkeitsmatrix **MC × Meldungstyp × GF × Produktgruppe**. Ein Meldungscode, der für den Meldungstyp oder GF nicht zulässig ist, wird beim Senden abgewiesen (HTTP 422) und beim Empfang protokolliert, ohne die Annahme zu verweigern.
-  - **Befund:** In den Testfällen werden die Codes **1089** (neg. Storno PV, Z.6.1.06/Z.13.1.06) und **7501** (DIAG, v2) verwendet. In der Tabelle fehlen sie. Sie werden als lokale Ergänzung mit Kennzeichnung gepflegt (OP-11).
+  - **Befund:** In den Testfällen werden die Codes **1089** (neg. Storno PV, Z.6.1.06/Z.13.1.06) und **7501** (DIAG, „Netzelement derzeit nicht erreichbar“) verwendet. In der Tabelle fehlen sie. Sie werden als lokale Ergänzung mit Kennzeichnung gepflegt (OP-11).
 - **R-14** Die HomeID wird übertragen, gespeichert und bei der Replikatsuche ausgewertet. Grundlage ist `Info_Doc_Bildungslogik_Home_ID_V.1.0`.
 - **R-15** Die LineID wird nach `Struktur-und-Semantik-der-LineID_V.1.4` gebildet, als LE von uns. Format: Country.Carrier.LineCode, zum Beispiel `DEU.DTAG.1AC42O40`.
 
@@ -177,7 +184,7 @@ Beim **Empfang** (beide Rollen) erfolgt die Prüfung **synchron**, und die TEQ w
 | 5 | Dublette, d. h. derselbe Auftrag wird erneut eingestellt | ABBM (MC 1010) |
 | 6 | Produkt im Katalog, Rahmenvertrag bzw. Leistungs-Nr. vorhanden | ABBM |
 
-**TEQ-Codes laut Meldungscodetabelle:** `OK`, `0990` (Funktion aktuell nicht unterstützt), `0991` (Schnittstelle überlastet), `0993` (Versionsnummer fehlerhaft), `0995` (Datenstruktur unzulässig), `0999` (technischer Fehler). Vorläufige Zuordnung: Version → 0993; XSD und Anlage-1-Regeln → 0995; nicht aktivierter GF (z. B. DIAG in v1) → 0990; Überlast bzw. Rate Limit → 0991; Signatur und sonstige Fehler → 0999 (OP-11).
+**TEQ-Codes laut Meldungscodetabelle:** `OK`, `0990` (Funktion aktuell nicht unterstützt), `0991` (Schnittstelle überlastet), `0993` (Versionsnummer fehlerhaft), `0995` (Datenstruktur unzulässig), `0999` (technischer Fehler). Vorläufige Zuordnung: Version → 0993; XSD und Anlage-1-Regeln → 0995; GF, der in der Instanz bzw. für den Partner nicht aktiviert ist → 0990; Überlast bzw. Rate Limit → 0991; Signatur und sonstige Fehler → 0999 (OP-11).
 
 Erst nach erfolgreicher Prüfung wird **dauerhaft gespeichert** (Roh-XML inkl. Signatur) und eine positive TEQ zurückgegeben. Die fachliche Verarbeitung läuft danach asynchron.
 
@@ -250,10 +257,26 @@ Schritte:
 1. **Admin-Benutzer** anlegen
 2. **Firmendaten**: Name, Anschrift, **ICC/CarrierCode**, Kontakt-E-Mail für Ausfall- und Wartungsmeldungen
 3. **Rollen**: AG, LE oder beide
-4. **Optionen**: aktivierte GF (EST; DIAG ab v2), Konnektivität, Bestellung Dritter, `wbci.mode`
+4. **Optionen**: aktivierte optionale GF (EST, DIAG), Konnektivität, Bestellung Dritter, `wbci.mode`
 5. **Zertifikate**: Signaturschlüssel erzeugen (RSA 3072, selbstsigniert erlaubt) oder hochladen (PKCS#12). Dazu ein Hinweis zum TLS-Zertifikat (Kap. 7.4).
 6. **Öffentliche URLs**: SOAP-Endpunkt, Replikat-Download, Online-Abfrage. Der Assistent zeigt die angepasste **WSDL zum Download für Partner** an (Service-Endpoint ersetzt).
 7. Zusammenfassung → `setup.completed = true`. Alle Einstellungen lassen sich später in den Einstellungen ändern (mit Audit).
+
+### 5.11 Diagnose (DIAG-GET / DIAG-SET)
+
+Grundlagen sind Spezifikation Kap. 6.2 und NGA-Forum „L2-BSA IV – Diagnoseschnittstelle (DIAGSS)“, Referenz [13].
+
+- **GET (Status):** eine lesende Abfrage zu einer LineID, zum Beispiel BBdown und BBup (TF Z.15.1.01). Die Rückgabewerte hängen von der Technologie ab, die Anzahl der Werte kann variieren. Deshalb werden sie generisch als Schlüssel-Wert-Liste mit Typ und Einheit gespeichert.
+- **SET (Konfiguration):** eine auslösende Operation, zum Beispiel RESET (TF Z.15.1.02). Im Hinweis zum Medienkonverter (Provision/Deprovision/HomeID, Registrierung/Tausch) sind mehrere Operationen in einem Auftrag möglich.
+- **Ablauf:** Auftrag → TEQ → ERLM oder ABBM. Storno und TV gibt es nicht. Ein Auftrag ist nur zulässig, wenn die Leitung bereitgestellt ist (ERLM aus NEU vorhanden) und keine andere DIAG-Anfrage zur selben Infrastruktur offen ist.
+- **Verfügbarkeit:** 7×24 (NF-02), wie bei EST
+- **Als AG:** Die Abfrage läuft synchron-artig. `POST /diagnostics` liefert eine Vorgangs-ID. Das Ergebnis kommt per Webhook bzw. Event oder über `GET /diagnostics/{id}` mit Long-Polling, maximal 60 s.
+- **Als LE:** Die Software misst nicht selbst im Netz. Eingehende DIAG-Aufträge gehen über die SPI `DiagnosticsProvider` an das Netz- bzw. Monitoringsystem des Betreibers. v1 bringt zwei Implementierungen mit:
+  1. `webhook`: Das Fremdsystem erhält ein Ereignis und antwortet per `POST /diagnostics/{id}/result` (Werte bzw. ABBM-Code).
+  2. `manual`: Die Bearbeitung erfolgt im Arbeitsvorrat.
+
+  Ein konfigurierbarer Timeout (Standard 120 s) erzeugt eine ABBM mit 7501.
+- Welche Operationen und Werte je Partner erlaubt sind, ist bilateral vereinbart. Das wird je Partner konfiguriert (Allowlist der Operationen und Parameter).
 
 ## 6. Nichtfunktionale Anforderungen
 
@@ -298,7 +321,16 @@ Schritte:
 
 ### 7.4 TLS-Bereitstellung im Stack
 
-Der SOAP-Endpunkt muss aus dem Internet erreichbar sein und ein Whitelist-CA-Zertifikat haben. Vorschlag: ein **optionaler vierter Container `proxy` (Caddy oder Traefik) mit ACME/Let's Encrypt** als Profil im Compose-Stack. Alternativ kann ein vorhandener Reverse-Proxy des Betreibers genutzt werden, dafür liefert die Dokumentation Beispiele für nginx und Traefik. TLS darf am Proxy enden, weil WS-Security auf Nachrichtenebene unabhängig davon ist.
+Der SOAP-Endpunkt muss aus dem Internet erreichbar sein und ein Whitelist-CA-Zertifikat haben. TLS darf am Proxy enden, weil WS-Security auf Nachrichtenebene unabhängig davon ist.
+
+- **Referenzbetrieb (D-15):** Ein vorhandener **nginx mit Let's Encrypt** auf der VM des Betreibers. Der Compose-Stack veröffentlicht `api` und `frontend` nur auf `127.0.0.1` bzw. in einem internen Netz. Die Doku (`docs/betrieb.md`) enthält eine **geprüfte nginx-Beispielkonfiguration**:
+  - `ssl_protocols TLSv1.2 TLSv1.3;`, BSI-konforme Cipher-Liste
+  - `client_max_body_size` für Anlagen
+  - `proxy_read_timeout` ≥ 130 s, für Anlagen bis 120 s
+  - Weitergabe von `X-Forwarded-For`/`X-Real-IP`. Die App vertraut nur der Proxy-IP und wertet nur dann die Partner-IP für die Allowlist aus.
+  - optional eine zusätzliche IP-Allowlist für `/spri/` im nginx
+- **Schlüssel des Let's-Encrypt-Zertifikats:** Er muss die AK-Vorgabe erfüllen, also **ECDSA P-256 oder höher** (certbot-Standard ab 2.0) oder **RSA ≥ 3072**. Ein RSA-2048-Schlüssel ist für neue Zertifikate unzulässig, das muss beim Setup geprüft werden. Die Software prüft das ausgelieferte Zertifikat über einen Selbsttest (`GET /api/v1/selftest/tls`, ruft die eigene öffentliche URL auf) und warnt in der Oberfläche.
+- **Für andere Nutzer:** ein optionaler Container `proxy` (Caddy oder Traefik mit ACME) als Compose-Profil
 
 ### 7.5 Authentifizierung und Autorisierung der REST-API (modular)
 
@@ -414,6 +446,7 @@ Pfad `/api/v1`. JSON, Paginierung per Cursor, `Idempotency-Key`-Header für alle
 | Providerwechsel | `GET /pv-requests` (AKM-PV als EKPab), `POST /pv-requests/{id}/reply` (RUEM-PV) |
 | Allgemein | `GET /orders/{id}` (inkl. Timeline und erlaubter Aktionen), `GET /orders/{id}/allowed-actions`, `GET /messages/{id}/raw` (Archiv, Scope nötig) |
 | Bestand | `GET /inventory`, `GET /inventory/{lineId}` |
+| Diagnose | `POST /diagnostics` (AG: GET/SET an Partner), `GET /diagnostics/{id}` (Ergebnis, Long-Polling), `POST /diagnostics/{id}/result` (LE: Ergebnis aus Fremdsystem) |
 | Verfügbarkeit | `GET /availability/search` (AG, über Partner), `CRUD /availability/sites` + `POST /availability/sites/import` (LE), `GET /availability` (Online-Abfrage für Partner) |
 | Replikat | `GET /replikat/{file}` (Partner-Download), `GET/POST /replikat/sources` (AG-Import), `POST /replikat/sources/{id}/run` |
 | Meldungscodes | `GET /message-codes`, `POST /message-codes/import` |
@@ -492,7 +525,7 @@ Der echte KFT-Simulator von Enghouse ist nicht öffentlich. Unser Simulator bild
 | **M6** Verfügbarkeit | Replikat-Export, -Import und Delta, Online-Abfrage (LE/AG), Übernahme in Auftrag | Validierung gegen `Replikat.xsd` 1.7 und die Beispiel-XMLs aus den Anlagen |
 | **M7** Frontend | alle Seiten aus Kap. 8.6, Setup-Assistent | Playwright-E2E-Suite grün. Das Frontend nutzt nur `/api/v1`. |
 | **M8** Härtung und Release-Kandidat | NF-Anforderungen, Lasttests, Security-Tests, Betriebs- und Admin-Doku, Partner-Onboarding-Doku, signiertes Image, SBOM | alle NF-Tests grün, Doku vollständig, Tag `v1.0.0-rc1` |
-| **M9** KFT | Termin bei Enghouse, KFT „Partner & Supplier“ V4.4 inkl. EST, Konnektivität, HomeID, Dritte (+ D-10) | Testat vorhanden. Softwarezertifikat ist beantragt und veröffentlicht. Release `v1.0.0` mit Zertifikat. |
+| **M9** KFT | Termin bei Enghouse, KFT „Partner & Supplier“ V4.4 inkl. EST, DIAG, Konnektivität, HomeID, Dritte und aller optionalen TF (D-10) | Testat vorhanden. Softwarezertifikat ist beantragt und veröffentlicht. Release `v1.0.0` mit Zertifikat. |
 
 Reihenfolge: M0 → M1 → M2 → (M3 ∥ M4) → M5 → (M6 ∥ M7) → M8 → M9
 
@@ -508,7 +541,7 @@ Leitsatz: **Keine Blackbox.** Jede Entscheidung, jedes Verhalten an der Schnitts
 | `docs/api/` | **Ausführliche REST-Dokumentation**: Konzepte (Auth, Tokens, Idempotenz, Paginierung, Fehler, Webhooks, Events), je Bereich eine Seite mit **curl-Beispielen** (Request und Response), Ende-zu-Ende-Abläufe („NEU-Auftrag als AG von Verfügbarkeitssuche bis ENTM“, „eingehenden Auftrag als LE bearbeiten“, „Providerwechsel als EKPab“), Changelog der API. Ergänzt die generierte OpenAPI-Datei (`docs/api/openapi.yaml`, Redoc/Swagger-UI unter `/api/docs`). | M4 |
 | `docs/grundlagen/` | **Einarbeitung in S/PRI für Entwickler**: Rollen, Geschäftsfälle, Meldungsfolgen als Sequenzdiagramme (Mermaid), Zustandsautomaten je GF, Glossar, Zuordnung der Spezifikationskapitel zum Code | M2 |
 | `docs/betrieb.md`, `docs/partner-onboarding.md` | Betriebshandbuch, Anbindung eines neuen Partners (Zertifikate, IPs, WSDL, Testlauf) | M8 |
-| `docs/adr/` | Architecture Decision Records (`ADR-NNNN-titel.md`). Jede Grundsatzentscheidung bekommt einen Eintrag mit Kontext, Entscheidung und Konsequenzen. D-01 bis D-14 sind die Ausgangsbasis. | M0 |
+| `docs/adr/` | Architecture Decision Records (`ADR-NNNN-titel.md`). Jede Grundsatzentscheidung bekommt einen Eintrag mit Kontext, Entscheidung und Konsequenzen. D-01 bis D-16 sind die Ausgangsbasis (ADR-0001, ADR-0002). | M0 |
 | `docs/spec-abweichungen.md` | Jede Interpretation, Lücke oder Abweichung gegenüber der AK-Spezifikation mit Begründung und Quelle (z. B. OP-11) | laufend |
 | `CHANGELOG/` | Änderungsbeschreibungen größerer Änderungen (Kap. 12.2) | ab dem 1. Commit |
 | `CLAUDE.md` | Grundsatzentscheidungen und Arbeitsregeln für Entwickler und KI-Assistenten, damit das Projekt die Richtung behält | ab dem 1. Commit |
@@ -548,26 +581,26 @@ Dokumentation, Commits, UI und Issues sind **deutsch**, denn die Zielgruppe ist 
 |---|---|---|---|
 | OP-01 | Anfrage an den AK S&P: Softwarezertifikat für MIT/Open Source, Umgang mit Forks (Kap. 3.2) | Auftraggeber | M9 |
 | OP-02 | Anfrage an den AK: Dürfen XSD/WSDL und Testfallliste in einem MIT-Repo weitergegeben werden? | Auftraggeber | M0 (Workaround: Download) |
-| OP-03 | Enghouse: KFT-Ablauf, Kosten, Vorlaufzeit, Vortest bzw. Testzugang, benötigte Angaben (Endpunkte, IPs, Zertifikate) | Auftraggeber | M8/M9 |
+| OP-03 | Enghouse: KFT-Ablauf, Kosten, Vorlaufzeit, Vortest bzw. Testzugang, benötigte Angaben (Endpunkte, IPs, Zertifikate), Umfang „Partner & Supplier“ inkl. EST und DIAG in einem Termin | Auftraggeber | M8/M9 |
 | ~~OP-04~~ | ~~Meldungscodetabelle exportieren~~. **Erledigt am 2026-11-01**, CSV liegt vor, Format siehe R-13 | – | – |
 | OP-05 | Für die Online-Verfügbarkeitsabfrage gibt es keinen AK-Standard. Unser Format (Kap. 5.4) wird als Vorschlag dokumentiert und ggf. beim AK eingebracht. | Entwickler | – |
-| OP-06 | Bestätigung der Vorschläge D-10 bis D-14 | Auftraggeber | Freigabe |
+| ~~OP-06~~ | ~~Bestätigung D-10 bis D-14~~. **Erledigt am 2026-11-01** | – | – |
 | ~~OP-07~~ | ~~Produktname und Repo~~. **Erledigt:** `open-spri`, github.com/RcRaCk2k/open-spri | – | – |
 | OP-08 | Die XSD 4.00.03 stammt von 2014. Abgleich mit Anlage 1 V4.4: Welche V4.4-Attribute (Konnektivität, Seriennummer ONT, Medienkonverter …) laufen über generische Attributstrukturen? Das Ergebnis wird als Mapping-Tabelle dokumentiert. | Entwickler | M1 |
-| OP-09 | Öffentliche Test-Infrastruktur für den KFT: feste IPv4, DNS, TLS-Zertifikat, Hosting | Auftraggeber | M9 |
+| OP-09 | Test-Infrastruktur für den KFT: VM und nginx mit Let's Encrypt sind vorhanden (D-15). **Noch offen:** feste ausgehende IPv4 (Enghouse und Partner schalten IPs frei), DNS-Name, Schlüsseltyp des Zertifikats prüfen (Kap. 7.4) | Auftraggeber | M8 |
 | OP-11 | Fehlende Meldungscodes 1089 und 7501, TEQ-Fehlercode für Signaturfehler: beim AK erfragen. Bis dahin gelten die Annahmen aus R-13 und Kap. 5.3. | Auftraggeber | M1/M2 (Annahme reicht) |
-| OP-12 | Copyright-Inhaber für die MIT-`LICENSE` (Firma, Person oder „open-spri contributors“) und Security-Kontakt (E-Mail) für `SECURITY.md` | Auftraggeber | Release |
+| ~~OP-12~~ | ~~Copyright-Inhaber und Security-Kontakt~~. **Erledigt (D-16)** | – | – |
 | OP-10 | Anlage 7 (EPKs V.13 vom 09.10.2026) und Arbeitshandbuch 2.9.5 (09.10.2026) sind brandneu. Wir prüfen, ob sie Änderungen enthalten, die den KFT-Umfang betreffen. | Entwickler | M2 |
 
 ## 16. Entwicklungsfreigabe
 
 Die Entwicklung beginnt, wenn folgende Punkte erfüllt sind:
 
-- [ ] Scope D-01 bis D-09 bestätigt (erledigt im Gespräch am 2026-11-01)
-- [ ] Vorschläge D-10 bis D-14 bestätigt oder geändert
+- [x] Scope D-01 bis D-09 bestätigt (2026-11-01), D-03 um DIAG erweitert
+- [x] Vorschläge D-10 bis D-14 bestätigt (2026-11-01)
 - [x] OP-07 (Name, Repo) entschieden: open-spri
 - [ ] OP-01, OP-02 und OP-03 sind **angefragt**. Antworten sind für M0 bis M7 nicht nötig.
 - [x] Festgelegt, wer die Umsetzung übernimmt: **Claude Opus, alle Arbeitspakete**
-- [ ] Sprachregel aus Kap. 12.3 bestätigt
+- [x] Sprachregel aus Kap. 12.3 bestätigt (2026-11-01)
 
 **Freigegeben durch:** ______________________  **Datum:** ____________

@@ -31,7 +31,7 @@ HEADER = """# Anhang A – Testfall-Matrix (Konformitätstest S/PRI V4.x)
 
 Quelle: `{source}` (AK S&P). Automatisch erzeugt mit `scripts/gen-testmatrix.py`. Inhaltlich gilt immer die Originaldatei.
 
-**Legende Scope:** `PFLICHT` = muss für die Zertifizierung bestanden werden. `PFLICHT (Alternative zu *3)` = einer der mit (*3) markierten TF der Gruppe muss bestanden werden, wir setzen beide um. `PFLICHT (Scope)` = optional laut AK, durch unsere Scope-Entscheidung (Konnektivität, HomeID, Dritte) aber verpflichtend. `EMPFOHLEN` = optional, für Public-Software empfohlen (D-10). `OUT (v2)` = Diagnose, nicht im Scope v1.
+**Legende Scope:** `PFLICHT` = muss für die Zertifizierung bestanden werden. `PFLICHT (Alternative zu *3)` = einer der mit (*3) markierten TF der Gruppe muss bestanden werden, wir setzen beide um. `PFLICHT (Scope)` = optional laut AK, durch unsere Scope-Entscheidung (Konnektivität, HomeID, Dritte) aber verpflichtend. `EMPFOHLEN` = optional laut AK, wird nach D-10 trotzdem umgesetzt und bestanden.
 
 **Bestandsaufbau (BA = X):** Der TF beginnt mit einem NEU-Auftrag mit Standardkette (QEB, ABM, ERLM, ENTM). Der Testfallname erhält das Suffix `#<externe Auftragsnummer des Bestandsaufbaus>`.
 
@@ -40,8 +40,6 @@ Quelle: `{source}` (AK S&P). Automatisch erzeugt mit `scripts/gen-testmatrix.py`
 
 
 def scope(gf: str, obligation: str, description: str) -> str:
-    if gf.startswith("GET"):
-        return "OUT (v2)"
     if obligation.startswith("muss"):
         return "PFLICHT"
     if obligation == "":
@@ -92,10 +90,10 @@ def main() -> None:
             summary.append((title.split(" – ")[0], counts))
             out.append("")
     out.append("## Zusammenfassung\n")
-    out.append("| Rolle | PFLICHT | PFLICHT (Scope) | EMPFOHLEN | OUT (v2) |")
+    out.append("| Rolle | PFLICHT | PFLICHT (Scope) | EMPFOHLEN | Summe |")
     out.append("|---|---|---|---|---|")
     for role, c in summary:
-        out.append(f"| {role} | {c['PFLICHT']} | {c['PFLICHT (Scope)']} | {c['EMPFOHLEN']} | {c['OUT']} |")
+        out.append(f"| {role} | {c['PFLICHT']} | {c['PFLICHT (Scope)']} | {c['EMPFOHLEN']} | {sum(c.values())} |")
     OUTPUT.write_text("\n".join(out) + "\n", encoding="utf-8")
     print(f"geschrieben: {OUTPUT}")
 
