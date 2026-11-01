@@ -306,3 +306,26 @@ class InMemoryAgreements : de.openspri.domain.partner.PartnerAgreements, de.open
     override fun save(announcement: de.openspri.domain.partner.MaintenanceAnnouncement) = announcement.copy(id = nextId++).also { announcements += it }
     override fun list(limit: Int) = announcements.reversed().take(limit)
 }
+
+class InMemoryInventory : de.openspri.domain.order.InventoryStore {
+    val contracts: MutableList<de.openspri.domain.order.InventoryContract> = java.util.concurrent.CopyOnWriteArrayList()
+    private var nextId = 1L
+
+    @Synchronized
+    override fun add(contract: de.openspri.domain.order.InventoryContract) = contract.copy(id = nextId++).also { contracts += it }
+
+    @Synchronized
+    override fun end(role: OrderRole, lineId: String?, contractNumber: String?, at: Instant): Int {
+        if (lineId == null && contractNumber == null) return 0
+        val ending = contracts.filter { it.role == role && it.active && (lineId == null || it.lineId == lineId) && (contractNumber == null || it.contractNumber == contractNumber) }
+        ending.forEach { c -> contracts[contracts.indexOf(c)] = c.copy(endedAt = at) }
+        return ending.size
+    }
+
+    override fun active(role: OrderRole, lineId: String) = contracts.lastOrNull { it.role == role && it.lineId == lineId && it.active }
+
+    override fun search(filter: de.openspri.domain.order.InventoryFilter) = contracts.asReversed()
+        .filter { (filter.role == null || it.role == filter.role) && (filter.partnerId == null || it.partnerId == filter.partnerId) }
+        .filter { (filter.lineId == null || it.lineId == filter.lineId) && (!filter.activeOnly || it.active) && (filter.beforeId == null || it.id!! < filter.beforeId) }
+        .take(filter.limit.coerceIn(1, 500))
+}

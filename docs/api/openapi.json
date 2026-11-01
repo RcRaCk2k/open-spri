@@ -35,6 +35,9 @@
     "description" : "Zustellung, Eingang, Archiv und Wartung",
     "name" : "Betrieb"
   }, {
+    "description" : "Verträge aus abgeschlossenen Aufträgen, Grundlage für KUE-AG, AEN-LMAE, LAE, EST und den Providerwechsel",
+    "name" : "Bestand"
+  }, {
     "description" : "Gegenstellen: Endpunkt, Signaturzertifikate, freigeschaltete IPs (AUFGABE 5.9)",
     "name" : "Partner"
   }, {
@@ -167,7 +170,7 @@
     "/api/v1/deliveries" : {
       "get" : {
         "description" : "Neueste zuerst. Blättern mit `cursor`.",
-        "operationId" : "list_7",
+        "operationId" : "list_8",
         "parameters" : [ {
           "in" : "query",
           "name" : "status",
@@ -489,6 +492,109 @@
         },
         "summary" : "Fehlgeschlagene Verarbeitung wiederholen",
         "tags" : [ "Zustellung" ]
+      }
+    },
+    "/api/v1/inventory" : {
+      "get" : {
+        "description" : "Neueste zuerst; `active=false` zeigt auch beendete Verträge. Blättern mit `cursor`.",
+        "operationId" : "list_7",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "role",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "partnerId",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lineId",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "nur aktive Verträge",
+          "in" : "query",
+          "name" : "active",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : true
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ContractDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Bestand",
+        "tags" : [ "Bestand" ]
+      }
+    },
+    "/api/v1/inventory/{lineId}" : {
+      "get" : {
+        "description" : "Alle Verträge zur LineID, auch beendete, neueste zuerst.",
+        "operationId" : "line",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "lineId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ContractDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Verträge einer Leitung",
+        "tags" : [ "Bestand" ]
       }
     },
     "/api/v1/maintenance-announcements" : {

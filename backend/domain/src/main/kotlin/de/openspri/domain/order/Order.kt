@@ -52,6 +52,8 @@ data class OrderData(
     val complaint: Boolean = false,
     /** Key of the technical infrastructure for R-10 (LineID, HomeID or normalized address). */
     val infrastructureKey: String? = null,
+    /** Provider change as Leistungserbringer: the abgebender EKP, fixed with the AKM-PV (5.5.1). */
+    val handover: HandoverParty? = null,
 ) {
     /** Konnektivitätsauftrag: product position "Konnektivität" (5.1.2, Anlage 4). */
     val connectivity: Boolean get() = products.any { it.equals("Konnektivität", ignoreCase = true) }

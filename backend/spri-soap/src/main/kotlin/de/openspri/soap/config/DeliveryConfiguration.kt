@@ -102,7 +102,8 @@ class DeliveryConfiguration {
         events: EventLog,
         drafts: OrderDrafts,
         agreements: AgreementRules,
-    ) = OutboundOrderService(orders, outbox, codes::get, transactions, events = events, drafts = drafts, agreements = agreements)
+        inventory: de.openspri.domain.order.InventoryBook,
+    ) = OutboundOrderService(orders, outbox, codes::get, transactions, events = events, drafts = drafts, agreements = agreements, inventory = inventory)
 
     @Bean
     fun maintenanceService(partners: PartnerAdministration, notifier: Notifier, store: MaintenanceAnnouncements) =

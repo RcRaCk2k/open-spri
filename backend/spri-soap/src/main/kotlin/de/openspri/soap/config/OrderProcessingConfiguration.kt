@@ -5,6 +5,8 @@ import de.openspri.domain.exchange.InboxQueue
 import de.openspri.domain.message.MessageCodeCatalog
 import de.openspri.domain.message.MessageCodeStore
 import de.openspri.domain.order.InboundOrderService
+import de.openspri.domain.order.InventoryBook
+import de.openspri.domain.order.InventoryStore
 import de.openspri.domain.partner.AgreementRules
 import de.openspri.domain.partner.PartnerAgreements
 import de.openspri.domain.partner.ProductCatalog
@@ -65,8 +67,11 @@ class OrderProcessingConfiguration {
     }
 
     @Bean
-    fun inboundOrderService(orders: OrderRepository, codes: MessageCodeCatalogHolder, events: EventLog, agreements: AgreementRules) =
-        InboundOrderService(orders, codes::get, events = events, agreements = agreements)
+    fun inboundOrderService(orders: OrderRepository, codes: MessageCodeCatalogHolder, events: EventLog, agreements: AgreementRules, inventory: InventoryBook) =
+        InboundOrderService(orders, codes::get, events = events, agreements = agreements, inventory = inventory)
+
+    @Bean
+    fun inventoryBook(store: InventoryStore) = InventoryBook(store)
 
     @Bean
     fun agreementRules(agreements: PartnerAgreements, products: ProductCatalog) = AgreementRules(agreements, products)

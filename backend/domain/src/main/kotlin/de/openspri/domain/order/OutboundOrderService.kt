@@ -43,6 +43,7 @@ class OutboundOrderService(
     private val events: EventLog = EventLog.NONE,
     private val drafts: OrderDrafts? = null,
     private val agreements: AgreementRules? = null,
+    private val inventory: InventoryBook? = null,
 ) {
 
     /** We order from a partner (we are Auftraggeber). [payload] is the annehmenAuftragRequest element. */
@@ -151,20 +152,40 @@ class OutboundOrderService(
      */
     fun sendMessage(order: Order, message: MessageInfo, payload: ByteArray): Order = transactions.run {
         val (reasons, transition) = messageChecks(order, message.type, message.changeIndicator, message.codes, message.businessCase)
+        val handover = if (message.type in HANDOVER_MESSAGES) handoverParty(order) else null
+        if (message.type in HANDOVER_MESSAGES && handover == null) reasons += noHandoverParty(order)
         if (reasons.isNotEmpty()) throw OrderActionRejected(reasons, allowedActions(order))
 
         val now = clock.instant()
-        // like inbound (R-15): LineID and contract number are assigned with the first ABM and then stay the same
+        // like inbound (R-15): LineID and contract number are assigned with the first ABM and then stay the same;
+        // a handover message does not carry ours but the contract of the abgebender EKP
         val data = order.data.copy(
             lineId = order.data.lineId ?: message.lineId,
-            contractNumber = order.data.contractNumber ?: message.contractNumber,
+            contractNumber = order.data.contractNumber ?: message.contractNumber.takeIf { handover == null },
+            handover = order.data.handover ?: handover,
         )
         // the key is fixed with the first request of the order: a LineID assigned later (ABM) must not change it
         val saved = orders.save(order.copy(state = (transition as Transition.Accepted).state, data = data, updatedAt = now, sequenceKey = order.sequenceKey ?: keyFor(order.partnerId, order.data)))
-        enqueue(saved, RequestType.MESSAGE, SoapOperation.ANNEHMEN_MELDUNG, payload)
+        inventory?.onChange(order, saved, now)
+        if (handover != null) {
+            // provider change (5.5.1): to the abgebender EKP, ordered per line like its own requests
+            enqueue(saved, RequestType.MESSAGE, SoapOperation.ANNEHMEN_MELDUNG, payload, handover.partnerId, OutboxEntry.sequenceKey(handover.partnerId, saved.data.lineId, saved.data.externalOrderNumber))
+        } else {
+            enqueue(saved, RequestType.MESSAGE, SoapOperation.ANNEHMEN_MELDUNG, payload)
+        }
         record(OrderHistoryEntry(saved.id, order.partnerId, null, OrderHistoryEntry.Kind.MESSAGE, message.type, message.changeIndicator, message.codes, at = now, direction = OUTBOUND), saved)
         saved
     }
+
+    /**
+     * The abgebender EKP of a provider change in which we are Leistungserbringer: fixed on the order with the first
+     * handover message, otherwise the holder of the active contract on the order's LineID (inventory).
+     */
+    fun handoverParty(order: Order): HandoverParty? =
+        order.data.handover ?: order.data.lineId?.let { inventory?.holder(it) }
+
+    private fun noHandoverParty(order: Order) =
+        "Kein aktiver Vertrag im Bestand zur LineID ${order.data.lineId ?: "(fehlt)"}: der abgebende EKP ist unbekannt (5.5.1)"
 
     /**
      * Checks role, message codes and lifecycle before the payload is built, so that a message the order does
@@ -172,6 +193,7 @@ class OutboundOrderService(
      */
     fun precheckMessage(order: Order, type: MessageType, changeIndicator: ChangeIndicator, codes: List<String>) {
         val (reasons, _) = messageChecks(order, type, changeIndicator, codes, order.data.businessCase)
+        if (type in HANDOVER_MESSAGES && order.role == OrderRole.LEISTUNGSERBRINGER && handoverParty(order) == null) reasons += noHandoverParty(order)
         if (reasons.isNotEmpty()) throw OrderActionRejected(reasons, allowedActions(order))
     }
 
@@ -181,7 +203,7 @@ class OutboundOrderService(
         changeIndicator: ChangeIndicator,
         codes: List<String>,
         businessCase: BusinessCase,
-    ): Pair<List<String>, Transition> {
+    ): Pair<MutableList<String>, Transition> {
         val reasons = mutableListOf<String>()
         if (type.sender != ourParty(order.role)) reasons += "${type.code} wird vom ${type.sender.name} gesendet, wir sind ${order.role.name}"
         if (businessCase != order.data.businessCase && order.data.businessCase != BusinessCase.KUE_LE) {
@@ -225,17 +247,24 @@ class OutboundOrderService(
      */
     private fun keyFor(partnerId: PartnerId, data: OrderData) = OutboxEntry.sequenceKey(partnerId, data.lineId, data.externalOrderNumber)
 
-    private fun enqueue(order: Order, type: RequestType, operation: SoapOperation, payload: ByteArray) {
+    private fun enqueue(
+        order: Order,
+        type: RequestType,
+        operation: SoapOperation,
+        payload: ByteArray,
+        partnerId: PartnerId = order.partnerId,
+        sequenceKey: String = requireNotNull(order.sequenceKey),
+    ) {
         val now = clock.instant()
         outbox.enqueue(
             OutboxEntry(
                 id = null,
-                partnerId = order.partnerId,
+                partnerId = partnerId,
                 orderId = order.id,
                 type = type,
                 operation = operation,
                 externalOrderNumber = order.data.externalOrderNumber,
-                sequenceKey = requireNotNull(order.sequenceKey),
+                sequenceKey = sequenceKey,
                 payload = payload,
                 nextAttemptAt = now,
                 createdAt = now,
@@ -243,4 +272,8 @@ class OutboundOrderService(
         )
     }
 
+    private companion object {
+        /** Messages to the abgebender EKP of a provider change (5.5.1). */
+        val HANDOVER_MESSAGES = setOf(MessageType.AKM_PV, MessageType.ABM_PV, MessageType.ERLM_PV, MessageType.ENTM_PV, MessageType.ABBM_PV)
+    }
 }

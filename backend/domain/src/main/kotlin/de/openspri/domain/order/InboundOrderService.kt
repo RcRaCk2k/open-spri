@@ -40,6 +40,7 @@ class InboundOrderService(
     private val clock: Clock = Clock.systemDefaultZone(),
     private val events: EventLog = EventLog.NONE,
     private val agreements: AgreementRules? = null,
+    private val inventory: InventoryBook? = null,
 ) {
 
     /** An order of a partner to us (we are Leistungserbringer). */
@@ -128,7 +129,7 @@ class InboundOrderService(
                 val data = message.lineId?.takeIf { order.data.lineId == null }?.let { order.data.copy(lineId = it) }
                     ?: message.contractNumber?.takeIf { order.data.contractNumber == null }?.let { order.data.copy(contractNumber = it) }
                     ?: order.data
-                orders.save(order.copy(state = transition.state, data = data, updatedAt = now))
+                orders.save(order.copy(state = transition.state, data = data, updatedAt = now)).also { inventory?.onChange(order, it, now) }
             }
             is Transition.Rejected -> { findings += "Ablauf: ${transition.reason}"; order }
         }

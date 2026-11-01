@@ -60,6 +60,7 @@ Die Testfallliste (`Testfaelle_SPRIv4X_20250523.xlsx`) lädt der Build von ak-sp
 | Vorabstimmung („Alle Anbieterwechsel relevanten Attribute“) | `vorabstimmungId` im Geschäftsfall (NEU, KUE-AG) |
 | HomeID | `vormieter/homeId/homeIdNummer` (Anlage 1 Zeilen 113 bis 118) |
 | Konnektivität | zusätzliche Position mit Produkt „Konnektivität“ (Anlage 1 Zeile 154); „mit Eigentümerdaten“: `standortVersand` mit dem Eigentümer und `montagehinweis` nach Variante 1 (Zeile 129). „Falsche Auftragsart“ (S.1.2.12, S.8.2.12) bezieht sich auf das Replikat; der Auftrag ist ein normaler Konnektivitätsauftrag, der Leistungserbringer antwortet mit ABBM 1510. |
+| Providerwechsel als Leistungserbringer (Z.13.x) | Der Bestandsaufbau legt einen Vertrag des Simulators auf der Leitung an; er ist damit der abgebende EKP. Unsere AKM-PV, ABM-PV, ERLM-PV, ENTM-PV und ABBM-PV gehen an ihn, mit der Vertragsnummer des Bestandsvertrags (geprüft). Seine RUEM-PV kommt in seiner Rolle als abgebender EKP. Wie beim KFT spielt derselbe Partner Auftraggeber und abgebenden EKP. |
 | Diagnose (Z.15/Z.16) | GET mit den Parametern `BBdown`, `BBup`, SET mit `RESET`; die ERLM enthält je Parameter ein `dignoseergebnis` (SA-010) |
 
 Jede Abweichung von dieser Auslegung beim echten KFT wird als SA-Eintrag nachgetragen.
@@ -77,7 +78,8 @@ Der Test `coverage gate` lässt den Build scheitern, wenn mehr Testfälle offen 
 | 1 | Simulator, Planer, Runner; NEU in beiden Rollen; Meldungsvarianten (neuer Termin, zwei Codes, Code aus dem Hinweis, TEQ 0991) | 155 von 211 |
 | 2 | Auftragsvorlagen für alle Geschäftsfälle, Bestandsaufbau, KUE-LE, abgebender EKP, Reklamation, Diagnose | 60 von 211 |
 | 3 | besondere Auftragsinhalte: Projektkenner, Auftragskenner, Dritte, Vorabstimmung, HomeID, Konnektivität | 20 von 211 |
+| 4 | Bestand, Providerwechsel als Leistungserbringer | 14 von 211 |
 
-Offen nach Teil 3:
+Offen nach Teil 4:
 - **Negativ-Testfälle,** bei denen der Auftraggeber absichtlich einen fehlerhaften Auftrag sendet: Termin mehr als 179 Tage voraus, Storno statt Standard, Diagnose statt Änderung, Produkt „Dummy“, Leistungsmerkmal „TEST“, falsche Auftragsart
-- **Providerwechsel als Leistungserbringer:** Austausch mit dem abgebenden EKP (AKM-PV, RUEM-PV, ABM-PV …), braucht den Bestand des abgebenden EKP
+

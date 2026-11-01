@@ -115,7 +115,7 @@ export interface paths {
          * Postausgang
          * @description Neueste zuerst. Blättern mit `cursor`.
          */
-        get: operations["list_7"];
+        get: operations["list_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -275,6 +275,46 @@ export interface paths {
          * @description Nur für FAILED.
          */
         post: operations["reprocess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inventory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bestand
+         * @description Neueste zuerst; `active=false` zeigt auch beendete Verträge. Blättern mit `cursor`.
+         */
+        get: operations["list_7"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inventory/{lineId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Verträge einer Leitung
+         * @description Alle Verträge zur LineID, auch beendete, neueste zuerst.
+         */
+        get: operations["line"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2222,7 +2262,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_8: {
         parameters: {
             query?: {
                 status?: string;
@@ -2426,6 +2466,56 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_7: {
+        parameters: {
+            query?: {
+                role?: string;
+                partnerId?: number;
+                lineId?: string;
+                /** @description nur aktive Verträge */
+                active?: boolean;
+                cursor?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"][];
+                };
+            };
+        };
+    };
+    line: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lineId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractDto"][];
+                };
             };
         };
     };

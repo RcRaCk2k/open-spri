@@ -72,6 +72,10 @@ object MessageDefaults {
                 node.putObject("aufnehmenderProvider").put("providername", context.providerName)
                     .put("uebernahmedatumGeplant", context.date.toString()).put("antwortfrist", context.today.plusDays(5).toString())
             }
+            MessageType.RUEM_PV -> {
+                node.putObject("anschluss").put("lineId", context.lineId)
+                node.putObject("abgebenderProvider").put("providername", context.providerName).put("zustimmungProviderwechsel", "J")
+            }
             MessageType.ABM_PV -> {
                 node.putObject("anschluss").put("lineId", context.lineId)
                 node.putObject("aufnehmenderProvider").put("providername", context.providerName).put("uebernahmedatumVerbindlich", context.date.toString())

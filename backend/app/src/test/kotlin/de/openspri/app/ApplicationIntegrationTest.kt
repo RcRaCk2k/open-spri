@@ -47,6 +47,7 @@ class ApplicationIntegrationTest(
     @Autowired private val agreements: de.openspri.persistence.JdbcPartnerAgreements,
     @Autowired private val products: de.openspri.persistence.JdbcProductCatalog,
     @Autowired private val maintenance: de.openspri.persistence.JdbcMaintenanceAnnouncements,
+    @Autowired private val inventory: de.openspri.persistence.JdbcInventory,
 ) {
     @LocalServerPort
     private var port = 0
@@ -226,6 +227,29 @@ class ApplicationIntegrationTest(
         assertEquals(saved.id, listed.id)
         assertEquals(listOf(partner, other), listed.partnerIds)
         assertEquals(listOf("a", "b"), listed.warnings)
+    }
+
+    @Test
+    fun `inventory contracts and the abgebender EKP of an order on MariaDB`() {
+        val partner = partners.create(name = "Bestand", carrierCode = "DEU.INVENT", certificates = listOf(credentials.certificate), networks = emptyList())
+        val now = java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
+        val le = de.openspri.domain.order.OrderRole.LEISTUNGSERBRINGER
+        val first = inventory.add(de.openspri.domain.order.InventoryContract(null, le, partner, "V1", "DEU.INV.1", "AG1", "LN1", listOf("FTTH 100", "Konnektivität"), null, now))
+        assertEquals(listOf("FTTH 100", "Konnektivität"), inventory.active(le, "DEU.INV.1")!!.products)
+        assertEquals(0, inventory.end(le, null, null, now))
+        assertEquals(1, inventory.end(le, "DEU.INV.1", null, now))
+        assertEquals(null, inventory.active(le, "DEU.INV.1"))
+        inventory.add(first.copy(id = null, contractNumber = "V2"))
+        assertEquals(1, inventory.end(le, null, "V2", now))
+        assertEquals(2, inventory.search(de.openspri.domain.order.InventoryFilter(lineId = "DEU.INV.1", activeOnly = false)).size)
+        assertEquals(emptyList(), inventory.search(de.openspri.domain.order.InventoryFilter(partnerId = partner)))
+
+        val data = de.openspri.domain.order.OrderData("HO-1", de.openspri.domain.BusinessCase.PV, lineId = "DEU.INV.1",
+            handover = de.openspri.domain.order.HandoverParty(partner, "V1", "AG1"))
+        val order = orderRepository.save(
+            de.openspri.domain.order.Order(null, partner, le, data, de.openspri.domain.order.OrderLifecycle.submitted(data.businessCase), now, now),
+        )
+        assertEquals(data.handover, orderRepository.get(order.id!!)!!.data.handover)
     }
 
     @Test

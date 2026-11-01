@@ -37,6 +37,7 @@ object TestCaseVariants {
         // "falsche Auftragsart" refers to the Replikat (what the Leistungserbringer offers); the order is a normal
         // Konnektivitätsauftrag, the Leistungserbringer answers ABBM 1510
         Variant.WRONG_ORDER_KIND,
+        Variant.PROVIDER_CHANGE_LE,
     )
 
     /** Konnektivitätsauftrag with owner data ("mit Eigentümerdaten" in the description). */

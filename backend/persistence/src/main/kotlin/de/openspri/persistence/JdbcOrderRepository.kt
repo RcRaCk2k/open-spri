@@ -2,6 +2,7 @@ package de.openspri.persistence
 
 import de.openspri.domain.BusinessCase
 import de.openspri.domain.ChangeIndicator
+import de.openspri.domain.order.HandoverParty
 import de.openspri.domain.order.HandoverPhase
 import de.openspri.domain.order.Order
 import de.openspri.domain.order.OrderData
@@ -116,6 +117,7 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository, Order
             "products" to d.products.joinToString("|").take(1000).ifEmpty { null },
             "project" to d.projectId, "coupling" to d.couplingId, "bracket" to d.bracketId, "bracketSize" to d.bracketSize,
             "ont" to d.ontSerial, "infra" to d.infrastructureKey?.take(300), "seqKey" to order.sequenceKey,
+            "hoPartner" to d.handover?.partnerId?.value, "hoContract" to d.handover?.contractNumber, "hoClient" to d.handover?.clientNumber,
             "created" to Timestamp.from(order.createdAt), "updated" to Timestamp.from(order.updatedAt),
         )
         if (order.id == null) {
@@ -125,11 +127,11 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository, Order
                        cancelled, complaints, appointment_requested, connectivity, bracketed, handover_phase, handover_only, finished,
                        client_number, service_number, orderer_client_number, orderer_service_number, desired_date, contract_number,
                        line_id, pre_agreement_id, home_id, products, project_id, coupling_id, bracket_id, bracket_size, ont_serial,
-                       infrastructure_key, sequence_key, created_at, updated_at)
+                       infrastructure_key, sequence_key, handover_partner_id, handover_contract_number, handover_client_number, created_at, updated_at)
                    VALUES (:tenant, :partner, :role, :number, :bc, :phase, :requests, :cancelled, :complaints, :appointment,
                        :connectivity, :bracketed, :handover, :handoverOnly, :finished, :client, :service, :ordererClient,
                        :ordererService, :desired, :contract, :line, :preAgreement, :home, :products, :project, :coupling,
-                       :bracket, :bracketSize, :ont, :infra, :seqKey, :created, :updated)""",
+                       :bracket, :bracketSize, :ont, :infra, :seqKey, :hoPartner, :hoContract, :hoClient, :created, :updated)""",
             ).params(params).update(keys, "id")
             return order.copy(id = OrderId(keys.key!!.toLong()))
         }
@@ -142,6 +144,7 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository, Order
                    desired_date = :desired, contract_number = :contract, line_id = :line, pre_agreement_id = :preAgreement,
                    home_id = :home, products = :products, project_id = :project, coupling_id = :coupling, bracket_id = :bracket,
                    bracket_size = :bracketSize, ont_serial = :ont, infrastructure_key = :infra, sequence_key = :seqKey,
+                   handover_partner_id = :hoPartner, handover_contract_number = :hoContract, handover_client_number = :hoClient,
                    updated_at = :updated, version = version + 1
                WHERE id = :id AND version = :version""",
         ).params(params + mapOf("id" to order.id!!.value, "version" to order.version)).update()
@@ -194,6 +197,9 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository, Order
                 bracketSize = rs.getInt("bracket_size").takeIf { !rs.wasNull() },
                 ontSerial = rs.getString("ont_serial"),
                 infrastructureKey = rs.getString("infrastructure_key"),
+                handover = rs.getLong("handover_partner_id").takeIf { !rs.wasNull() }?.let {
+                    HandoverParty(PartnerId(it), rs.getString("handover_contract_number"), rs.getString("handover_client_number"))
+                },
             ),
             state = OrderState(
                 businessCase = businessCase,

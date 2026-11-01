@@ -46,12 +46,25 @@ Der KFT bei Enghouse bricht nach drei erfolglosen Versuchen ab. Deshalb müssen 
 - `ScenarioRunner.prepare()`: legt Projektvereinbarung und Vollmacht über die REST-API an. So prüfen die Szenarien auch R-11 und R-12 aus M4.
 - `OutboundPayloads`: Meldungen übernehmen `auftraggebernummerBesteller` und `vorabstimmungId` aus dem Auftrag, wie schon Vertragsnummer und Auftraggebernummer.
 
+### Teil 4: Bestand, Providerwechsel als Leistungserbringer
+- **Bestand** (AUFGABE 5.6, 8.4 `inventory_contract`):
+  - `InventoryBook` führt ihn bei jedem abgeschlossenen Auftrag nach: ENTM zu NEU/PV legt einen Vertrag an und beendet den bisherigen auf der Leitung, KUE-AG/KUE-LE beendet ihn, ENTM-PV als abgebender EKP beendet unseren. Ein Storno ändert nichts.
+  - REST `GET /inventory`, `GET /inventory/{lineId}`.
+- **Providerwechsel als Leistungserbringer (5.5.1):** Der abgebende EKP ist der Inhaber des aktiven Vertrags auf der LineID. `OutboundOrderService` hält ihn mit der AKM-PV am Auftrag fest (`OrderData.handover`).
+  - AKM-PV, ABM-PV, ERLM-PV, ENTM-PV und ABBM-PV gehen an ihn, mit seiner Vertrags- und Auftraggebernummer (Anlage 1) und einem eigenen Reihenfolgeschlüssel.
+  - Ohne Bestandsvertrag antwortet die API mit 409. **Bisher gingen diese Meldungen fälschlich an den Auftraggeber.**
+- Migration V12: `inventory_contract`; `spri_order.handover_partner_id`, `handover_contract_number`, `handover_client_number`.
+
 ## Auswirkungen
 - S/PRI-Schnittstelle: Meldungen zu Aufträgen im Namen Dritter tragen jetzt die Auftraggebernummer des Bestellers, Meldungen zu Aufträgen mit VorabstimmungsID die VorabstimmungsID. TBK-Meldungen werden jetzt XSD-konform gebaut; die ENTM als Leistungserbringer enthält die Vertragsnummer aus der ABM. Entstöraufträge ohne Auftragsposition sind jetzt auch nach Anlage 1 gültig (SA-015), eingehend wie ausgehend.
-- REST-API, Datenbank, Konfiguration: keine Änderung
+- S/PRI-Schnittstelle (Teil 4): Meldungen an den abgebenden EKP gehen jetzt an ihn statt an den Auftraggeber.
+- REST-API: `GET /inventory`, `GET /inventory/{lineId}` (Teil 4)
+- Datenbank: Migration V12 (Teil 4)
+- Konfiguration: keine Änderung
 - Build: neues Modul `simulator`; `:app`-Tests laden die Testfallliste über `:simulator:downloadKftTestCases`
 
 ## Tests
+- Teil 4: `KftScenarioTest` 197 Testfälle grün, 14 offen (Negativ-Testfälle); `InventoryBookTest` (Vertrag aus NEU/PV, Ablösung, Kündigung, Storno ohne Wirkung, abgebender EKP, Providerwechsel an den Vertragsinhaber, 409 ohne Bestand); `ApplicationIntegrationTest` (Bestand und abgebender EKP auf MariaDB)
 - Teil 3: `KftScenarioTest` 191 Testfälle grün, 20 offen (Negativ-Testfälle, Providerwechsel als Leistungserbringer); `OrderTemplatesTest`: NEU mit allen Varianten
 - Teil 2: `KftScenarioTest` 151 Testfälle grün, 60 offen mit Grund; `OrderTemplatesTest` (jede Vorlage gültig nach XSD und Anlage 1, richtiger Geschäftsfall, Reklamation)
 - `KftScenarioTest`: 56 Testfälle grün (NEU in beiden Rollen ohne besondere Auftragsinhalte, dazu S.1.1.02/S.8.1.02 neuer Termin, S.1.2.6/S.8.2.6 zwei Codes, S.1.2.5/S.8.2.5 Dublette mit 1010, S.8.2.10 TEQ 0991 mit automatischer Wiederholung), 155 offen mit Grund

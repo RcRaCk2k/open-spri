@@ -184,9 +184,19 @@ class OrderCommands(
     ): Order {
         val order = order(orderId)
         service.precheckMessage(order, type, changeIndicator, codes.map { it.first })
-        val (built, info) = payloads.message(order, type, changeIndicator, codes, attributes, catalog())
+        // provider change as Leistungserbringer (5.5.1, Anlage 1): messages to the abgebender EKP carry his contract
+        // and Auftraggebernummer, the external order number stays the one of the aufnehmender EKP
+        val handover = if (type in HANDOVER_TYPES && order.role == OrderRole.LEISTUNGSERBRINGER) service.handoverParty(order) else null
+        val addressed = handover?.let {
+            order.copy(data = order.data.copy(contractNumber = it.contractNumber, clientNumber = it.clientNumber, ordererClientNumber = null))
+        } ?: order
+        val (built, info) = payloads.message(addressed, type, changeIndicator, codes, attributes, catalog())
         return service.sendMessage(order, info, built.bytes)
     }
 
     fun order(orderId: OrderId): Order = orders.get(orderId) ?: throw NotFoundException("Auftrag ${orderId.value} existiert nicht")
+
+    private companion object {
+        val HANDOVER_TYPES = setOf(MessageType.AKM_PV, MessageType.ABM_PV, MessageType.ERLM_PV, MessageType.ENTM_PV, MessageType.ABBM_PV)
+    }
 }

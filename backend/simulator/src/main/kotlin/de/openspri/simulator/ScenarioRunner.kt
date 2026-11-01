@@ -145,7 +145,7 @@ class ScenarioRunner(
             when (val action = step.action) {
                 Action.PlaceOrder -> if (step.side == Side.US) ourOrder() else simulatorOrder()
                 is Action.Request -> if (step.side == Side.US) ourRequest(action.kind) else simulatorRequest(action.kind)
-                is Action.Message -> if (step.side == Side.US) ourMessage(action) else simulatorMessage(action)
+                is Action.Message -> if (step.side == Side.US) ourMessage(action, step.thirdParty) else simulatorMessage(action, step.thirdParty)
             }
         }
 
@@ -202,7 +202,23 @@ class ScenarioRunner(
 
         // --- messages --------------------------------------------------------------------------
 
-        fun simulatorMessage(message: Action.Message) {
+        /**
+         * The order as the abgebender EKP knows it (provider change, `<…>`): his contract on the line from the
+         * inventory build-up, the external order number of the aufnehmender EKP (Anlage 1).
+         */
+        fun handoverData() = OrderData(
+            number, BusinessCase.PV, clientNumber = OrderTemplates.Parties().clientNumber,
+            contractNumber = requireNotNull(inventory) { "Providerwechsel ohne Bestand" }.contractNumber, lineId = inventory!!.lineId,
+        )
+
+        fun simulatorMessage(message: Action.Message, thirdParty: Boolean = false) {
+            if (thirdParty) {
+                val codes = codesFor(message)
+                expectOk(simulator.sendMessage(handoverData(), OrderRole.ABGEBENDER_EKP, message.type, message.changeIndicator, codes, MessageDefaults.attributes(message.type, context(message))), message.type.code)
+                log("Simulator (abgebender EKP) → ${message.type.code} (${codes.joinToString()})")
+                awaitHistory("MESSAGE", message.type)
+                return
+            }
             // KUE-LE starts with the KDLE, the view of the abgebender EKP with the AKM-PV: about the inventory contract
             val data = simOrder ?: OrderData(
                 number, if (message.type == MessageType.KDLE) BusinessCase.KUE_LE else case.businessCase,
@@ -221,7 +237,7 @@ class ScenarioRunner(
             awaitHistory("MESSAGE", message.type)
         }
 
-        fun ourMessage(message: Action.Message) {
+        fun ourMessage(message: Action.Message, thirdParty: Boolean = false) {
             val codes = codesFor(message)
             if (message.type == MessageType.KDLE) return ourTermination(codes)
             val id = requireNotNull(ourOrderId)
@@ -236,7 +252,7 @@ class ScenarioRunner(
             if (message.overloaded) simulator.nextTeq = TeqCode.OVERLOADED
             val order = us.order(id)
             val attributes = MessageDefaults.attributes(message.type, context(message))
-            if (order.path("contractNumber").isNull && scenario.role == OrderRole.LEISTUNGSERBRINGER && carriesContract(message.type)) {
+            if (!thirdParty && order.path("contractNumber").isNull && scenario.role == OrderRole.LEISTUNGSERBRINGER && carriesContract(message.type)) {
                 attributes.put("vertragsnummer", contract)
             }
             val body = us.objectNode().put("type", message.type.code).put("changeIndicator", message.changeIndicator.code)
@@ -249,7 +265,13 @@ class ScenarioRunner(
                 log("Simulator → TEQ 0991 (Schnittstelle überlastet)")
                 return
             }
-            checkReceived(message.type, message.changeIndicator, codes)
+            val received = checkReceived(message.type, message.changeIndicator, codes)
+            if (thirdParty) {
+                // Anlage 1: to the abgebender EKP with his contract number, not ours
+                val expected = inventory?.contractNumber
+                if (received.contractNumber != expected) throw ScenarioFailure("${message.type.code} an den abgebenden EKP mit Vertragsnummer ${received.contractNumber}, erwartet $expected")
+                log("  … an den abgebenden EKP mit Bestandsvertrag $expected")
+            }
             historySeen = us.history(id).size
         }
 
@@ -280,7 +302,7 @@ class ScenarioRunner(
         }
 
         /** Our message arrived at the simulator with type, change indicator and codes. */
-        fun checkReceived(type: MessageType, changeIndicator: ChangeIndicator, codes: List<String>) {
+        fun checkReceived(type: MessageType, changeIndicator: ChangeIndicator, codes: List<String>): de.openspri.domain.order.MessageInfo {
             val received = awaitReceived(SoapOperation.ANNEHMEN_MELDUNG) { it.message?.type == type }.message!!
             // the simulator as Auftraggeber learns contract number and LineID from our messages (ABM)
             simOrder = simOrder?.let { known ->
@@ -290,6 +312,7 @@ class ScenarioRunner(
             if (received.changeIndicator != changeIndicator && changeIndicator != ChangeIndicator.REKLAMATION) {
                 throw ScenarioFailure("${type.code}: Änderungskennzeichen ${received.changeIndicator.code}, erwartet ${changeIndicator.code}")
             }
+            return received
         }
 
         fun finish() {
