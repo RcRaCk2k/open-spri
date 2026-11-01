@@ -47,3 +47,15 @@ M1 schafft die technische Schnittstelle: Partner können signierte Aufträge und
 - `SoapEndToEndTest` (7): echtes HTTP durch Tomcat und CXF für Auftrag, Meldung, negative TEQ, 403, fremde Antwortsignatur, WSDL, Schlüssellänge
 - `ApplicationIntegrationTest` (CI mit MariaDB): Roundtrip mit Archiv in beide Richtungen und Eingangswarteschlange
 - `IpNetworkTest` (4)
+
+## Nacharbeiten nach dem ersten CI-Lauf
+
+Diese Fehler hat die CI gefunden. Lokal waren sie nicht aufgefallen:
+
+1. **`.gitignore` und `.dockerignore`:** Die Muster `build/` bzw. `**/build` haben auch das Quellpaket `build-logic/src/main/kotlin/de/openspri/build/` ausgeschlossen, dadurch fehlte `VerifiedDownload.kt` im Repository und im Docker-Build. Die Muster sind jetzt auf Build-Ausgaben beschränkt.
+2. **ak-spri.de** bricht Verbindungen mit dem Java-Standard-User-Agent ab. Der Download setzt jetzt einen eigenen User-Agent. In der CI wird die geprüfte Datei zusätzlich gecacht.
+3. **XSD im Spring-Boot-Jar:** Die Schema-Importe liefen über `nested:`-URLs, die die Härtung blockiert hat. Jetzt lädt ein eigener Classpath-Resolver die Importe, und externe Schema-Zugriffe sind ganz gesperrt. Abgesichert durch den Stack-Test, denn `api` muss gesund starten.
+4. **Test-Konfigurationen** liegen jetzt außerhalb von `de.openspri`, damit der Komponenten-Scan der Anwendung sie nicht erfasst.
+5. **CI:** Fehler von Gradle- und Stack-Build erscheinen als Annotation am Lauf und sind ohne Login lesbar.
+
+Prüfroutine ab jetzt: Vor dem Push einen frischen Klon bauen (`git clone` in ein temporäres Verzeichnis, `./gradlew build`). So fallen fehlende Dateien vor der CI auf.

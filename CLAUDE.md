@@ -42,6 +42,7 @@ open-spri ist eine MIT-lizenzierte Implementierung der **S/PRI-Schnittstelle V4.
 - **CHANGELOG:** Größere Änderungen bekommen eine Datei `CHANGELOG/CL-NNNN-kurztitel.md` (fortlaufende Nummer, Vorlage in `CHANGELOG/README.md`). Der Commit verweist im Betreff darauf: `… [CL-NNNN]`. „Größer“ heißt: Verhalten an der S/PRI- oder REST-Schnittstelle, Datenmodell, Konfiguration, Sicherheit, Grundsatzentscheidung oder Meilenstein.
 - **ADR:** Jede Grundsatzentscheidung bekommt `docs/adr/ADR-NNNN-titel.md`, und diese Datei wird angepasst.
 - **Doku gehört zur Änderung:** README (Installation, Betrieb), `docs/api/` (REST mit curl-Beispielen), `docs/grundlagen/` (S/PRI-Einführung) werden im selben PR aktualisiert.
+- **Vor dem Push** einen frischen Klon bauen (`git clone . /tmp/x && cd /tmp/x && ./gradlew build`). Lokale Kopien, etwa der AK-Dokumente, verdecken sonst fehlende Dateien (siehe CL-0005).
 - **Tests gehören zur Änderung:** Fachlogik ohne Unit-Tests und Schnittstellenverhalten ohne Szenario-Test werden nicht gemergt.
 
 ## Was nicht erlaubt ist
