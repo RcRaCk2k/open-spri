@@ -5,6 +5,9 @@ plugins {
 
 dependencies {
     implementation(project(":domain"))
+    api(project(":auth-api"))
+    implementation(project(":auth-token"))
+    implementation(project(":auth-local"))
     api(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.jackson.module.kotlin)
@@ -12,4 +15,5 @@ dependencies {
     api(libs.springdoc.webmvc.ui)
 
     testImplementation(libs.spring.boot.starter.webmvc.test)
+    testImplementation(libs.spring.boot.starter.security.test)
 }

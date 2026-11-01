@@ -5,6 +5,8 @@ plugins {
 
 dependencies {
     api(project(":domain"))
+    implementation(project(":auth-token"))
+    implementation(project(":auth-local"))
     api(libs.spring.boot.starter.jdbc)
     api(libs.spring.boot.starter.flyway)
     implementation(libs.flyway.mysql)

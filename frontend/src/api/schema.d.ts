@@ -24,6 +24,165 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Anmelden (Web-Oberfläche)
+         * @description Prüft Benutzername und Passwort und legt eine Sitzung an (Cookie, SameSite=Strict). Externe Systeme verwenden statt dessen API-Tokens.
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abmelden
+         * @description Beendet die Sitzung der Web-Oberfläche.
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Aktuelle Anmeldung
+         * @description Wer ist angemeldet und mit welchen Berechtigungen.
+         */
+        get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Anmeldeverfahren
+         * @description Die in dieser Instanz aktiven Anmeldeverfahren. Ohne Anmeldung aufrufbar.
+         */
+        get: operations["modules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tokens auflisten */
+        get: operations["list_1"];
+        put?: never;
+        /**
+         * Token anlegen
+         * @description Das Geheimnis wird nur in der Antwort angezeigt; gespeichert wird ausschließlich sein Hash.
+         */
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tokens/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Token widerrufen
+         * @description Wirkt sofort.
+         */
+        delete: operations["revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Benutzer auflisten */
+        get: operations["list"];
+        put?: never;
+        /** Benutzer anlegen */
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Benutzer ändern
+         * @description Name, Rolle, Sperre oder Passwort.
+         */
+        patch: operations["update"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -53,6 +212,120 @@ export interface components {
              */
             version: string;
         };
+        /** @description Neues Token */
+        CreateTokenRequest: {
+            /**
+             * Format: date-time
+             * @description Optional: Ablaufzeitpunkt; ohne Angabe gilt das Token bis zum Widerruf
+             */
+            expiresAt?: string | null;
+            /** @example CRM Produktion */
+            name: string;
+            /**
+             * @description Rolle; bestimmt die maximal möglichen Berechtigungen
+             * @example INTEGRATION
+             * @enum {string}
+             */
+            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION";
+            /**
+             * @description Optional: Einschränkung auf einen Teil der Berechtigungen der Rolle
+             * @example [
+             *       "orders:read"
+             *     ]
+             */
+            scopes?: string[] | null;
+        };
+        /** @description Neuer Benutzer */
+        CreateUserRequest: {
+            /** @example Max Muster */
+            displayName: string;
+            /** @description mindestens 12 Zeichen */
+            password: string;
+            /**
+             * @example OPERATOR_LE
+             * @enum {string}
+             */
+            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION";
+            /** @example m.muster */
+            username: string;
+        };
+        /** @description Das neue Token. `token` enthält das Geheimnis und wird nur in dieser Antwort angezeigt. */
+        CreatedTokenResponse: {
+            details: components["schemas"]["TokenResponse"];
+            /** @example spri_Ab3dE7fG_… */
+            token: string;
+        };
+        /** @description Anmeldedaten */
+        LoginRequest: {
+            /** @example ein-langes-passwort */
+            password: string;
+            /** @example admin */
+            username: string;
+        };
+        /** @description Die angemeldete Person bzw. das Token */
+        MeResponse: {
+            /** @description USER, TOKEN, SETUP */
+            kind: string;
+            name: string;
+            /** @description Berechtigungen */
+            scopes: string[];
+        };
+        /** @description Ein verfügbares Anmeldeverfahren */
+        ModuleResponse: {
+            displayName: string;
+            /** @example local-users */
+            id: string;
+            /** @description true, wenn das Verfahren eine Anmeldung in der Oberfläche anbietet */
+            interactiveLogin: boolean;
+        };
+        /** @description Ein API-Token. Das Geheimnis wird nie wieder angezeigt. */
+        TokenResponse: {
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: string;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            lastUsedAt?: string | null;
+            lastUsedIp?: string | null;
+            /** @example CRM Produktion */
+            name: string;
+            /**
+             * @description Öffentlicher Teil, erkennbar in Logs
+             * @example Ab3dE7fG
+             */
+            prefix: string;
+            /** Format: date-time */
+            revokedAt?: string | null;
+            /** @enum {string} */
+            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION";
+            scopes: string[];
+        };
+        /** @description Änderungen; nicht angegebene Felder bleiben unverändert */
+        UpdateUserRequest: {
+            displayName?: string | null;
+            enabled?: boolean | null;
+            /** @description neues Passwort, mindestens 12 Zeichen */
+            password?: string | null;
+            /** @enum {string|null} */
+            role?: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION" | null;
+        };
+        /** @description Ein Benutzer */
+        UserResponse: {
+            /** Format: date-time */
+            createdAt: string;
+            displayName: string;
+            enabled: boolean;
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            lastLoginAt?: string | null;
+            /** @enum {string} */
+            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION";
+            username: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -78,6 +351,222 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AboutResponse"];
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    modules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleResponse"][];
+                };
+            };
+        };
+    };
+    list_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"][];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedTokenResponse"];
+                };
+            };
+        };
+    };
+    revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"][];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
                 };
             };
         };

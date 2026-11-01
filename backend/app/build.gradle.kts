@@ -9,6 +9,8 @@ dependencies {
     implementation(project(":spri-soap"))
     implementation(project(":persistence"))
     implementation(project(":rest-api"))
+    implementation(project(":auth-token"))
+    implementation(project(":auth-local"))
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlin.reflect)

@@ -16,6 +16,15 @@
   "tags" : [ {
     "description" : "Version, Build und Zustand der Instanz",
     "name" : "Betrieb"
+  }, {
+    "description" : "Long-Life-Tokens für externe Systeme (CRM, Workflow)",
+    "name" : "API-Tokens"
+  }, {
+    "description" : "Anmeldung der Web-Oberfläche und Informationen zur aktuellen Anmeldung",
+    "name" : "Anmeldung"
+  }, {
+    "description" : "Lokale Benutzer der Web-Oberfläche",
+    "name" : "Benutzer"
   } ],
   "paths" : {
     "/api/v1/about" : {
@@ -36,6 +45,253 @@
         },
         "summary" : "Version und Build der Instanz",
         "tags" : [ "Betrieb" ]
+      }
+    },
+    "/api/v1/auth/login" : {
+      "post" : {
+        "description" : "Prüft Benutzername und Passwort und legt eine Sitzung an (Cookie, SameSite=Strict). Externe Systeme verwenden statt dessen API-Tokens.",
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Anmelden (Web-Oberfläche)",
+        "tags" : [ "Anmeldung" ]
+      }
+    },
+    "/api/v1/auth/logout" : {
+      "post" : {
+        "description" : "Beendet die Sitzung der Web-Oberfläche.",
+        "operationId" : "logout",
+        "responses" : {
+          "200" : {
+            "content" : { },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Abmelden",
+        "tags" : [ "Anmeldung" ]
+      }
+    },
+    "/api/v1/auth/me" : {
+      "get" : {
+        "description" : "Wer ist angemeldet und mit welchen Berechtigungen.",
+        "operationId" : "me",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Aktuelle Anmeldung",
+        "tags" : [ "Anmeldung" ]
+      }
+    },
+    "/api/v1/auth/modules" : {
+      "get" : {
+        "description" : "Die in dieser Instanz aktiven Anmeldeverfahren. Ohne Anmeldung aufrufbar.",
+        "operationId" : "modules",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ModuleResponse"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Anmeldeverfahren",
+        "tags" : [ "Anmeldung" ]
+      }
+    },
+    "/api/v1/tokens" : {
+      "get" : {
+        "operationId" : "list_1",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/TokenResponse"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Tokens auflisten",
+        "tags" : [ "API-Tokens" ]
+      },
+      "post" : {
+        "description" : "Das Geheimnis wird nur in der Antwort angezeigt; gespeichert wird ausschließlich sein Hash.",
+        "operationId" : "create_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateTokenRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreatedTokenResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Token anlegen",
+        "tags" : [ "API-Tokens" ]
+      }
+    },
+    "/api/v1/tokens/{id}" : {
+      "delete" : {
+        "description" : "Wirkt sofort.",
+        "operationId" : "revoke",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Token widerrufen",
+        "tags" : [ "API-Tokens" ]
+      }
+    },
+    "/api/v1/users" : {
+      "get" : {
+        "operationId" : "list",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/UserResponse"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Benutzer auflisten",
+        "tags" : [ "Benutzer" ]
+      },
+      "post" : {
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateUserRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Benutzer anlegen",
+        "tags" : [ "Benutzer" ]
+      }
+    },
+    "/api/v1/users/{id}" : {
+      "patch" : {
+        "description" : "Name, Rolle, Sperre oder Passwort.",
+        "operationId" : "update",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Benutzer ändern",
+        "tags" : [ "Benutzer" ]
       }
     }
   },
@@ -71,6 +327,232 @@
           }
         },
         "required" : [ "certifiedBuild", "name", "spriVersion", "version" ]
+      },
+      "CreateTokenRequest" : {
+        "type" : "object",
+        "description" : "Neues Token",
+        "properties" : {
+          "expiresAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "Optional: Ablaufzeitpunkt; ohne Angabe gilt das Token bis zum Widerruf"
+          },
+          "name" : {
+            "type" : "string",
+            "example" : "CRM Produktion"
+          },
+          "role" : {
+            "type" : "string",
+            "description" : "Rolle; bestimmt die maximal möglichen Berechtigungen",
+            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION" ],
+            "example" : "INTEGRATION"
+          },
+          "scopes" : {
+            "type" : [ "array", "null" ],
+            "description" : "Optional: Einschränkung auf einen Teil der Berechtigungen der Rolle",
+            "example" : [ "orders:read" ],
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "name", "role" ]
+      },
+      "CreateUserRequest" : {
+        "type" : "object",
+        "description" : "Neuer Benutzer",
+        "properties" : {
+          "displayName" : {
+            "type" : "string",
+            "example" : "Max Muster"
+          },
+          "password" : {
+            "type" : "string",
+            "description" : "mindestens 12 Zeichen"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION" ],
+            "example" : "OPERATOR_LE"
+          },
+          "username" : {
+            "type" : "string",
+            "example" : "m.muster"
+          }
+        },
+        "required" : [ "displayName", "password", "role", "username" ]
+      },
+      "CreatedTokenResponse" : {
+        "type" : "object",
+        "description" : "Das neue Token. `token` enthält das Geheimnis und wird nur in dieser Antwort angezeigt.",
+        "properties" : {
+          "details" : {
+            "$ref" : "#/components/schemas/TokenResponse"
+          },
+          "token" : {
+            "type" : "string",
+            "example" : "spri_Ab3dE7fG_…"
+          }
+        },
+        "required" : [ "details", "token" ]
+      },
+      "LoginRequest" : {
+        "type" : "object",
+        "description" : "Anmeldedaten",
+        "properties" : {
+          "password" : {
+            "type" : "string",
+            "example" : "ein-langes-passwort"
+          },
+          "username" : {
+            "type" : "string",
+            "example" : "admin"
+          }
+        },
+        "required" : [ "password", "username" ]
+      },
+      "MeResponse" : {
+        "type" : "object",
+        "description" : "Die angemeldete Person bzw. das Token",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "description" : "USER, TOKEN, SETUP"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "scopes" : {
+            "type" : "array",
+            "description" : "Berechtigungen",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "kind", "name", "scopes" ]
+      },
+      "ModuleResponse" : {
+        "type" : "object",
+        "description" : "Ein verfügbares Anmeldeverfahren",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "example" : "local-users"
+          },
+          "interactiveLogin" : {
+            "type" : "boolean",
+            "description" : "true, wenn das Verfahren eine Anmeldung in der Oberfläche anbietet"
+          }
+        },
+        "required" : [ "displayName", "id", "interactiveLogin" ]
+      },
+      "TokenResponse" : {
+        "type" : "object",
+        "description" : "Ein API-Token. Das Geheimnis wird nie wieder angezeigt.",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lastUsedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "lastUsedIp" : {
+            "type" : [ "string", "null" ]
+          },
+          "name" : {
+            "type" : "string",
+            "example" : "CRM Produktion"
+          },
+          "prefix" : {
+            "type" : "string",
+            "description" : "Öffentlicher Teil, erkennbar in Logs",
+            "example" : "Ab3dE7fG"
+          },
+          "revokedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION" ]
+          },
+          "scopes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "createdAt", "createdBy", "id", "name", "prefix", "role", "scopes" ]
+      },
+      "UpdateUserRequest" : {
+        "type" : "object",
+        "description" : "Änderungen; nicht angegebene Felder bleiben unverändert",
+        "properties" : {
+          "displayName" : {
+            "type" : [ "string", "null" ]
+          },
+          "enabled" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "password" : {
+            "type" : [ "string", "null" ],
+            "description" : "neues Passwort, mindestens 12 Zeichen"
+          },
+          "role" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION" ]
+          }
+        }
+      },
+      "UserResponse" : {
+        "type" : "object",
+        "description" : "Ein Benutzer",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lastLoginAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION" ]
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "displayName", "enabled", "id", "role", "username" ]
       }
     }
   }

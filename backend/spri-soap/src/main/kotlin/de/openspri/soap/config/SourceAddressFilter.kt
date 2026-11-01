@@ -21,7 +21,8 @@ class SourceAddressFilter(private val partners: PartnerDirectory) : OncePerReque
         val address = runCatching { InetAddress.getByName(request.remoteAddr) }.getOrNull()
         if (address == null || partners.findBySourceAddress(address).isEmpty()) {
             log.warn("S/PRI access from {} denied: not allowlisted", request.remoteAddr)
-            response.sendError(HttpServletResponse.SC_FORBIDDEN)
+            // set the status directly: sendError would forward to /error (and through the REST security chain)
+            response.status = HttpServletResponse.SC_FORBIDDEN
             return
         }
         chain.doFilter(request, response)
