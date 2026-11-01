@@ -62,9 +62,35 @@ class InMemoryAuditLog : de.openspri.auth.AuditLog {
 @Import(SpriSoapConfiguration::class)
 @ComponentScan("de.openspri.rest")
 class SoapInMemoryTestApplication : InMemoryAuthStores() {
-    @Bean fun partnerDirectory() = InMemoryPartnerDirectory()
+    /** Primary: InMemoryPartners is a PartnerDirectory, too, but these tests feed the SOAP layer separately. */
+    @Bean @org.springframework.context.annotation.Primary fun partnerDirectory() = InMemoryPartnerDirectory()
     /** Administration for the REST tests; the SOAP tests use [partnerDirectory]. */
     @Bean fun partnerAdministration(): de.openspri.domain.partner.PartnerAdministration = de.openspri.domain.InMemoryPartners()
+    @Bean fun inboundStore() = InMemoryInboundStore()
+    @Bean fun outboundArchive() = InMemoryOutboundArchive()
+    @Bean fun orderRepository() = de.openspri.domain.InMemoryOrderRepository()
+    @Bean fun orderDrafts() = de.openspri.domain.InMemoryOrderDrafts()
+    @Bean fun agreements() = de.openspri.domain.InMemoryAgreements()
+    @Bean fun messageCodeStore() = de.openspri.soap.InMemoryMessageCodeStore()
+    @Bean fun outbox() = de.openspri.domain.InMemoryOutbox()
+    @Bean fun outageRegistry() = de.openspri.domain.InMemoryOutageRegistry()
+    @Bean fun transactions(): de.openspri.domain.order.Transactions = de.openspri.domain.DirectTransactions
+    @Bean fun settingsRepository() = de.openspri.domain.InMemorySettings()
+    @Bean fun signingKeyRepository() = de.openspri.domain.InMemorySigningKeys()
+    @Bean fun events() = de.openspri.domain.InMemoryEvents()
+    @Bean fun idempotencyStore() = de.openspri.domain.InMemoryIdempotencyStore()
+}
+
+/**
+ * For the KFT scenarios (M5): like [SoapInMemoryTestApplication], but partners created via REST are also used
+ * by the SOAP layer, exactly as with the database.
+ */
+@SpringBootConfiguration
+@EnableAutoConfiguration(excludeName = [DATASOURCE, FLYWAY])
+@Import(SpriSoapConfiguration::class)
+@ComponentScan("de.openspri.rest")
+class ScenarioTestApplication : InMemoryAuthStores() {
+    @Bean fun partners() = de.openspri.domain.InMemoryPartners()
     @Bean fun inboundStore() = InMemoryInboundStore()
     @Bean fun outboundArchive() = InMemoryOutboundArchive()
     @Bean fun orderRepository() = de.openspri.domain.InMemoryOrderRepository()

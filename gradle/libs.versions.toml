@@ -8,7 +8,7 @@ springdoc = "3.1.1"          # Spring Boot 4.1 line
 archunit = "1.5.1"
 flyway-mysql = "12.4.0"
 bouncycastle = "1.86"
-poi = "5.5.1"               # tests only: reads the KFT test case list (xlsx)      # same as CXF 4.2.4 (cxf.bcprov.version)      # keep in sync with flyway.version of the Boot BOM
+poi = "5.5.1"               # simulator: reads the KFT test case list (xlsx)      # same as CXF 4.2.4 (cxf.bcprov.version)      # keep in sync with flyway.version of the Boot BOM
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }

@@ -27,7 +27,7 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: ~/.gradle/caches/open-spri
-          key: ak-spri-${{ hashFiles('backend/spri-schema/build.gradle.kts', 'backend/domain/build.gradle.kts', 'backend/spri-rules/build.gradle.kts') }}
+          key: ak-spri-${{ hashFiles('backend/spri-schema/build.gradle.kts', 'backend/simulator/build.gradle.kts', 'backend/spri-rules/build.gradle.kts') }}
           restore-keys: ak-spri-
       - name: Install xmlsec1 (independent signature check in WsSecurityTest)
         run: sudo apt-get update -q && sudo apt-get install -y -q xmlsec1

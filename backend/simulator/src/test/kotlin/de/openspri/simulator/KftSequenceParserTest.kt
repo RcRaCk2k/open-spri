@@ -1,9 +1,13 @@
-package de.openspri.domain.order
+package de.openspri.simulator
 
 import de.openspri.domain.ChangeIndicator.STANDARD
 import de.openspri.domain.ChangeIndicator.STORNO
 import de.openspri.domain.ChangeIndicator.TERMINVERSCHIEBUNG
 import de.openspri.domain.message.MessageType
+import de.openspri.domain.order.OrderEvent
+import de.openspri.domain.order.OrderLifecycle
+import de.openspri.domain.order.RequestKind
+import de.openspri.domain.order.Transition
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 

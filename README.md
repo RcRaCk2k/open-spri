@@ -2,7 +2,7 @@
 
 Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requisition Interface, V4.4) des [Arbeitskreises Schnittstellen & Prozesse](https://ak-spri.de/spri/). Mit ihr bestellen Telekommunikationsanbieter Vorleistungsprodukte (FTTH, FTTB, FTTC) bei anderen Netzbetreibern und bieten ihre eigenen Anschlüsse über einen Standard an.
 
-> **Status: in Entwicklung (Meilenstein M4 umgesetzt; Bestand, Diagnose und Verfügbarkeit folgen mit M5/M6).**
+> **Status: in Entwicklung (Meilenstein M5 läuft: Simulator und KFT-Szenarien, Stand in [`docs/kft-szenarien.md`](docs/kft-szenarien.md#stand)).**
 > - Der S/PRI-Endpunkt nimmt signierte Aufträge und Meldungen an, prüft sie gegen XSD und Anlage 1 und quittiert sie mit TEQ.
 > - Aufträge und Meldungen werden fachlich verarbeitet, mit Zustandsautomaten für alle Geschäftsfälle, abgeglichen mit den 211 Meldungsfolgen der KFT-Testfallliste.
 > - Ausgehende Nachrichten laufen über einen Postausgang mit garantierter Reihenfolge, Wiederholungen und Ausfall-Mail, auch mit mehreren Instanzen.

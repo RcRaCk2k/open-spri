@@ -154,7 +154,11 @@ class OutboundOrderService(
         if (reasons.isNotEmpty()) throw OrderActionRejected(reasons, allowedActions(order))
 
         val now = clock.instant()
-        val data = message.lineId?.takeIf { order.data.lineId == null }?.let { order.data.copy(lineId = it) } ?: order.data
+        // like inbound (R-15): LineID and contract number are assigned with the first ABM and then stay the same
+        val data = order.data.copy(
+            lineId = order.data.lineId ?: message.lineId,
+            contractNumber = order.data.contractNumber ?: message.contractNumber,
+        )
         // the key is fixed with the first request of the order: a LineID assigned later (ABM) must not change it
         val saved = orders.save(order.copy(state = (transition as Transition.Accepted).state, data = data, updatedAt = now, sequenceKey = order.sequenceKey ?: keyFor(order.partnerId, order.data)))
         enqueue(saved, RequestType.MESSAGE, SoapOperation.ANNEHMEN_MELDUNG, payload)

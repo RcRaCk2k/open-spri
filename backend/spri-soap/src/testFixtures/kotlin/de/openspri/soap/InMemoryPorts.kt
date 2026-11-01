@@ -23,7 +23,7 @@ class InMemoryPartnerDirectory(vararg partners: Partner) : PartnerDirectory {
 }
 
 class InMemoryInboundStore : InboundStore, InboxQueue, InboxQueries, ArchiveQueries {
-    val accepted = mutableListOf<Pair<ArchivedExchange, InboundMessage>>()
+    val accepted: MutableList<Pair<ArchivedExchange, InboundMessage>> = java.util.concurrent.CopyOnWriteArrayList()
     private var processed = 0
     val findings = mutableListOf<List<String>>()
 
@@ -67,7 +67,7 @@ class InMemoryInboundStore : InboundStore, InboxQueue, InboxQueries, ArchiveQuer
 }
 
 class InMemoryOutboundArchive : OutboundArchive {
-    val exchanges = mutableListOf<ArchivedExchange>()
+    val exchanges: MutableList<ArchivedExchange> = java.util.concurrent.CopyOnWriteArrayList()
     override fun store(exchange: ArchivedExchange): Long { exchanges += exchange; return exchanges.size.toLong() }
 }
 

@@ -100,7 +100,8 @@ class OutboundPayloads(
         catalog: MessageCodeCatalog,
     ): Pair<BuiltPayload, MessageInfo> {
         val typeName = "Meldungstyp${type.code}Type"
-        val attributesType = "Meldungsattribute${type.code}Type"
+        // TBK-LE and TBK-AG share MeldungsattributeTBKType (message.xsd)
+        val attributesType = "Meldungsattribute${if (type == MessageType.TBK_LE || type == MessageType.TBK_AG) "TBK" else type.code}Type"
         val attributeNode: ObjectNode = (attributes?.deepCopy() as? ObjectNode) ?: json.objectNode()
         attributeNode.put("@type", attributesType)
         val allowed = SpriJson.elementsOf(attributesType)

@@ -22,8 +22,9 @@ import java.time.Instant
 
 /** In-memory ports with the same semantics as the JDBC implementations; shared by all test modules. */
 class InMemoryOrderRepository : OrderRepository, OrderQueries {
-    val orders = mutableListOf<Order>()
-    val history = mutableListOf<OrderHistoryEntry>()
+    // thread-safe: the scenario tests read via REST while the inbox worker writes
+    val orders: MutableList<Order> = java.util.concurrent.CopyOnWriteArrayList()
+    val history: MutableList<OrderHistoryEntry> = java.util.concurrent.CopyOnWriteArrayList()
     private var nextId = 1L
 
     override fun find(partnerId: PartnerId, role: OrderRole, externalOrderNumber: String) =
@@ -35,6 +36,7 @@ class InMemoryOrderRepository : OrderRepository, OrderQueries {
     override fun hasOpenOrder(role: OrderRole, infrastructureKey: String, except: OrderId?) =
         orders.any { it.role == role && it.data.infrastructureKey == infrastructureKey && !it.state.finished && it.id != except }
 
+    @Synchronized
     override fun save(order: Order): Order {
         val stored = if (order.id == null) order.copy(id = OrderId(nextId++)) else order
         orders.removeIf { it.id == stored.id }
@@ -73,16 +75,25 @@ class InMemoryOrderDrafts : de.openspri.domain.order.OrderDrafts {
 }
 
 class InMemoryOutbox : Outbox, DeliveryQueries {
-    val entries = mutableListOf<OutboxEntry>()
+    /** Thread-safe like the JDBC outbox: parallel senders never send the same sequence key at the same time (SKIP LOCKED). */
+    val entries: MutableList<OutboxEntry> = java.util.concurrent.CopyOnWriteArrayList()
+    private val sending = mutableSetOf<String>()
+    private val lock = Any()
 
-    override fun enqueue(entry: OutboxEntry) = entry.copy(id = entries.size + 1L).also { entries += it }
+    override fun enqueue(entry: OutboxEntry) = synchronized(lock) { entry.copy(id = entries.size + 1L).also { entries += it } }
 
     override fun dispatchNext(now: Instant, send: (OutboxEntry) -> OutboxEntry): Boolean {
-        val due = entries.filter { it.status == DeliveryStatus.PENDING && !it.nextAttemptAt.isAfter(now) }
-            .firstOrNull { candidate -> entries.none { it.sequenceKey == candidate.sequenceKey && it.id!! < candidate.id!! && it.status.blocksKey } }
-            ?: return false
-        val updated = send(due)
-        entries[entries.indexOfFirst { it.id == due.id }] = updated
+        val due = synchronized(lock) {
+            entries.filter { it.status == DeliveryStatus.PENDING && !it.nextAttemptAt.isAfter(now) && it.sequenceKey !in sending }
+                .firstOrNull { candidate -> entries.none { it.sequenceKey == candidate.sequenceKey && it.id!! < candidate.id!! && it.status.blocksKey } }
+                ?.also { sending += it.sequenceKey }
+        } ?: return false
+        try {
+            val updated = send(due)
+            synchronized(lock) { entries[entries.indexOfFirst { it.id == due.id }] = updated }
+        } finally {
+            synchronized(lock) { sending -= due.sequenceKey }
+        }
         return true
     }
 
@@ -155,7 +166,11 @@ class InMemorySigningKeys : de.openspri.domain.settings.SigningKeyRepository {
 }
 
 /** Partner administration (the SOAP tests use their own in-memory PartnerDirectory). */
-class InMemoryPartners : de.openspri.domain.partner.PartnerAdministration {
+/** Administration and directory in one, like JdbcPartnerDirectory (partners created via REST can send S/PRI). */
+class InMemoryPartners : de.openspri.domain.partner.PartnerAdministration, de.openspri.domain.partner.PartnerDirectory {
+    override fun findBySourceAddress(address: java.net.InetAddress) = partners.filter { p -> p.enabled && p.allowedSourceNetworks.any { address in it } }
+    override fun findById(id: PartnerId) = partners.firstOrNull { it.id == id && it.enabled }
+
     val partners = mutableListOf<de.openspri.domain.partner.Partner>()
     private val certificateIds = mutableMapOf<Long, Pair<PartnerId, java.security.cert.X509Certificate>>()
     override fun list() = partners.toList()
@@ -188,7 +203,7 @@ class InMemoryPartners : de.openspri.domain.partner.PartnerAdministration {
 
 /** Events, feed and webhooks in memory; events are visible immediately. */
 class InMemoryEvents : de.openspri.domain.event.EventLog, de.openspri.domain.event.EventFeed, de.openspri.domain.event.WebhookStore {
-    val events = mutableListOf<de.openspri.domain.event.BusinessEvent>()
+    val events: MutableList<de.openspri.domain.event.BusinessEvent> = java.util.concurrent.CopyOnWriteArrayList()
     val webhooks = mutableListOf<de.openspri.domain.event.WebhookSubscription>()
 
     @Synchronized

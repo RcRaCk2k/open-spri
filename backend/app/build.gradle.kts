@@ -22,6 +22,7 @@ dependencies {
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.archunit.junit5)
     testImplementation(testFixtures(project(":spri-soap")))
+    testImplementation(project(":simulator"))
 }
 
 springBoot {
@@ -42,4 +43,8 @@ tasks.test {
     systemProperty("openspri.updateOpenApi", providers.gradleProperty("updateOpenApi").isPresent)
     systemProperty("openspri.repoRoot", rootDir.absolutePath)
     inputs.files(rootProject.file("docs/api/openapi.json")).withPropertyName("openApiSpec")
+    // KFT scenario tests (M5): the test case list is downloaded by :simulator
+    val testCases = project(":simulator").tasks.named<de.openspri.build.VerifiedDownload>("downloadKftTestCases")
+    dependsOn(testCases)
+    systemProperty("openspri.kft.testCases", testCases.get().outputFile.get().asFile.absolutePath)
 }

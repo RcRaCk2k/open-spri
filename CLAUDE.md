@@ -60,6 +60,7 @@ open-spri ist eine MIT-lizenzierte Implementierung der **S/PRI-Schnittstelle V4.
 ```bash
 ./gradlew build                          # Backend: kompilieren, alle Tests (Testcontainers braucht Docker)
 ./gradlew :app:test -PupdateOpenApi      # docs/api/openapi.json nach API-Änderung neu erzeugen
+./gradlew :app:test --tests '*KftScenarioTest*'   # KFT-Szenarien, ein Test je TF-ID (docs/kft-szenarien.md)
 ./gradlew :app:bootRun                   # API lokal starten (MariaDB auf localhost:3306 nötig)
 
 cd frontend
