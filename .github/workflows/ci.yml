@@ -85,8 +85,12 @@ jobs:
           cp .env.example .env
           sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-secret/; s/^DB_ROOT_PASSWORD=.*/DB_ROOT_PASSWORD=ci-root-secret/' .env
           sed -i 's/^ACME_ENABLED=.*/ACME_ENABLED=false/' .env
-      - name: Build and start stack
-        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: Build images
+        run: |
+          set -o pipefail
+          docker compose build --progress plain 2>&1 | tee compose-build.log
+      - name: Start stack
+        run: docker compose up -d --wait --wait-timeout 300
       - name: Check endpoints through the proxy
         run: |
           curl -kfsS https://localhost/health
@@ -102,7 +106,16 @@ jobs:
           ! echo | openssl s_client -connect localhost:443 -tls1_1 >/dev/null 2>&1
       - name: Logs
         if: always()
-        run: docker compose logs --no-color
+        run: docker compose ps -a; docker compose logs --no-color | tee compose.log
+      - name: Report stack failure as annotation
+        if: failure()
+        run: |
+          annotate() { sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g'; }
+          if [ -f compose-build.log ]; then
+            echo "::error title=docker compose build::$(grep -iE 'error|failed|what went wrong|^#[0-9]+ .*(e: |exception)' compose-build.log | tail -40 | annotate)"
+          fi
+          echo "::error title=docker compose ps::$(docker compose ps -a 2>&1 | annotate)"
+          echo "::error title=docker compose logs::$(tail -60 compose.log 2>/dev/null | annotate)"
       - name: Stop stack
         if: always()
         run: docker compose down -v
