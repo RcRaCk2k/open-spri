@@ -110,3 +110,35 @@ class InMemorySigningKeys : de.openspri.domain.settings.SigningKeyRepository {
     override fun active() = keys.lastOrNull()
     override fun activate(key: de.openspri.domain.settings.StoredSigningKey) = key.copy(id = keys.size + 1L).also { keys += it }
 }
+
+/** Partner administration (the SOAP tests use their own in-memory PartnerDirectory). */
+class InMemoryPartners : de.openspri.domain.partner.PartnerAdministration {
+    val partners = mutableListOf<de.openspri.domain.partner.Partner>()
+    private val certificateIds = mutableMapOf<Long, Pair<PartnerId, java.security.cert.X509Certificate>>()
+    override fun list() = partners.toList()
+    override fun get(id: PartnerId) = partners.firstOrNull { it.id == id }
+    override fun certificates(id: PartnerId) = certificateIds.filter { it.value.first == id }.map { de.openspri.domain.partner.PartnerCertificate(it.key, it.value.second) }
+    override fun create(partner: de.openspri.domain.partner.Partner): PartnerId {
+        val id = PartnerId(partners.size + 1L)
+        partners += partner.copy(id = id, signatureCertificates = emptyList())
+        partner.signatureCertificates.forEach { addCertificate(id, it) }
+        return id
+    }
+    override fun update(partner: de.openspri.domain.partner.Partner) { replace(partner.id) { partner.copy(signatureCertificates = it.signatureCertificates, allowedSourceNetworks = it.allowedSourceNetworks) } }
+    override fun addCertificate(id: PartnerId, certificate: java.security.cert.X509Certificate): Long {
+        val certId = certificateIds.size + 1L
+        certificateIds[certId] = id to certificate
+        replace(id) { it.copy(signatureCertificates = it.signatureCertificates + certificate) }
+        return certId
+    }
+    override fun removeCertificate(id: PartnerId, certificateId: Long): Boolean {
+        val removed = certificateIds.remove(certificateId) ?: return false
+        replace(id) { it.copy(signatureCertificates = it.signatureCertificates - removed.second) }
+        return true
+    }
+    override fun replaceNetworks(id: PartnerId, networks: List<de.openspri.domain.partner.IpNetwork>) { replace(id) { it.copy(allowedSourceNetworks = networks) } }
+    private fun replace(id: PartnerId, change: (de.openspri.domain.partner.Partner) -> de.openspri.domain.partner.Partner) {
+        val i = partners.indexOfFirst { it.id == id }
+        if (i >= 0) partners[i] = change(partners[i])
+    }
+}

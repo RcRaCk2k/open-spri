@@ -104,6 +104,139 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Partner auflisten */
+        get: operations["list_2"];
+        put?: never;
+        /** Partner anlegen */
+        post: operations["create_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/onboarding-sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Onboarding-Blatt
+         * @description Unsere Angaben für einen neuen Partner: Endpunkt, WSDL, Outbound-IPs, Signaturzertifikat, Kontakt.
+         */
+        get: operations["onboardingSheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/wsdl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * WSDL für Partner
+         * @description Die WSDL der AK (Anlage 3) mit unserem öffentlichen Endpunkt als Service-Adresse (Spezifikation 3.3: nur der Endpoint wird angepasst).
+         */
+        get: operations["wsdl"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Partner lesen */
+        get: operations["get_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Partner ändern */
+        patch: operations["update_1"];
+        trace?: never;
+    };
+    "/api/v1/partners/{id}/certificates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Signaturzertifikat hinzufügen
+         * @description Während eines Zertifikatswechsels dürfen mehrere Zertifikate gültig sein.
+         */
+        post: operations["addCertificate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{id}/certificates/{certificateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Signaturzertifikat entfernen */
+        delete: operations["removeCertificate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{id}/source-networks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Freigeschaltete IPs ersetzen
+         * @description Liste in CIDR-Notation, z. B. `203.0.113.10/32`. Hostnamen sind nicht zulässig.
+         */
+        put: operations["networks"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings": {
         parameters: {
             query?: never;
@@ -287,6 +420,26 @@ export interface components {
             /** @example admin */
             username: string;
         };
+        /** @description Ein Signaturzertifikat des Partners */
+        CertificateDto: {
+            expired: boolean;
+            /** Format: int64 */
+            id: number;
+            issuer: string;
+            /**
+             * Format: int32
+             * @description RSA-Schlüssellänge; das AK verlangt ≥ 3072 (bestehende 2048 bis Laufzeitende)
+             */
+            keyBits: number;
+            /** Format: date-time */
+            notAfter: string;
+            serialNumber: string;
+            subject: string;
+        };
+        /** @description Ein Zertifikat als PEM */
+        CertificateRequest: {
+            pem: string;
+        };
         /** @description Firmendaten und Optionen */
         CompanySettingsDto: {
             /**
@@ -305,6 +458,13 @@ export interface components {
             estEnabled?: boolean;
             /** @example Beispiel GmbH */
             name: string;
+            /**
+             * @description Unsere festen Outbound-IP-Adressen; Partner schalten sie frei (AUFGABE 7.6)
+             * @example [
+             *       "203.0.113.10"
+             *     ]
+             */
+            outboundAddresses?: string[];
             postalCode?: string | null;
             /**
              * @description Öffentliche Adresse unseres S/PRI-Endpunkts (für die WSDL)
@@ -319,6 +479,22 @@ export interface components {
             thirdPartyOrdersEnabled?: boolean;
             /** @enum {string} */
             wbciMode?: "SERVICE_PROVIDER" | "OWN_INTERFACE" | "NONE";
+        };
+        /** @description Neuer Partner */
+        CreatePartnerRequest: {
+            /**
+             * @example [
+             *       "203.0.113.10/32"
+             *     ]
+             */
+            allowedSourceNetworks?: string[];
+            carrierCode: string;
+            /** @description Signaturzertifikate als PEM */
+            certificatesPem?: string[];
+            enabled?: boolean;
+            endpointUrl?: string | null;
+            name: string;
+            technicalContactEmail?: string | null;
         };
         /** @description Neues Token */
         CreateTokenRequest: {
@@ -392,6 +568,46 @@ export interface components {
             pkcs12Base64?: string | null;
             pkcs12Password?: string | null;
         };
+        /** @description Alles, was ein neuer Partner von uns braucht */
+        OnboardingSheet: {
+            /** @description unser ITU Carrier Code */
+            carrierCode: string;
+            company: string;
+            /** @description unsere Outbound-IPs zum Freischalten */
+            outboundAddresses: string[];
+            /** @description unser Signaturzertifikat (PEM) */
+            signingCertificatePem: string;
+            /** @description unser S/PRI-Endpunkt */
+            spriEndpoint?: string | null;
+            /** @description unterstützte S/PRI-Version */
+            spriVersion: string;
+            technicalContact: string;
+            /** @description WSDL mit unserem Endpunkt: GET /api/v1/partners/wsdl */
+            wsdlPath: string;
+        };
+        /** @description Ein Partner */
+        PartnerDto: {
+            /** @description Outbound-IPs des Partners, die unseren Endpunkt aufrufen dürfen (CIDR) */
+            allowedSourceNetworks: string[];
+            /**
+             * @description ITU Carrier Code des Partners
+             * @example GFNORD
+             */
+            carrierCode: string;
+            certificates: components["schemas"]["CertificateDto"][];
+            enabled: boolean;
+            /**
+             * @description S/PRI-Endpunkt des Partners (aus seiner WSDL)
+             * @example https://spri.partner.example/spri/v4
+             */
+            endpointUrl?: string | null;
+            /** Format: int64 */
+            id: number;
+            /** @example Glasfaser Nord GmbH */
+            name: string;
+            /** @description technischer Kontakt; erhält die Ausfall-Mail (11.2.3.2) */
+            technicalContactEmail?: string | null;
+        };
         /** @description Alle Angaben der Ersteinrichtung; wird in einem Schritt übernommen */
         SetupRequest: {
             admin: components["schemas"]["AdminAccount"];
@@ -460,6 +676,14 @@ export interface components {
             /** @enum {string} */
             role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION";
             scopes: string[];
+        };
+        /** @description Änderungen; nicht angegebene Felder bleiben unverändert */
+        UpdatePartnerRequest: {
+            carrierCode?: string | null;
+            enabled?: boolean | null;
+            endpointUrl?: string | null;
+            name?: string | null;
+            technicalContactEmail?: string | null;
         };
         /** @description Änderungen; nicht angegebene Felder bleiben unverändert */
         UpdateUserRequest: {
@@ -591,6 +815,211 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModuleResponse"][];
+                };
+            };
+        };
+    };
+    list_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerDto"][];
+                };
+            };
+        };
+    };
+    create_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePartnerRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerDto"];
+                };
+            };
+        };
+    };
+    onboardingSheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingSheet"];
+                };
+            };
+        };
+    };
+    wsdl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/xml": string;
+                };
+            };
+        };
+    };
+    get_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerDto"];
+                };
+            };
+        };
+    };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePartnerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerDto"];
+                };
+            };
+        };
+    };
+    addCertificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CertificateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerDto"];
+                };
+            };
+        };
+    };
+    removeCertificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                certificateId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    networks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerDto"];
                 };
             };
         };

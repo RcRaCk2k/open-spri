@@ -23,6 +23,7 @@ class JdbcSettings(private val jdbc: JdbcClient) : SettingsRepository {
                 estEnabled = rs.getBoolean("est_enabled"), diagEnabled = rs.getBoolean("diag_enabled"),
                 connectivityEnabled = rs.getBoolean("connectivity_enabled"), thirdPartyOrdersEnabled = rs.getBoolean("third_party_orders_enabled"),
                 wbciMode = WbciMode.valueOf(rs.getString("wbci_mode")), publicSpriEndpoint = rs.getString("public_spri_endpoint"),
+                outboundAddresses = rs.getString("outbound_addresses")?.split(',')?.filter { it.isNotBlank() }.orEmpty(),
             )
         }.optional().orElse(null)
 
@@ -30,18 +31,20 @@ class JdbcSettings(private val jdbc: JdbcClient) : SettingsRepository {
         jdbc.sql(
             """INSERT INTO company_settings (tenant_id, name, street, postal_code, city, carrier_code, contact_email, role_auftraggeber,
                    role_leistungserbringer, est_enabled, diag_enabled, connectivity_enabled, third_party_orders_enabled, wbci_mode,
-                   public_spri_endpoint, updated_at)
-               VALUES (:t, :name, :street, :zip, :city, :icc, :mail, :ag, :le, :est, :diag, :con, :third, :wbci, :url, :now)
+                   public_spri_endpoint, outbound_addresses, updated_at)
+               VALUES (:t, :name, :street, :zip, :city, :icc, :mail, :ag, :le, :est, :diag, :con, :third, :wbci, :url, :out, :now)
                ON DUPLICATE KEY UPDATE name = VALUES(name), street = VALUES(street), postal_code = VALUES(postal_code), city = VALUES(city),
                    carrier_code = VALUES(carrier_code), contact_email = VALUES(contact_email), role_auftraggeber = VALUES(role_auftraggeber),
                    role_leistungserbringer = VALUES(role_leistungserbringer), est_enabled = VALUES(est_enabled), diag_enabled = VALUES(diag_enabled),
                    connectivity_enabled = VALUES(connectivity_enabled), third_party_orders_enabled = VALUES(third_party_orders_enabled),
-                   wbci_mode = VALUES(wbci_mode), public_spri_endpoint = VALUES(public_spri_endpoint), updated_at = VALUES(updated_at)""",
+                   wbci_mode = VALUES(wbci_mode), public_spri_endpoint = VALUES(public_spri_endpoint),
+                   outbound_addresses = VALUES(outbound_addresses), updated_at = VALUES(updated_at)""",
         ).param("t", Tenant.DEFAULT).param("name", settings.name).param("street", settings.street).param("zip", settings.postalCode)
             .param("city", settings.city).param("icc", settings.carrierCode).param("mail", settings.contactEmail)
             .param("ag", settings.roleAuftraggeber).param("le", settings.roleLeistungserbringer).param("est", settings.estEnabled)
             .param("diag", settings.diagEnabled).param("con", settings.connectivityEnabled).param("third", settings.thirdPartyOrdersEnabled)
-            .param("wbci", settings.wbciMode.name).param("url", settings.publicSpriEndpoint).param("now", Timestamp.from(Instant.now()))
+            .param("wbci", settings.wbciMode.name).param("url", settings.publicSpriEndpoint)
+            .param("out", settings.outboundAddresses.joinToString(",").ifEmpty { null }).param("now", Timestamp.from(Instant.now()))
             .update()
     }
 

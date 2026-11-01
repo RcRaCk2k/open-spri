@@ -27,6 +27,21 @@ data class Partner(
     val technicalContactEmail: String? = null,
 )
 
+/** A partner certificate as administered (with id, for removal during a certificate change). */
+data class PartnerCertificate(val id: Long, val certificate: X509Certificate)
+
+/** Partner administration (REST, M4). Read access for the SOAP layer is [PartnerDirectory]. */
+interface PartnerAdministration {
+    fun list(): List<Partner>
+    fun get(id: PartnerId): Partner?
+    fun certificates(id: PartnerId): List<PartnerCertificate>
+    fun create(partner: Partner): PartnerId
+    fun update(partner: Partner)
+    fun addCertificate(id: PartnerId, certificate: X509Certificate): Long
+    fun removeCertificate(id: PartnerId, certificateId: Long): Boolean
+    fun replaceNetworks(id: PartnerId, networks: List<IpNetwork>)
+}
+
 /** Read access to the configured partners. */
 interface PartnerDirectory {
 

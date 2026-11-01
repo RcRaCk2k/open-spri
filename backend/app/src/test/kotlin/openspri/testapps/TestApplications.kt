@@ -63,6 +63,8 @@ class InMemoryAuditLog : de.openspri.auth.AuditLog {
 @ComponentScan("de.openspri.rest")
 class SoapInMemoryTestApplication : InMemoryAuthStores() {
     @Bean fun partnerDirectory() = InMemoryPartnerDirectory()
+    /** Administration for the REST tests; the SOAP tests use [partnerDirectory]. */
+    @Bean fun partnerAdministration(): de.openspri.domain.partner.PartnerAdministration = de.openspri.domain.InMemoryPartners()
     @Bean fun inboundStore() = InMemoryInboundStore()
     @Bean fun outboundArchive() = InMemoryOutboundArchive()
     @Bean fun orderRepository() = de.openspri.domain.InMemoryOrderRepository()

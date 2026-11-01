@@ -33,6 +33,8 @@ data class CompanySettings(
     val thirdPartyOrdersEnabled: Boolean = true,
     val wbciMode: WbciMode = WbciMode.SERVICE_PROVIDER,
     val publicSpriEndpoint: String? = null,
+    /** Our outbound IP addresses; partners allowlist them (AUFGABE 7.6, security document 2.6). */
+    val outboundAddresses: List<String> = emptyList(),
 ) {
     init {
         require(name.isNotBlank()) { "Firmenname fehlt" }

@@ -26,6 +26,9 @@
     "description" : "Ersteinrichtung einer neuen Installation (geschützt durch das Setup-Token aus dem Log)",
     "name" : "Setup"
   }, {
+    "description" : "Gegenstellen: Endpunkt, Signaturzertifikate, freigeschaltete IPs (AUFGABE 5.9)",
+    "name" : "Partner"
+  }, {
     "description" : "Firmendaten, Optionen und Signaturschlüssel",
     "name" : "Einstellungen"
   }, {
@@ -138,6 +141,270 @@
         },
         "summary" : "Anmeldeverfahren",
         "tags" : [ "Anmeldung" ]
+      }
+    },
+    "/api/v1/partners" : {
+      "get" : {
+        "operationId" : "list_2",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PartnerDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Partner auflisten",
+        "tags" : [ "Partner" ]
+      },
+      "post" : {
+        "operationId" : "create_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreatePartnerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PartnerDto"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Partner anlegen",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/onboarding-sheet" : {
+      "get" : {
+        "description" : "Unsere Angaben für einen neuen Partner: Endpunkt, WSDL, Outbound-IPs, Signaturzertifikat, Kontakt.",
+        "operationId" : "onboardingSheet",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OnboardingSheet"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Onboarding-Blatt",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/wsdl" : {
+      "get" : {
+        "description" : "Die WSDL der AK (Anlage 3) mit unserem öffentlichen Endpunkt als Service-Adresse (Spezifikation 3.3: nur der Endpoint wird angepasst).",
+        "operationId" : "wsdl",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "text/xml" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "WSDL für Partner",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{id}" : {
+      "get" : {
+        "operationId" : "get_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PartnerDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Partner lesen",
+        "tags" : [ "Partner" ]
+      },
+      "patch" : {
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdatePartnerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PartnerDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Partner ändern",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{id}/certificates" : {
+      "post" : {
+        "description" : "Während eines Zertifikatswechsels dürfen mehrere Zertifikate gültig sein.",
+        "operationId" : "addCertificate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CertificateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PartnerDto"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Signaturzertifikat hinzufügen",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{id}/certificates/{certificateId}" : {
+      "delete" : {
+        "operationId" : "removeCertificate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "path",
+          "name" : "certificateId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : { },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Signaturzertifikat entfernen",
+        "tags" : [ "Partner" ]
+      }
+    },
+    "/api/v1/partners/{id}/source-networks" : {
+      "put" : {
+        "description" : "Liste in CIDR-Notation, z. B. `203.0.113.10/32`. Hostnamen sind nicht zulässig.",
+        "operationId" : "networks",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PartnerDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Freigeschaltete IPs ersetzen",
+        "tags" : [ "Partner" ]
       }
     },
     "/api/v1/settings" : {
@@ -504,6 +771,48 @@
         },
         "required" : [ "displayName", "password", "username" ]
       },
+      "CertificateDto" : {
+        "type" : "object",
+        "description" : "Ein Signaturzertifikat des Partners",
+        "properties" : {
+          "expired" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "issuer" : {
+            "type" : "string"
+          },
+          "keyBits" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "RSA-Schlüssellänge; das AK verlangt ≥ 3072 (bestehende 2048 bis Laufzeitende)"
+          },
+          "notAfter" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "serialNumber" : {
+            "type" : "string"
+          },
+          "subject" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "expired", "id", "issuer", "keyBits", "notAfter", "serialNumber", "subject" ]
+      },
+      "CertificateRequest" : {
+        "type" : "object",
+        "description" : "Ein Zertifikat als PEM",
+        "properties" : {
+          "pem" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "pem" ]
+      },
       "CompanySettingsDto" : {
         "type" : "object",
         "description" : "Firmendaten und Optionen",
@@ -534,6 +843,14 @@
             "type" : "string",
             "example" : "Beispiel GmbH"
           },
+          "outboundAddresses" : {
+            "type" : "array",
+            "description" : "Unsere festen Outbound-IP-Adressen; Partner schalten sie frei (AUFGABE 7.6)",
+            "example" : [ "203.0.113.10" ],
+            "items" : {
+              "type" : "string"
+            }
+          },
           "postalCode" : {
             "type" : [ "string", "null" ]
           },
@@ -562,6 +879,42 @@
           }
         },
         "required" : [ "carrierCode", "contactEmail", "name", "roleAuftraggeber", "roleLeistungserbringer" ]
+      },
+      "CreatePartnerRequest" : {
+        "type" : "object",
+        "description" : "Neuer Partner",
+        "properties" : {
+          "allowedSourceNetworks" : {
+            "type" : "array",
+            "example" : [ "203.0.113.10/32" ],
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "carrierCode" : {
+            "type" : "string"
+          },
+          "certificatesPem" : {
+            "type" : "array",
+            "description" : "Signaturzertifikate als PEM",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "endpointUrl" : {
+            "type" : [ "string", "null" ]
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "technicalContactEmail" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "carrierCode", "name" ]
       },
       "CreateTokenRequest" : {
         "type" : "object",
@@ -699,6 +1052,91 @@
             "type" : [ "string", "null" ]
           }
         }
+      },
+      "OnboardingSheet" : {
+        "type" : "object",
+        "description" : "Alles, was ein neuer Partner von uns braucht",
+        "properties" : {
+          "carrierCode" : {
+            "type" : "string",
+            "description" : "unser ITU Carrier Code"
+          },
+          "company" : {
+            "type" : "string"
+          },
+          "outboundAddresses" : {
+            "type" : "array",
+            "description" : "unsere Outbound-IPs zum Freischalten",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "signingCertificatePem" : {
+            "type" : "string",
+            "description" : "unser Signaturzertifikat (PEM)"
+          },
+          "spriEndpoint" : {
+            "type" : [ "string", "null" ],
+            "description" : "unser S/PRI-Endpunkt"
+          },
+          "spriVersion" : {
+            "type" : "string",
+            "description" : "unterstützte S/PRI-Version"
+          },
+          "technicalContact" : {
+            "type" : "string"
+          },
+          "wsdlPath" : {
+            "type" : "string",
+            "description" : "WSDL mit unserem Endpunkt: GET /api/v1/partners/wsdl"
+          }
+        },
+        "required" : [ "carrierCode", "company", "outboundAddresses", "signingCertificatePem", "spriVersion", "technicalContact", "wsdlPath" ]
+      },
+      "PartnerDto" : {
+        "type" : "object",
+        "description" : "Ein Partner",
+        "properties" : {
+          "allowedSourceNetworks" : {
+            "type" : "array",
+            "description" : "Outbound-IPs des Partners, die unseren Endpunkt aufrufen dürfen (CIDR)",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "carrierCode" : {
+            "type" : "string",
+            "description" : "ITU Carrier Code des Partners",
+            "example" : "GFNORD"
+          },
+          "certificates" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CertificateDto"
+            }
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "endpointUrl" : {
+            "type" : [ "string", "null" ],
+            "description" : "S/PRI-Endpunkt des Partners (aus seiner WSDL)",
+            "example" : "https://spri.partner.example/spri/v4"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "name" : {
+            "type" : "string",
+            "example" : "Glasfaser Nord GmbH"
+          },
+          "technicalContactEmail" : {
+            "type" : [ "string", "null" ],
+            "description" : "technischer Kontakt; erhält die Ausfall-Mail (11.2.3.2)"
+          }
+        },
+        "required" : [ "allowedSourceNetworks", "carrierCode", "certificates", "enabled", "id", "name" ]
       },
       "SetupRequest" : {
         "type" : "object",
@@ -838,6 +1276,27 @@
           }
         },
         "required" : [ "createdAt", "createdBy", "id", "name", "prefix", "role", "scopes" ]
+      },
+      "UpdatePartnerRequest" : {
+        "type" : "object",
+        "description" : "Änderungen; nicht angegebene Felder bleiben unverändert",
+        "properties" : {
+          "carrierCode" : {
+            "type" : [ "string", "null" ]
+          },
+          "enabled" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "endpointUrl" : {
+            "type" : [ "string", "null" ]
+          },
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "technicalContactEmail" : {
+            "type" : [ "string", "null" ]
+          }
+        }
       },
       "UpdateUserRequest" : {
         "type" : "object",

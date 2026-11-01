@@ -120,16 +120,19 @@ data class CompanySettingsDto(
     val wbciMode: WbciMode = WbciMode.SERVICE_PROVIDER,
     @field:Schema(description = "Öffentliche Adresse unseres S/PRI-Endpunkts (für die WSDL)", example = "https://spri.example.de/spri/v4")
     val publicSpriEndpoint: String? = null,
+    @field:Schema(description = "Unsere festen Outbound-IP-Adressen; Partner schalten sie frei (AUFGABE 7.6)", example = "[\"203.0.113.10\"]")
+    val outboundAddresses: List<String> = emptyList(),
 ) {
     fun toDomain() = CompanySettings(
         name, street, postalCode, city, carrierCode.trim().uppercase(), contactEmail, roleAuftraggeber, roleLeistungserbringer,
         estEnabled, diagEnabled, connectivityEnabled, thirdPartyOrdersEnabled, wbciMode, publicSpriEndpoint,
+        outboundAddresses.map { de.openspri.domain.partner.IpNetwork.parse(it).toString().substringBefore("/32").substringBefore("/128") },
     )
 
     companion object {
         fun of(s: CompanySettings) = CompanySettingsDto(
             s.name, s.street, s.postalCode, s.city, s.carrierCode, s.contactEmail, s.roleAuftraggeber, s.roleLeistungserbringer,
-            s.estEnabled, s.diagEnabled, s.connectivityEnabled, s.thirdPartyOrdersEnabled, s.wbciMode, s.publicSpriEndpoint,
+            s.estEnabled, s.diagEnabled, s.connectivityEnabled, s.thirdPartyOrdersEnabled, s.wbciMode, s.publicSpriEndpoint, s.outboundAddresses,
         )
     }
 }

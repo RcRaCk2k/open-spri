@@ -42,7 +42,18 @@ M4 macht open-spri bedienbar: Web-Oberfläche und Fremdsysteme steuern alles üb
 - Compose und `.env.example`: `OPENSPRI_MASTER_KEY`. `docs/betrieb.md`: Abschnitt Ersteinrichtung.
 - **Korrektur während der Entwicklung:** Ein `Optional<…>`-Bean-Parameter wird von Spring als optionale Abhängigkeit auf den inneren Typ aufgelöst. Daher gibt es jetzt den eigenen Typ `MasterKey`.
 
+### Teil 3: Partnerverwaltung
+- Port `PartnerAdministration` (in `JdbcPartnerDirectory` umgesetzt): auflisten (auch deaktivierte), anlegen, ändern, Zertifikate hinzufügen/entfernen (mehrere während eines Wechsels), IP-Netze ersetzen
+- **REST:**
+  - `GET/POST /partners`, `GET/PATCH /partners/{id}`, `PUT /partners/{id}/source-networks`, `POST/DELETE /partners/{id}/certificates`
+  - PEM-Prüfung, CIDR ohne Hostnamen, nur http(s)-Endpunkte
+  - Zertifikate mit Schlüssellänge und Ablaufkennzeichen
+- `GET /partners/wsdl`: AK-WSDL mit unserem öffentlichen Endpunkt (Spezifikation 3.3: nur der Endpoint wird angepasst)
+- `GET /partners/onboarding-sheet`: ICC, Endpunkt, WSDL, Outbound-IPs, Signaturzertifikat (PEM), Kontakt, S/PRI-Version
+- Einstellungen: `outboundAddresses` (Migration V8)
+
 ## Tests
 
+- `PartnerApiTest` (4): Anlage mit Zertifikat und IP-Netzen, Zertifikatswechsel (hinzufügen, alt entfernen), ungültiges PEM/Hostname/URL → 400, VIEWER darf lesen, nicht ändern; WSDL mit unserem Endpunkt, Onboarding-Blatt
 - `SetupTest` (3): vor dem Setup Token nötig (403), Setup mit Token legt Admin, Firma und gespeicherten Schlüssel (3072 Bit) an, Login und Einstellungen funktionieren, kein zweites Setup (409)
 - `SecurityTest` (6, echtes HTTP): öffentliche Endpunkte, 401 ohne Anmeldung, Token mit Berechtigung und 403 ohne, ungültiges und widerrufenes Token, Berechtigungen nicht über die Rolle hinaus, Session-Login mit CSRF-Schutz (ohne Token 403, mit Token 201)
