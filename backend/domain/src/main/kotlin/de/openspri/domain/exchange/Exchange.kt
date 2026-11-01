@@ -62,3 +62,15 @@ interface InboundStore {
 interface OutboundArchive {
     fun store(exchange: ArchivedExchange): Long
 }
+
+/** An accepted inbound item waiting for business processing (inbox_message). */
+data class PendingInboundMessage(val id: Long, val archiveId: Long, val message: InboundMessage)
+
+/**
+ * The inbound queue. Items are processed strictly in the order of arrival; [processNext] runs the handler and
+ * the status update in one transaction, so a crash never loses or duplicates processing.
+ */
+interface InboxQueue {
+    /** Processes the oldest pending item. Returns false if the queue is empty. */
+    fun processNext(handler: (PendingInboundMessage) -> List<String>): Boolean
+}

@@ -37,6 +37,8 @@ class SoapEndToEndTest(
     @Autowired private val partners: InMemoryPartnerDirectory,
     @Autowired private val inbound: InMemoryInboundStore,
     @Autowired private val outbound: InMemoryOutboundArchive,
+    @Autowired private val worker: de.openspri.soap.InboxWorker,
+    @Autowired private val orders: de.openspri.soap.InMemoryOrderRepository,
 ) {
     @LocalServerPort
     private var port = 0
@@ -53,8 +55,8 @@ class SoapEndToEndTest(
     fun reset() {
         partners.partners.clear()
         partners.partners += self()
-        inbound.accepted.clear()
-        inbound.rejected.clear()
+        inbound.clear()
+        orders.orders.clear()
         outbound.exchanges.clear()
     }
 
@@ -65,6 +67,22 @@ class SoapEndToEndTest(
         assertEquals(TeqCode.OK, acknowledged.teq)
         assertEquals("TEST-0001", inbound.accepted.single().second.externalOrderNumber)
         assertEquals(TeqCode.OK, outbound.exchanges.single().teqCode)
+    }
+
+    @Test
+    fun `accepted order is processed from the inbox into an order of the Leistungserbringer`() {
+        client.send(self(), endpoint, SoapOperation.ANNEHMEN_AUFTRAG, TestData.payload("neu-auftrag.xml", credentials), "TEST-0001")
+        assertEquals(1, worker.drain())
+        val order = orders.orders.single()
+        assertEquals(de.openspri.domain.order.OrderRole.LEISTUNGSERBRINGER, order.role)
+        assertEquals(de.openspri.domain.order.Phase.SUBMITTED, order.state.phase)
+        assertEquals(emptyList(), inbound.findings.single())
+
+        // the same order again: duplicate (specification 11.4)
+        client.send(self(), endpoint, SoapOperation.ANNEHMEN_AUFTRAG, TestData.payload("neu-auftrag.xml", credentials), "TEST-0001")
+        worker.drain()
+        assertContains(inbound.findings.last().single(), "Dublette")
+        assertEquals(1, orders.orders.size)
     }
 
     @Test

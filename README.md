@@ -2,7 +2,10 @@
 
 Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requisition Interface, V4.4) des [Arbeitskreises Schnittstellen & Prozesse](https://ak-spri.de/spri/). Mit ihr bestellen Telekommunikationsanbieter Vorleistungsprodukte (FTTH, FTTB, FTTC) bei anderen Netzbetreibern und bieten ihre eigenen Anschlüsse über einen Standard an.
 
-> **Status: in Entwicklung (Meilenstein M1 abgeschlossen).** Der S/PRI-SOAP-Endpunkt nimmt signierte Aufträge und Meldungen an, prüft sie und quittiert sie mit TEQ. Der Client versendet signiert. Die fachliche Verarbeitung der Geschäftsfälle folgt mit M2. Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
+> **Status: in Entwicklung (Meilenstein M2 abgeschlossen).**
+> - Der S/PRI-Endpunkt nimmt signierte Aufträge und Meldungen an, prüft sie gegen XSD und Anlage 1 und quittiert sie mit TEQ.
+> - Aufträge und Meldungen werden fachlich verarbeitet, mit Zustandsautomaten für alle Geschäftsfälle, abgeglichen mit den 211 Meldungsfolgen der KFT-Testfallliste.
+> - Als Nächstes folgen zuverlässige Zustellung (M3) und REST-API (M4). Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
 
 ## Funktionsumfang (Ziel v1.0)
 
@@ -63,7 +66,7 @@ Die Software soll in beiden Rollen den Konformitätstest (KFT) bestehen und ein 
 | [`docs/api/`](docs/api/) | REST-API mit Beispielen, [`openapi.json`](docs/api/openapi.json) |
 | [`docs/betrieb.md`](docs/betrieb.md) | Installation und Betrieb |
 | [`docs/spec-abweichungen.md`](docs/spec-abweichungen.md) | Auslegungen der Spezifikation |
-| `docs/grundlagen/` | Einführung in S/PRI für Entwickler (ab M2) |
+| [`docs/grundlagen/`](docs/grundlagen/) | Einführung in S/PRI für Entwickler, Glossar |
 | `docs/adr/` | Architekturentscheidungen |
 | [`CHANGELOG/`](CHANGELOG/) | Beschreibungen größerer Änderungen |
 | [`CLAUDE.md`](CLAUDE.md) | Grundsätze und Arbeitsregeln für Entwickler |

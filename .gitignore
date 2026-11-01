@@ -20,3 +20,7 @@ build-logic/.kotlin/
 # Secrets (keystores) - only secrets/README.md is versioned
 secrets/*
 !secrets/README.md
+
+# Configuration files with AK content - only config/README.md is versioned
+config/*
+!config/README.md

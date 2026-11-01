@@ -24,7 +24,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 /** Boots the full application against a real MariaDB. Skipped automatically without Docker. */
-@SpringBootTest(classes = [OpenSpriApplication::class], webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    classes = [OpenSpriApplication::class],
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = ["openspri.inbox.initial-delay=0s", "openspri.inbox.poll-interval=200ms"],
+)
 @AutoConfigureMockMvc
 @Testcontainers(disabledWithoutDocker = true)
 class ApplicationIntegrationTest(
@@ -84,5 +88,18 @@ class ApplicationIntegrationTest(
             "TEST-0001",
             jdbc.queryForObject("SELECT external_order_number FROM inbox_message WHERE partner_id = ?", String::class.java, id.value),
         )
+
+        // M2: the scheduled inbox worker turns the accepted order into an order of the Leistungserbringer
+        val deadline = System.currentTimeMillis() + 15_000
+        var orders = 0
+        while (orders == 0 && System.currentTimeMillis() < deadline) {
+            Thread.sleep(250)
+            orders = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM spri_order WHERE partner_id = ? AND role = 'LEISTUNGSERBRINGER' AND phase = 'SUBMITTED'", Int::class.java, id.value,
+            )!!
+        }
+        assertEquals(1, orders)
+        assertEquals("PROCESSED", jdbc.queryForObject("SELECT status FROM inbox_message WHERE partner_id = ?", String::class.java, id.value))
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM spri_order_history WHERE partner_id = ? AND kind = 'ORDER'", Int::class.java, id.value))
     }
 }

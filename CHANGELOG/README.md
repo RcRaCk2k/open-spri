@@ -41,4 +41,4 @@ Welche Tests belegen die Änderung?
 | [CL-0003](CL-0003-all-in-one-proxy.md) | All-in-One-Stack mit nginx/certbot, getrennte Inbound-/Outbound-IPs | 2026-11-01 |
 | [CL-0004](CL-0004-m0-grundgeruest.md) | M0: Grundgerüst, Container-Stack, CI | 2026-11-01 |
 | [CL-0005](CL-0005-m1-soap-signatur.md) | M1: S/PRI-SOAP-Schnittstelle, WS-Security, TEQ, Nachrichtenarchiv | 2026-11-01 |
-| [CL-0006](CL-0006-m2-fachkern.md) | M2: Fachkern (Meldungscodes, Zustandsautomaten, Anlage-1-Regeln, Verarbeitung) | in Arbeit |
+| [CL-0006](CL-0006-m2-fachkern.md) | M2: Fachkern (Meldungscodes, Zustandsautomaten, Anlage-1-Regeln, Verarbeitung) | 2026-11-01 |

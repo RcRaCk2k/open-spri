@@ -29,4 +29,6 @@ class SoapInMemoryTestApplication {
     @Bean fun partnerDirectory() = InMemoryPartnerDirectory()
     @Bean fun inboundStore() = InMemoryInboundStore()
     @Bean fun outboundArchive() = InMemoryOutboundArchive()
+    @Bean fun orderRepository() = de.openspri.soap.InMemoryOrderRepository()
+    @Bean fun messageCodeStore() = de.openspri.soap.InMemoryMessageCodeStore()
 }

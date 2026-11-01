@@ -114,6 +114,38 @@ Das Zertifikat (`keytool -exportcert -rfc -alias spri-signature -keystore secret
 
 - Jede ein- und ausgehende Nachricht wird unverändert archiviert (Tabelle `soap_archive`, inkl. SHA-256 der Anfrage). Der Grund einer Ablehnung steht nur intern im Archiv und geht nie an den Partner.
 
+## Meldungscodetabelle (Anlage 5)
+
+Die Meldungscodes stellt der AK nur online in seinem Confluence bereit. Sie dürfen nicht mit open-spri ausgeliefert werden. So bindest du die Tabelle ein:
+
+1. Die Tabelle unter <https://aksup.atlassian.net/wiki/spaces/SPE/pages/1221034635/SPRI+Meldungscodetabelle> als CSV exportieren.
+2. Die Datei unverändert nach `./config/SPRI_Meldungscodetabelle.csv` legen. Das Format ist UTF-16, tabgetrennt, wie der Confluence-Export.
+3. In `.env` eintragen: `OPENSPRI_MESSAGE_CODES_FILE=/etc/openspri/SPRI_Meldungscodetabelle.csv`
+4. `docker compose up -d` ausführen. Beim Start importiert open-spri die Datei, sofern sie eine neue Version ist (erkennbar an der SHA-256-Prüfsumme), und aktiviert sie. Jede Version bleibt in der Datenbank erhalten (`message_code_table`).
+
+Ohne Tabelle warnt open-spri im Log und kann Meldungscodes nicht prüfen (R-13). Codes, die die Testfallliste nutzt, die aber in der AK-Tabelle fehlen, ergänzt open-spri selbst und kennzeichnet sie (`docs/spec-abweichungen.md`, SA-001 und SA-008).
+
+## Prüfung nach Anlage 1
+
+open-spri prüft jede Nachricht auch gegen Anlage 1 und damit, welche Felder je Geschäftsfall und Produktgruppe Pflicht oder unzulässig sind (ADR-0006):
+
+| Richtung | Standard | Wirkung |
+|---|---|---|
+| ausgehend (eigene Nachrichten) | `enforce` | Eine Nachricht mit Verstoß wird nicht gesendet. |
+| eingehend (vom Partner) | `report` | Die Nachricht wird angenommen und der Verstoß im Archiv vermerkt (`soap_archive.findings`). |
+
+Mit `OPENSPRI_SOAP_ATTRIBUTE_RULES_INBOUND=enforce` antwortet open-spri bei Verstößen mit TEQ 0995.
+
+## Fachliche Verarbeitung
+
+Angenommene Aufträge und Meldungen landen in der Warteschlange `inbox_message`. Ein Hintergrundprozess verarbeitet sie in der Reihenfolge des Eingangs, etwa jede Sekunde:
+- Aufträge (wir sind Leistungserbringer) werden in `spri_order` angelegt.
+- Meldungen bewegen den Auftrag weiter durch seinen Zustandsautomaten.
+
+Was die Prüfungen finden, steht in `spri_order_history.findings` und `inbox_message.findings`. Das sind zum Beispiel Dubletten, R-05 (Termin mehr als 180 Tage in der Zukunft), R-10 (offener Auftrag am selben Anschluss) und Meldungen außerhalb der Reihenfolge. Status `FAILED` bedeutet einen technischen Fehler, die Ursache steht in `inbox_message.error`.
+
+Bis M3 läuft die Verarbeitung nur auf **einer** Instanz.
+
 ## Zusätzliche IP-Sperre für den S/PRI-Endpunkt
 
 open-spri prüft die IPs der Partner selbst. Zusätzlich lässt sich in nginx eine zweite Sperre setzen: `deploy/nginx/snippets/openspri-spri-allowlist.conf` bearbeiten, dann `docker compose restart proxy`.

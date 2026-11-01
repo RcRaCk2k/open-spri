@@ -77,6 +77,14 @@ class MessageCodeCatalog(
     }
 }
 
+/** Versions of the message code table. Implemented by module persistence. */
+interface MessageCodeStore {
+    /** Imports a table file (AK export or neutral CSV) and makes it the active version. */
+    fun importAndActivate(content: ByteArray, source: String): MessageCodeCatalog
+
+    fun active(): MessageCodeCatalog?
+}
+
 /** Codes used by the KFT test case list (23.05.2025) but missing in the AK table (SA-001, OP-11). */
 object LocalMessageCodes {
     private const val NOTE = "Lokale Ergänzung: in der KFT-Testfallliste verwendet, in der AK-Meldungscodetabelle nicht enthalten (SA-001)"

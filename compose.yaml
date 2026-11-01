@@ -37,10 +37,14 @@ services:
       OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD: ${OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD:-}
       OPENSPRI_SOAP_PUBLISHED_ENDPOINT_URL: ${OPENSPRI_SOAP_PUBLISHED_ENDPOINT_URL:-https://${PUBLIC_HOSTNAME:-localhost}/spri/v4}
       SPRI_OUTBOUND_PROXY: ${SPRI_OUTBOUND_PROXY:-}
+      OPENSPRI_MESSAGE_CODES_FILE: ${OPENSPRI_MESSAGE_CODES_FILE:-}
+      OPENSPRI_SOAP_ATTRIBUTE_RULES_INBOUND: ${OPENSPRI_SOAP_ATTRIBUTE_RULES_INBOUND:-report}
       TZ: Europe/Berlin
     volumes:
       # Directory for the signing keystore, e.g. ./secrets/spri-signature.p12 -> /run/openspri/spri-signature.p12
       - ./secrets:/run/openspri:ro
+      # Configuration files that must not be part of the image, e.g. the message code table (Anlage 5)
+      - ./config:/etc/openspri:ro
     depends_on:
       db:
         condition: service_healthy

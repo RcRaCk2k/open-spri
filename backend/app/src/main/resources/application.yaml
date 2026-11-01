@@ -48,6 +48,11 @@ springdoc:
   writer-with-order-by-keys: true
 
 openspri:
+  # Message code table (Anlage 5), AK export from Confluence or neutral CSV; imported at startup when new.
+  message-codes:
+    file: ${OPENSPRI_MESSAGE_CODES_FILE:}
+  inbox:
+    poll-interval: 1s
   soap:
     signing-keystore: ${OPENSPRI_SOAP_SIGNING_KEYSTORE:}
     signing-keystore-password: ${OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD:}

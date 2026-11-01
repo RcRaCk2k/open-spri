@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Datum | 2026-11-01 (in Arbeit) |
+| Datum | 2026-11-01 |
 | Meilenstein | M2 |
 | Bezug | AUFGABE Kap. 5.2 (R-01 bis R-15), 5.3, 11 (M2); Spezifikation 4, 5, 6, 7.2, 10.4; Testfallliste 23.05.2025 |
 
@@ -36,10 +36,36 @@ M1 nimmt Nachrichten technisch an. M2 gibt ihnen fachliche Bedeutung: Jeder Gesc
 - Prüfkette Schritt 4b. Client prüft vor dem Senden (`Outcome.NotSent`). Modi eingehend `report` und ausgehend `enforce`, einstellbar über `openspri.soap.attribute-rules.inbound|outbound`.
 - Archiv: neue Spalte `findings` (Migration V3) für Verstöße im Modus report
 
+### Teil 4: Fachliche Verarbeitung
+- Fachmodell `Order`, `OrderData`, `OrderRole` (AG, LE, abgebender EKP), `OrderHistoryEntry`, Port `OrderRepository`
+- `OrderRules`:
+  - R-02 (TV mit anderem Termin), R-05 (< 180 Tage), R-11 (Besteller formal), R-12 (Kenner, Klammer), R-15 (LineID-Bildungsregel)
+  - Schlüssel für R-10 (LineID, sonst HomeID, sonst normalisierte Adresse)
+- `InboundOrderService`:
+  - Aufträge der Partner (wir sind LE): neu anlegen, Dublette nach 11.4, R-10, Storno/TV/Reklamation über den Automaten
+  - Meldungen (wir sind AG, LE für AG-Meldungen oder EKPab): Zuordnung zum Auftrag, KDLE und AKM-PV legen den Auftrag an, Prüfung der Meldungscodes (R-13), Übernahme von LineID und Vertragsnummer
+  - Tolerant: unpassende Meldungen werden mit Befund vermerkt, der Zustand bleibt.
+- `SpriPayloadMapper` (XML → Fachmodell), `InboxWorker` (zeitgesteuert, Reihenfolge des Eingangs)
+- Meldungscodetabelle: Import beim Start aus `OPENSPRI_MESSAGE_CODES_FILE`, versioniert über die Prüfsumme in `message_code_table`, aktive Version im Speicher (`MessageCodeCatalogHolder`)
+- Migration V4: `spri_order`, `spri_order_history`, `message_code_table`, Verarbeitungsstatus in `inbox_message`
+- Compose: `./config` → `/etc/openspri` (Meldungscodetabelle). Doku in `docs/betrieb.md`.
+- **Neue Einführung** `docs/grundlagen/` (S/PRI für Entwickler mit Ablauf-, Fluss- und Zustandsdiagramm, Regel-Code-Zuordnung) und Glossar
+
+## Auswirkungen
+
+- S/PRI: Eingehende Aufträge und Meldungen werden jetzt fachlich verarbeitet. Die TEQ ist unverändert.
+- REST-API: unverändert (die Endpunkte für Aufträge folgen mit M4)
+- Datenbank: Migrationen V3 und V4
+- Konfiguration: `OPENSPRI_MESSAGE_CODES_FILE`, `OPENSPRI_SOAP_ATTRIBUTE_RULES_INBOUND`, `openspri.inbox.poll-interval`
+- Einschränkung bis M3: Die Eingangsverarbeitung läuft auf **einer** Instanz. Antworten des LE (QEB/ABBM aufgrund der Befunde) und das Senden über die Outbox folgen mit M3/M4.
+
 ## Tests
 
 - `KftSequenceReplayTest`: Die Testfallliste wird mit Prüfsumme geladen, alle **211 Meldungsfolgen** beider Blätter werden geparst und durch den Automaten gespielt. Jede Meldung muss akzeptiert werden, jeder Auftrag muss abgeschlossen enden. Außerdem werden alle Codes gegen die Meldungscodetabelle geprüft (lokal, solange die Tabelle nicht im Repository liegen darf).
 - `AttributeValidatorTest` (8): alle 268 Regeln geladen, Beispielnachrichten konform, Pflichtfeld fehlt, Termin Neu nur bei Terminverschiebung, fremdes GF-Attribut in Meldung, Firma statt Person
 - `InboundProcessorTest` (+3): enforce → 0995, report → angenommen mit Befund, konformer Auftrag
 - `SoapEndToEndTest` (+1): eigener Auftrag mit Anlage-1-Verstoß wird nicht gesendet
+- `InboundOrderServiceTest` (10): Anlage, Dublette, R-05, R-10, TV/R-02, Meldungen mit Codeprüfung, Meldung außer der Reihe, AKM-PV/KDLE, unbekannter Auftrag, LineID
+- `SpriPayloadMapperTest` (3), `SoapEndToEndTest` (+1: SOAP → Eingang → Auftrag, Dublette)
+- `ApplicationIntegrationTest` (CI, MariaDB): Roundtrip bis `spri_order` und `spri_order_history`
 - `OrderLifecycleTest` (12 Negativ- und Regelfälle), `KftSequenceParserTest` (Notation), `MessageCodeCatalogTest` (5, inkl. Import der echten AK-Tabelle)

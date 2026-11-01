@@ -30,6 +30,7 @@ import java.nio.file.Path
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(SpriSoapProperties::class)
+@org.springframework.context.annotation.Import(OrderProcessingConfiguration::class)
 class SpriSoapConfiguration {
 
     private val log = LoggerFactory.getLogger(javaClass)
