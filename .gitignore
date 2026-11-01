@@ -5,6 +5,8 @@ docs/ANHANG-A-Testfaelle.md
 
 # Build / IDE
 build/
+# ...but never source packages named "build" (e.g. build-logic/src/main/kotlin/de/openspri/build)
+!**/src/**/build/
 .gradle/
 node_modules/
 dist/
