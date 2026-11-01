@@ -59,6 +59,14 @@ openspri:
     file: ${OPENSPRI_MESSAGE_CODES_FILE:}
   inbox:
     poll-interval: 1s
+  # Events for external systems (feed GET /api/v1/events, webhooks); contain no end customer data.
+  events:
+    retention: ${OPENSPRI_EVENTS_RETENTION:90d}
+  webhooks:
+    poll-interval: 2s
+  # Idempotency-Key of POST /api/v1/orders… is remembered this long.
+  idempotency:
+    retention: 24h
   soap:
     signing-keystore: ${OPENSPRI_SOAP_SIGNING_KEYSTORE:}
     signing-keystore-password: ${OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD:}

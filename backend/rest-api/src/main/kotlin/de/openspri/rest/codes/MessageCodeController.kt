@@ -56,7 +56,7 @@ class MessageCodeController(
         return MessageCodeTableDto(catalog.source, catalog.sha256, codes)
     }
 
-    @PostMapping(consumes = [MediaType.APPLICATION_OCTET_STREAM_VALUE, "text/csv", "text/tab-separated-values"])
+    @PostMapping("/import", consumes = [MediaType.APPLICATION_OCTET_STREAM_VALUE, "text/csv", "text/tab-separated-values"])
     @PreAuthorize(Requires.MESSAGE_CODES_ADMIN)
     @Operation(
         summary = "Neue Version importieren",

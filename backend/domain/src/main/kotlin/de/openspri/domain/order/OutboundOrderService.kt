@@ -5,6 +5,9 @@ import de.openspri.domain.ChangeIndicator
 import de.openspri.domain.delivery.Outbox
 import de.openspri.domain.delivery.OutboxEntry
 import de.openspri.domain.delivery.RequestType
+import de.openspri.domain.event.BusinessEvent
+import de.openspri.domain.event.EventLog
+import de.openspri.domain.exchange.Direction.OUTBOUND
 import de.openspri.domain.exchange.SoapOperation
 import de.openspri.domain.message.CodeCheck
 import de.openspri.domain.message.MessageCodeCatalog
@@ -36,6 +39,7 @@ class OutboundOrderService(
     private val codes: () -> MessageCodeCatalog,
     private val transactions: Transactions,
     private val clock: Clock = Clock.systemDefaultZone(),
+    private val events: EventLog = EventLog.NONE,
 ) {
 
     /** We order from a partner (we are Auftraggeber). [payload] is the annehmenAuftragRequest element. */
@@ -50,7 +54,7 @@ class OutboundOrderService(
         val state = OrderLifecycle.submitted(data.businessCase, connectivity = data.connectivity, bracketed = data.bracketId != null)
         val order = orders.save(Order(null, partnerId, OrderRole.AUFTRAGGEBER, data, state, now, now, sequenceKey = keyFor(partnerId, data)))
         enqueue(order, RequestType.ORDER, SoapOperation.ANNEHMEN_AUFTRAG, payload)
-        orders.append(OrderHistoryEntry(order.id, partnerId, null, OrderHistoryEntry.Kind.ORDER, at = now))
+        record(OrderHistoryEntry(order.id, partnerId, null, OrderHistoryEntry.Kind.ORDER, at = now, direction = OUTBOUND), order)
         order
     }
 
@@ -65,7 +69,7 @@ class OutboundOrderService(
         val newData = if (kind == RequestKind.TERMINVERSCHIEBUNG && data.newDate != null) order.data.copy(desiredDate = data.newDate) else order.data
         val saved = orders.save(order.copy(state = (transition as Transition.Accepted).state, data = newData, updatedAt = now, sequenceKey = order.sequenceKey ?: keyFor(order.partnerId, order.data)))
         enqueue(saved, RequestType.ORDER, SoapOperation.ANNEHMEN_AUFTRAG, payload)
-        orders.append(OrderHistoryEntry(saved.id, order.partnerId, null, OrderHistoryEntry.Kind.REQUEST, changeIndicator = kind.changeIndicator, at = now))
+        record(OrderHistoryEntry(saved.id, order.partnerId, null, OrderHistoryEntry.Kind.REQUEST, changeIndicator = kind.changeIndicator, at = now, direction = OUTBOUND), saved)
         saved
     }
 
@@ -82,7 +86,7 @@ class OutboundOrderService(
         // the key is fixed with the first request of the order: a LineID assigned later (ABM) must not change it
         val saved = orders.save(order.copy(state = (transition as Transition.Accepted).state, data = data, updatedAt = now, sequenceKey = order.sequenceKey ?: keyFor(order.partnerId, order.data)))
         enqueue(saved, RequestType.MESSAGE, SoapOperation.ANNEHMEN_MELDUNG, payload)
-        orders.append(OrderHistoryEntry(saved.id, order.partnerId, null, OrderHistoryEntry.Kind.MESSAGE, message.type, message.changeIndicator, message.codes, at = now))
+        record(OrderHistoryEntry(saved.id, order.partnerId, null, OrderHistoryEntry.Kind.MESSAGE, message.type, message.changeIndicator, message.codes, at = now, direction = OUTBOUND), saved)
         saved
     }
 
@@ -132,6 +136,11 @@ class OutboundOrderService(
         OrderRole.LEISTUNGSERBRINGER -> Party.LEISTUNGSERBRINGER
         OrderRole.AUFTRAGGEBER -> Party.AUFTRAGGEBER
         OrderRole.ABGEBENDER_EKP -> Party.ABGEBENDER_EKP
+    }
+
+    private fun record(entry: OrderHistoryEntry, order: Order) {
+        orders.append(entry)
+        events.publish(BusinessEvent.of(entry, order, order.data.externalOrderNumber))
     }
 
     /**

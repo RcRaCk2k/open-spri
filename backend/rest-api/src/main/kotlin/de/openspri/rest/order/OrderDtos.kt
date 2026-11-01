@@ -59,7 +59,7 @@ data class OrderDto(
 
 @Schema(description = "Eine Aktion, die der Zustandsautomat jetzt zulässt")
 data class ActionDto(
-    @field:Schema(description = "MESSAGE (POST /orders/{id}/messages) oder REQUEST (POST /orders/{id}/requests)", requiredMode = REQUIRED) val kind: String,
+    @field:Schema(description = "MESSAGE (POST /orders/{id}/messages) oder REQUEST (STORNO: /cancel, TERMINVERSCHIEBUNG: /reschedule, REKLAMATION: /complaint)", requiredMode = REQUIRED) val kind: String,
     @field:Schema(description = "bei MESSAGE: Meldungstyp", example = "ABM") val messageType: String?,
     @field:Schema(description = "bei MESSAGE: Änderungskennzeichen des beantworteten Auftrags", example = "Standard") val changeIndicator: String?,
     @field:Schema(description = "bei REQUEST: STORNO, TERMINVERSCHIEBUNG oder REKLAMATION") val request: String?,
@@ -75,7 +75,8 @@ data class ActionDto(
 @Schema(description = "Ein Eintrag im Verlauf: Auftrag, Änderung oder Meldung mit den Befunden der Prüfungen")
 data class HistoryDto(
     @field:Schema(description = "ORDER, REQUEST oder MESSAGE", requiredMode = REQUIRED) val kind: String,
-    @field:Schema(description = "ein- oder ausgehend: Archiv-Id der Rohnachricht (nur eingehend)") val archiveId: Long?,
+    @field:Schema(description = "INBOUND (vom Partner) oder OUTBOUND (von uns)", requiredMode = REQUIRED) val direction: String,
+    @field:Schema(description = "eingehend: Id der Rohnachricht (GET /messages/{id}/raw); ausgehend: siehe GET /deliveries?orderId=…") val archiveId: Long?,
     val messageType: String?,
     @field:Schema(requiredMode = REQUIRED) val changeIndicator: String,
     @field:Schema(requiredMode = REQUIRED) val codes: List<String>,
@@ -84,7 +85,7 @@ data class HistoryDto(
 ) {
     companion object {
         fun of(entry: OrderHistoryEntry) = HistoryDto(
-            entry.kind.name, entry.archiveId, entry.messageType?.code, entry.changeIndicator.code, entry.codes, entry.findings, entry.at,
+            entry.kind.name, entry.direction.name, entry.archiveId, entry.messageType?.code, entry.changeIndicator.code, entry.codes, entry.findings, entry.at,
         )
     }
 }
@@ -106,11 +107,14 @@ data class CreateOrderRequest(
     val auftrag: JsonNode,
 )
 
-@Schema(description = "Storno, Terminverschiebung oder Reklamation zu einem eigenen Auftrag")
-data class ChangeRequest(
-    @field:Schema(description = "STORNO, TERMINVERSCHIEBUNG oder REKLAMATION", requiredMode = REQUIRED) val kind: String,
-    @field:Schema(description = "bei TERMINVERSCHIEBUNG: neuer Termin (terminNeu)") val newDate: LocalDate? = null,
-    @field:Schema(description = "bei REKLAMATION: der Entstörauftrag mit `reklamation` (wie bei POST /orders)") val auftrag: JsonNode? = null,
+@Schema(description = "Terminverschiebung")
+data class RescheduleRequest(
+    @field:Schema(description = "neuer Termin (terminNeu)", requiredMode = REQUIRED) val newDate: LocalDate,
+)
+
+@Schema(description = "Reklamation einer abgeschlossenen Entstörung")
+data class ComplaintRequest(
+    @field:Schema(description = "der Entstörauftrag mit `reklamation` (wie bei POST /orders)", requiredMode = REQUIRED) val auftrag: JsonNode,
 )
 
 @Schema(description = "Ein Meldungscode; ohne Text wird der Text aus der Meldungscodetabelle übernommen")

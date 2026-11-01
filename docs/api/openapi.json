@@ -32,6 +32,9 @@
     "description" : "Ersteinrichtung einer neuen Installation (geschützt durch das Setup-Token aus dem Log)",
     "name" : "Setup"
   }, {
+    "description" : "Event-Feed per Polling und Webhooks (D-14)",
+    "name" : "Ereignisse"
+  }, {
     "description" : "Aufträge in allen Rollen, Änderungen und Meldungen (AUFGABE 5.5/5.6)",
     "name" : "Aufträge"
   }, {
@@ -66,93 +69,6 @@
         },
         "summary" : "Version und Build der Instanz",
         "tags" : [ "Betrieb" ]
-      }
-    },
-    "/api/v1/archive/{id}" : {
-      "get" : {
-        "operationId" : "get_5",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ArchiveEntryDto"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "summary" : "Metadaten einer archivierten Nachricht",
-        "tags" : [ "Archiv" ]
-      }
-    },
-    "/api/v1/archive/{id}/request" : {
-      "get" : {
-        "description" : "Enthält Endkundendaten; der Zugriff wird protokolliert.",
-        "operationId" : "request_1",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/xml" : {
-                "schema" : {
-                  "type" : "string",
-                  "format" : "byte"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "summary" : "Anfrage (SOAP-Envelope, byte-genau)",
-        "tags" : [ "Archiv" ]
-      }
-    },
-    "/api/v1/archive/{id}/response" : {
-      "get" : {
-        "operationId" : "response",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int64"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/xml" : {
-                "schema" : {
-                  "type" : "string",
-                  "format" : "byte"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "summary" : "Antwort (TEQ, byte-genau)",
-        "tags" : [ "Archiv" ]
       }
     },
     "/api/v1/auth/login" : {
@@ -245,7 +161,7 @@
     "/api/v1/deliveries" : {
       "get" : {
         "description" : "Neueste zuerst. Blättern mit `cursor`.",
-        "operationId" : "list_4",
+        "operationId" : "list_5",
         "parameters" : [ {
           "in" : "query",
           "name" : "status",
@@ -301,7 +217,7 @@
     },
     "/api/v1/deliveries/{id}" : {
       "get" : {
-        "operationId" : "get_4",
+        "operationId" : "get_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -330,7 +246,7 @@
     "/api/v1/deliveries/{id}/cancel" : {
       "post" : {
         "description" : "Für PENDING, UNDELIVERABLE und UNCLEAR. Gibt die folgenden Nachrichten desselben Reihenfolgeschlüssels frei.",
-        "operationId" : "cancel",
+        "operationId" : "cancel_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -388,7 +304,7 @@
     },
     "/api/v1/deliveries/{id}/retry" : {
       "post" : {
-        "description" : "Nur für UNDELIVERABLE und UNCLEAR. Bei UNCLEAR vorher mit dem Partner klären, ob der Auftrag ankam (11.2.3.1).",
+        "description" : "Für UNDELIVERABLE und für Meldungen im Status UNCLEAR. Ein Auftrag im Status UNCLEAR wird nie mit derselben Nummer erneut gesendet (NF-05, 11.2.3.1): mit neuer Auftragsnummer neu stellen und diesen Eintrag zurückziehen (409).",
         "operationId" : "retry",
         "parameters" : [ {
           "in" : "path",
@@ -442,6 +358,60 @@
         },
         "summary" : "Als per E-Mail versendet markieren",
         "tags" : [ "Zustellung" ]
+      }
+    },
+    "/api/v1/events" : {
+      "get" : {
+        "description" : "Älteste zuerst. Der Client merkt sich die größte `id` und fragt mit `after=<id>` weiter. Ereignisse erscheinen mit etwa 2 s Verzögerung, damit keines übersprungen wird, das gerade noch gespeichert wird.",
+        "operationId" : "after",
+        "parameters" : [ {
+          "description" : "Cursor: größte `id` der vorigen Antwort, 0 für den Anfang",
+          "in" : "query",
+          "name" : "after",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64",
+            "default" : 0
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 100
+          }
+        }, {
+          "description" : "nur diese Typen, kommagetrennt",
+          "in" : "query",
+          "name" : "types",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/EventDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Ereignisse nach einer Id",
+        "tags" : [ "Ereignisse" ]
       }
     },
     "/api/v1/inbox" : {
@@ -518,7 +488,7 @@
     "/api/v1/message-codes" : {
       "get" : {
         "description" : "Optional gefiltert nach Meldungstyp, z. B. `?messageType=ABM`.",
-        "operationId" : "get_1",
+        "operationId" : "get_5",
         "parameters" : [ {
           "in" : "query",
           "name" : "messageType",
@@ -541,7 +511,9 @@
         },
         "summary" : "Aktive Meldungscodetabelle",
         "tags" : [ "Meldungscodes" ]
-      },
+      }
+    },
+    "/api/v1/message-codes/import" : {
       "post" : {
         "description" : "Die Datei so, wie sie aus dem AK-Confluence exportiert wurde (UTF-16-TSV oder CSV). Sie wird versioniert gespeichert und sofort aktiv. Bei mehreren Instanzen übernehmen die anderen die Version beim nächsten Neustart.",
         "operationId" : "import",
@@ -595,10 +567,97 @@
         "tags" : [ "Meldungscodes" ]
       }
     },
+    "/api/v1/messages/{id}" : {
+      "get" : {
+        "operationId" : "get_4",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ArchiveEntryDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Metadaten einer archivierten Nachricht",
+        "tags" : [ "Archiv" ]
+      }
+    },
+    "/api/v1/messages/{id}/raw" : {
+      "get" : {
+        "description" : "Enthält Endkundendaten; der Zugriff wird protokolliert.",
+        "operationId" : "request",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/xml" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "byte"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Rohnachricht (SOAP-Envelope, byte-genau)",
+        "tags" : [ "Archiv" ]
+      }
+    },
+    "/api/v1/messages/{id}/response" : {
+      "get" : {
+        "operationId" : "response",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/xml" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "byte"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Antwort (TEQ, byte-genau)",
+        "tags" : [ "Archiv" ]
+      }
+    },
     "/api/v1/orders" : {
       "get" : {
         "description" : "Neueste zuerst. Blättern mit `cursor` = kleinste `id` der vorigen Seite.",
-        "operationId" : "list_3",
+        "operationId" : "list_4",
         "parameters" : [ {
           "in" : "query",
           "name" : "role",
@@ -685,7 +744,7 @@
       },
       "post" : {
         "description" : "Prüft gegen XSD, Anlage 1 und die Auftragsregeln und legt den Auftrag in den Postausgang. Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.",
-        "operationId" : "create_3",
+        "operationId" : "create_4",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -737,6 +796,106 @@
           }
         },
         "summary" : "Auftrag mit zulässigen Aktionen lesen",
+        "tags" : [ "Aufträge" ]
+      }
+    },
+    "/api/v1/orders/{id}/allowed-actions" : {
+      "get" : {
+        "description" : "Was wir nach dem Zustandsautomaten jetzt senden dürfen.",
+        "operationId" : "allowedActions",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ActionDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Zulässige Aktionen",
+        "tags" : [ "Aufträge" ]
+      }
+    },
+    "/api/v1/orders/{id}/cancel" : {
+      "post" : {
+        "description" : "Der Storno wird aus dem ursprünglichen Auftrag abgeleitet (5.1.3). 409 enthält in `allowedActions`, was jetzt zulässig ist.",
+        "operationId" : "cancel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Storno senden",
+        "tags" : [ "Aufträge" ]
+      }
+    },
+    "/api/v1/orders/{id}/complaint" : {
+      "post" : {
+        "description" : "Ein Entstörauftrag mit dem Element `reklamation` (6.1.5).",
+        "operationId" : "complaint",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ComplaintRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Reklamation einer Entstörung senden",
         "tags" : [ "Aufträge" ]
       }
     },
@@ -811,10 +970,10 @@
         "tags" : [ "Aufträge" ]
       }
     },
-    "/api/v1/orders/{id}/requests" : {
+    "/api/v1/orders/{id}/reschedule" : {
       "post" : {
-        "description" : "Storno und Terminverschiebung werden aus dem ursprünglichen Auftrag abgeleitet (5.1.3/5.1.4). 409 enthält in `allowedActions`, was jetzt zulässig ist.",
-        "operationId" : "request",
+        "description" : "Der ursprüngliche Auftrag mit `terminNeu` (5.1.4).",
+        "operationId" : "reschedule",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -828,7 +987,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/ChangeRequest"
+                "$ref" : "#/components/schemas/RescheduleRequest"
               }
             }
           },
@@ -846,13 +1005,13 @@
             "description" : "Accepted"
           }
         },
-        "summary" : "Storno, Terminverschiebung oder Reklamation senden",
+        "summary" : "Terminverschiebung senden",
         "tags" : [ "Aufträge" ]
       }
     },
     "/api/v1/partners" : {
       "get" : {
-        "operationId" : "list_2",
+        "operationId" : "list_3",
         "responses" : {
           "200" : {
             "content" : {
@@ -872,7 +1031,7 @@
         "tags" : [ "Partner" ]
       },
       "post" : {
-        "operationId" : "create_2",
+        "operationId" : "create_3",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -967,7 +1126,7 @@
         "tags" : [ "Partner" ]
       },
       "patch" : {
-        "operationId" : "update_1",
+        "operationId" : "update_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -1116,7 +1275,7 @@
     },
     "/api/v1/settings" : {
       "get" : {
-        "operationId" : "get",
+        "operationId" : "get_1",
         "responses" : {
           "200" : {
             "content" : {
@@ -1267,7 +1426,7 @@
     },
     "/api/v1/tokens" : {
       "get" : {
-        "operationId" : "list_1",
+        "operationId" : "list_2",
         "responses" : {
           "200" : {
             "content" : {
@@ -1288,7 +1447,7 @@
       },
       "post" : {
         "description" : "Das Geheimnis wird nur in der Antwort angezeigt; gespeichert wird ausschließlich sein Hash.",
-        "operationId" : "create_1",
+        "operationId" : "create_2",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -1339,7 +1498,7 @@
     },
     "/api/v1/users" : {
       "get" : {
-        "operationId" : "list",
+        "operationId" : "list_1",
         "responses" : {
           "200" : {
             "content" : {
@@ -1359,7 +1518,7 @@
         "tags" : [ "Benutzer" ]
       },
       "post" : {
-        "operationId" : "create",
+        "operationId" : "create_1",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -1389,7 +1548,7 @@
     "/api/v1/users/{id}" : {
       "patch" : {
         "description" : "Name, Rolle, Sperre oder Passwort.",
-        "operationId" : "update",
+        "operationId" : "update_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -1423,6 +1582,141 @@
         },
         "summary" : "Benutzer ändern",
         "tags" : [ "Benutzer" ]
+      }
+    },
+    "/api/v1/webhooks" : {
+      "get" : {
+        "operationId" : "list",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/WebhookDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Webhooks auflisten",
+        "tags" : [ "Ereignisse" ]
+      },
+      "post" : {
+        "description" : "Der Empfänger erhält alle Ereignisse **ab jetzt**, ältere liest er über GET /events. Das Geheimnis wird verschlüsselt gespeichert und nur in dieser Antwort angezeigt. Braucht `OPENSPRI_MASTER_KEY`.",
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/WebhookRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreatedWebhookDto"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Webhook anlegen",
+        "tags" : [ "Ereignisse" ]
+      }
+    },
+    "/api/v1/webhooks/{id}" : {
+      "delete" : {
+        "operationId" : "delete",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : { },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Webhook löschen",
+        "tags" : [ "Ereignisse" ]
+      },
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WebhookDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Webhook lesen",
+        "tags" : [ "Ereignisse" ]
+      },
+      "put" : {
+        "description" : "Das Geheimnis bleibt; für ein neues Geheimnis den Webhook neu anlegen.",
+        "operationId" : "update",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/WebhookRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WebhookDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Webhook ändern",
+        "tags" : [ "Ereignisse" ]
       }
     }
   },
@@ -1470,7 +1764,7 @@
           },
           "kind" : {
             "type" : "string",
-            "description" : "MESSAGE (POST /orders/{id}/messages) oder REQUEST (POST /orders/{id}/requests)"
+            "description" : "MESSAGE (POST /orders/{id}/messages) oder REQUEST (STORNO: /cancel, TERMINVERSCHIEBUNG: /reschedule, REKLAMATION: /complaint)"
           },
           "messageType" : {
             "type" : [ "string", "null" ],
@@ -1594,30 +1888,6 @@
         },
         "required" : [ "pem" ]
       },
-      "ChangeRequest" : {
-        "type" : "object",
-        "description" : "Storno, Terminverschiebung oder Reklamation zu einem eigenen Auftrag",
-        "properties" : {
-          "auftrag" : {
-            "description" : "bei REKLAMATION: der Entstörauftrag mit `reklamation` (wie bei POST /orders)",
-            "oneOf" : [ {
-              "$ref" : "#/components/schemas/JsonNode"
-            }, {
-              "type" : "null"
-            } ]
-          },
-          "kind" : {
-            "type" : "string",
-            "description" : "STORNO, TERMINVERSCHIEBUNG oder REKLAMATION"
-          },
-          "newDate" : {
-            "type" : [ "string", "null" ],
-            "format" : "date",
-            "description" : "bei TERMINVERSCHIEBUNG: neuer Termin (terminNeu)"
-          }
-        },
-        "required" : [ "kind" ]
-      },
       "CodeDto" : {
         "type" : "object",
         "description" : "Ein Meldungscode; ohne Text wird der Text aus der Meldungscodetabelle übernommen",
@@ -1698,6 +1968,17 @@
           }
         },
         "required" : [ "carrierCode", "contactEmail", "name", "roleAuftraggeber", "roleLeistungserbringer" ]
+      },
+      "ComplaintRequest" : {
+        "type" : "object",
+        "description" : "Reklamation einer abgeschlossenen Entstörung",
+        "properties" : {
+          "auftrag" : {
+            "$ref" : "#/components/schemas/JsonNode",
+            "description" : "der Entstörauftrag mit `reklamation` (wie bei POST /orders)"
+          }
+        },
+        "required" : [ "auftrag" ]
       },
       "CreateOrderRequest" : {
         "type" : "object",
@@ -1818,6 +2099,21 @@
         },
         "required" : [ "details", "token" ]
       },
+      "CreatedWebhookDto" : {
+        "type" : "object",
+        "description" : "Angelegter Webhook mit Geheimnis. Das Geheimnis wird nur dieses eine Mal angezeigt.",
+        "properties" : {
+          "secret" : {
+            "type" : "string",
+            "description" : "HMAC-SHA256-Schlüssel für `X-OpenSpri-Signature`",
+            "example" : "whsec_…"
+          },
+          "webhook" : {
+            "$ref" : "#/components/schemas/WebhookDto"
+          }
+        },
+        "required" : [ "secret", "webhook" ]
+      },
       "DeliveryDto" : {
         "type" : "object",
         "description" : "Eine ausgehende Nachricht im Postausgang",
@@ -1875,6 +2171,79 @@
         },
         "required" : [ "attempts", "createdAt", "id", "nextAttemptAt", "operation", "partnerId", "status", "type" ]
       },
+      "EventDto" : {
+        "type" : "object",
+        "description" : "Ein Ereignis. Enthält Kennungen, Status und Meldungscodes, aber keine Endkundendaten; den Auftrag liest man über GET /orders/{orderId}.",
+        "properties" : {
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "businessCase" : {
+            "type" : [ "string", "null" ]
+          },
+          "changeIndicator" : {
+            "type" : [ "string", "null" ],
+            "example" : "Standard"
+          },
+          "codes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "deliveryId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "bei delivery.updated: Id im Postausgang"
+          },
+          "deliveryStatus" : {
+            "type" : [ "string", "null" ],
+            "description" : "bei delivery.updated: neuer Zustellstatus"
+          },
+          "externalOrderNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "findings" : {
+            "type" : "array",
+            "description" : "Befunde der Prüfungen, z. B. warum eine Meldung nicht zum Ablauf passte",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "streng steigend; Cursor für `after`"
+          },
+          "messageType" : {
+            "type" : [ "string", "null" ],
+            "example" : "TAM"
+          },
+          "orderId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "phase" : {
+            "type" : [ "string", "null" ],
+            "description" : "Phase des Auftrags nach dem Ereignis"
+          },
+          "role" : {
+            "type" : [ "string", "null" ],
+            "description" : "unsere Rolle im Auftrag"
+          },
+          "type" : {
+            "type" : "string",
+            "description" : "order.received, request.received, message.received, order.submitted, request.submitted, message.submitted, delivery.updated",
+            "example" : "message.received"
+          }
+        },
+        "required" : [ "at", "codes", "findings", "id", "partnerId", "type" ]
+      },
       "HistoryDto" : {
         "type" : "object",
         "description" : "Ein Eintrag im Verlauf: Auftrag, Änderung oder Meldung mit den Befunden der Prüfungen",
@@ -1882,7 +2251,7 @@
           "archiveId" : {
             "type" : [ "integer", "null" ],
             "format" : "int64",
-            "description" : "ein- oder ausgehend: Archiv-Id der Rohnachricht (nur eingehend)"
+            "description" : "eingehend: Id der Rohnachricht (GET /messages/{id}/raw); ausgehend: siehe GET /deliveries?orderId=…"
           },
           "at" : {
             "type" : "string",
@@ -1896,6 +2265,10 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "direction" : {
+            "type" : "string",
+            "description" : "INBOUND (vom Partner) oder OUTBOUND (von uns)"
           },
           "findings" : {
             "type" : "array",
@@ -1912,7 +2285,7 @@
             "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "at", "changeIndicator", "codes", "findings", "kind" ]
+        "required" : [ "at", "changeIndicator", "codes", "direction", "findings", "kind" ]
       },
       "InboxDto" : {
         "type" : "object",
@@ -1921,7 +2294,7 @@
           "archiveId" : {
             "type" : "integer",
             "format" : "int64",
-            "description" : "Rohnachricht: GET /archive/{archiveId}"
+            "description" : "Rohnachricht: GET /messages/{archiveId}/raw"
           },
           "error" : {
             "type" : [ "string", "null" ]
@@ -2344,6 +2717,18 @@
         },
         "required" : [ "allowedSourceNetworks", "carrierCode", "certificates", "enabled", "id", "name" ]
       },
+      "RescheduleRequest" : {
+        "type" : "object",
+        "description" : "Terminverschiebung",
+        "properties" : {
+          "newDate" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "neuer Termin (terminNeu)"
+          }
+        },
+        "required" : [ "newDate" ]
+      },
       "SendMessageRequest" : {
         "type" : "object",
         "description" : "Eine Meldung zu einem Auftrag. Kopf, externe Auftragsnummer und Auftraggebernummer übernimmt open-spri aus dem Auftrag.",
@@ -2586,6 +2971,83 @@
           }
         },
         "required" : [ "createdAt", "displayName", "enabled", "id", "role", "username" ]
+      },
+      "WebhookDto" : {
+        "type" : "object",
+        "description" : "Ein Webhook-Empfänger",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "failures" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Fehlversuche in Folge"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ]
+          },
+          "lastEventId" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Id des zuletzt zugestellten Ereignisses"
+          },
+          "lastSuccessAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "nextAttemptAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "types" : {
+            "type" : "array",
+            "description" : "Ereignistypen; leer = alle",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "url" : {
+            "type" : "string",
+            "example" : "https://crm.example.invalid/hooks/open-spri"
+          }
+        },
+        "required" : [ "createdAt", "enabled", "failures", "id", "lastEventId", "nextAttemptAt", "types", "url" ]
+      },
+      "WebhookRequest" : {
+        "type" : "object",
+        "description" : "Neuer Webhook-Empfänger oder Änderung",
+        "properties" : {
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "types" : {
+            "type" : "array",
+            "description" : "Ereignistypen; leer = alle",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "url" : {
+            "type" : "string",
+            "description" : "http(s)-URL des Empfängers"
+          }
+        },
+        "required" : [ "url" ]
       }
     }
   }

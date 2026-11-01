@@ -1,6 +1,8 @@
 package de.openspri.soap.config
 
+import de.openspri.domain.delivery.DeliveryOperations
 import de.openspri.domain.delivery.DeliveryService
+import de.openspri.domain.event.EventLog
 import de.openspri.domain.delivery.Notifier
 import de.openspri.domain.delivery.OutageRegistry
 import de.openspri.domain.delivery.Outbox
@@ -68,19 +70,24 @@ class DeliveryConfiguration {
         MailNotifier(mail.ifAvailable?.takeUnless { (it as? org.springframework.mail.javamail.JavaMailSenderImpl)?.host.isNullOrBlank() }, partners, properties)
 
     @Bean
-    fun deliveryService(outbox: Outbox, sender: OutboxSender, outages: OutageRegistry, notifier: Notifier, properties: OutboxProperties) =
+    fun deliveryService(outbox: Outbox, sender: OutboxSender, outages: OutageRegistry, notifier: Notifier, properties: OutboxProperties, events: EventLog) =
         DeliveryService(
             outbox, sender, outages, notifier,
             RetryPolicy(properties.retryInterval, properties.maxAttempts, properties.overloadedInterval),
             properties.outageNotificationInterval,
+            events = events,
         )
+
+    @Bean
+    fun deliveryOperations(outbox: Outbox, deliveries: DeliveryQueries, transactions: Transactions, events: EventLog) =
+        DeliveryOperations(outbox, deliveries, transactions, events)
 
     @Bean
     fun outboxSender(partners: PartnerDirectory, client: SpriClient) = OutboxSender(partners, client)
 
     @Bean
-    fun outboundOrderService(orders: OrderRepository, outbox: Outbox, codes: MessageCodeCatalogHolder, transactions: Transactions) =
-        OutboundOrderService(orders, outbox, codes::get, transactions)
+    fun outboundOrderService(orders: OrderRepository, outbox: Outbox, codes: MessageCodeCatalogHolder, transactions: Transactions, events: EventLog) =
+        OutboundOrderService(orders, outbox, codes::get, transactions, events = events)
 
     @Bean
     fun outboundPayloads(schema: SpriSchema, keys: SigningKeyHolder) = OutboundPayloads(schema, keys::current)

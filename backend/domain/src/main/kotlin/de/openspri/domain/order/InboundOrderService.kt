@@ -2,6 +2,9 @@ package de.openspri.domain.order
 
 import de.openspri.domain.BusinessCase
 import de.openspri.domain.ChangeIndicator
+import de.openspri.domain.event.BusinessEvent
+import de.openspri.domain.event.EventLog
+import de.openspri.domain.exchange.Direction.INBOUND
 import de.openspri.domain.message.CodeCheck
 import de.openspri.domain.message.MessageCodeCatalog
 import de.openspri.domain.message.MessageType
@@ -34,6 +37,7 @@ class InboundOrderService(
     private val orders: OrderRepository,
     private val codes: () -> MessageCodeCatalog,
     private val clock: Clock = Clock.systemDefaultZone(),
+    private val events: EventLog = EventLog.NONE,
 ) {
 
     /** An order of a partner to us (we are Leistungserbringer). */
@@ -46,7 +50,7 @@ class InboundOrderService(
             if (existing != null) {
                 // specification 11.4: the repeated order is rejected; the original stays unchanged
                 val findings = listOf("Dublette (11.4): Auftrag ${data.externalOrderNumber} liegt bereits vor - ABBM 1010")
-                orders.append(OrderHistoryEntry(existing.id, partnerId, archiveId, OrderHistoryEntry.Kind.ORDER, findings = findings, at = now))
+                record(OrderHistoryEntry(existing.id, partnerId, archiveId, OrderHistoryEntry.Kind.ORDER, findings = findings, at = now, direction = INBOUND), existing, data.externalOrderNumber)
                 return ProcessingResult(existing.id, findings)
             }
             val findings = OrderRules.check(data, today).toMutableList()
@@ -58,7 +62,7 @@ class InboundOrderService(
             val state = if (data.businessCase == BusinessCase.KUE_LE) OrderLifecycle.announcedByLeistungserbringer()
             else OrderLifecycle.submitted(data.businessCase, connectivity = data.connectivity, bracketed = data.bracketId != null)
             val saved = orders.save(Order(null, partnerId, OrderRole.LEISTUNGSERBRINGER, data, state, now, now))
-            orders.append(OrderHistoryEntry(saved.id, partnerId, archiveId, OrderHistoryEntry.Kind.ORDER, findings = findings, at = now))
+            record(OrderHistoryEntry(saved.id, partnerId, archiveId, OrderHistoryEntry.Kind.ORDER, findings = findings, at = now, direction = INBOUND), saved, data.externalOrderNumber)
             return ProcessingResult(saved.id, findings)
         }
 
@@ -70,7 +74,7 @@ class InboundOrderService(
         }
         if (existing == null) {
             val findings = listOf("${kind.changeIndicator.code} zu unbekanntem Auftrag ${data.externalOrderNumber}")
-            orders.append(OrderHistoryEntry(null, partnerId, archiveId, OrderHistoryEntry.Kind.REQUEST, changeIndicator = kind.changeIndicator, findings = findings, at = now))
+            record(OrderHistoryEntry(null, partnerId, archiveId, OrderHistoryEntry.Kind.REQUEST, changeIndicator = kind.changeIndicator, findings = findings, at = now, direction = INBOUND), null, data.externalOrderNumber)
             return ProcessingResult(null, findings)
         }
         val findings = OrderRules.check(data, today, original = existing.data).toMutableList()
@@ -83,7 +87,7 @@ class InboundOrderService(
             }
             is Transition.Rejected -> { findings += transition.reason; existing }
         }
-        orders.append(OrderHistoryEntry(updated.id, partnerId, archiveId, OrderHistoryEntry.Kind.REQUEST, changeIndicator = kind.changeIndicator, findings = findings, at = now))
+        record(OrderHistoryEntry(updated.id, partnerId, archiveId, OrderHistoryEntry.Kind.REQUEST, changeIndicator = kind.changeIndicator, findings = findings, at = now, direction = INBOUND), updated, data.externalOrderNumber)
         return ProcessingResult(updated.id, findings)
     }
 
@@ -111,7 +115,7 @@ class InboundOrderService(
         }
         if (order == null) {
             findings += "${message.type.code} zu unbekanntem Auftrag ${message.externalOrderNumber}"
-            orders.append(history(null, partnerId, archiveId, message, findings, now))
+            record(history(null, partnerId, archiveId, message, findings, now), null, message.externalOrderNumber)
             return ProcessingResult(null, findings)
         }
 
@@ -125,8 +129,14 @@ class InboundOrderService(
             }
             is Transition.Rejected -> { findings += "Ablauf: ${transition.reason}"; order }
         }
-        orders.append(history(updated.id, partnerId, archiveId, message, findings, now))
+        record(history(updated.id, partnerId, archiveId, message, findings, now), updated, message.externalOrderNumber)
         return ProcessingResult(updated.id, findings)
+    }
+
+    /** History entry and event in the same transaction (the inbox item's). */
+    private fun record(entry: OrderHistoryEntry, order: Order?, externalOrderNumber: String) {
+        orders.append(entry)
+        events.publish(BusinessEvent.of(entry, order, externalOrderNumber))
     }
 
     private fun newOrder(partnerId: PartnerId, role: OrderRole, message: MessageInfo, state: OrderState, now: java.time.Instant) =
@@ -137,5 +147,5 @@ class InboundOrderService(
         )
 
     private fun history(orderId: OrderId?, partnerId: PartnerId, archiveId: Long?, message: MessageInfo, findings: List<String>, now: java.time.Instant) =
-        OrderHistoryEntry(orderId, partnerId, archiveId, OrderHistoryEntry.Kind.MESSAGE, message.type, message.changeIndicator, message.codes, findings, now)
+        OrderHistoryEntry(orderId, partnerId, archiveId, OrderHistoryEntry.Kind.MESSAGE, message.type, message.changeIndicator, message.codes, findings, now, INBOUND)
 }

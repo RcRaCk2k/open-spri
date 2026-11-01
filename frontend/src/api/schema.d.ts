@@ -24,60 +24,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/archive/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Metadaten einer archivierten Nachricht */
-        get: operations["get_5"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/archive/{id}/request": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Anfrage (SOAP-Envelope, byte-genau)
-         * @description Enthält Endkundendaten; der Zugriff wird protokolliert.
-         */
-        get: operations["request_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/archive/{id}/response": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Antwort (TEQ, byte-genau) */
-        get: operations["response"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -169,7 +115,7 @@ export interface paths {
          * Postausgang
          * @description Neueste zuerst. Blättern mit `cursor`.
          */
-        get: operations["list_4"];
+        get: operations["list_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -186,7 +132,7 @@ export interface paths {
             cookie?: never;
         };
         /** Eine ausgehende Nachricht */
-        get: operations["get_4"];
+        get: operations["get_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -208,7 +154,7 @@ export interface paths {
          * Zurückziehen
          * @description Für PENDING, UNDELIVERABLE und UNCLEAR. Gibt die folgenden Nachrichten desselben Reihenfolgeschlüssels frei.
          */
-        post: operations["cancel"];
+        post: operations["cancel_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -246,7 +192,7 @@ export interface paths {
         put?: never;
         /**
          * Erneut senden
-         * @description Nur für UNDELIVERABLE und UNCLEAR. Bei UNCLEAR vorher mit dem Partner klären, ob der Auftrag ankam (11.2.3.1).
+         * @description Für UNDELIVERABLE und für Meldungen im Status UNCLEAR. Ein Auftrag im Status UNCLEAR wird nie mit derselben Nummer erneut gesendet (NF-05, 11.2.3.1): mit neuer Auftragsnummer neu stellen und diesen Eintrag zurückziehen (409).
          */
         post: operations["retry"];
         delete?: never;
@@ -269,6 +215,26 @@ export interface paths {
          * @description Ersatzweg nach 11.2.3.2; nur für UNDELIVERABLE und UNCLEAR.
          */
         post: operations["sentByEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ereignisse nach einer Id
+         * @description Älteste zuerst. Der Client merkt sich die größte `id` und fragt mit `after=<id>` weiter. Ereignisse erscheinen mit etwa 2 s Verzögerung, damit keines übersprungen wird, das gerade noch gespeichert wird.
+         */
+        get: operations["after"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -326,13 +292,83 @@ export interface paths {
          * Aktive Meldungscodetabelle
          * @description Optional gefiltert nach Meldungstyp, z. B. `?messageType=ABM`.
          */
-        get: operations["get_1"];
+        get: operations["get_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/message-codes/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
         put?: never;
         /**
          * Neue Version importieren
          * @description Die Datei so, wie sie aus dem AK-Confluence exportiert wurde (UTF-16-TSV oder CSV). Sie wird versioniert gespeichert und sofort aktiv. Bei mehreren Instanzen übernehmen die anderen die Version beim nächsten Neustart.
          */
         post: operations["import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/messages/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Metadaten einer archivierten Nachricht */
+        get: operations["get_4"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/messages/{id}/raw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rohnachricht (SOAP-Envelope, byte-genau)
+         * @description Enthält Endkundendaten; der Zugriff wird protokolliert.
+         */
+        get: operations["request"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/messages/{id}/response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Antwort (TEQ, byte-genau) */
+        get: operations["response"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -350,13 +386,13 @@ export interface paths {
          * Aufträge suchen
          * @description Neueste zuerst. Blättern mit `cursor` = kleinste `id` der vorigen Seite.
          */
-        get: operations["list_3"];
+        get: operations["list_4"];
         put?: never;
         /**
          * Auftrag an einen Partner senden
          * @description Prüft gegen XSD, Anlage 1 und die Auftragsregeln und legt den Auftrag in den Postausgang. Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.
          */
-        post: operations["create_3"];
+        post: operations["create_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -374,6 +410,66 @@ export interface paths {
         get: operations["get_3"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/allowed-actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Zulässige Aktionen
+         * @description Was wir nach dem Zustandsautomaten jetzt senden dürfen.
+         */
+        get: operations["allowedActions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Storno senden
+         * @description Der Storno wird aus dem ursprünglichen Auftrag abgeleitet (5.1.3). 409 enthält in `allowedActions`, was jetzt zulässig ist.
+         */
+        post: operations["cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/complaint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reklamation einer Entstörung senden
+         * @description Ein Entstörauftrag mit dem Element `reklamation` (6.1.5).
+         */
+        post: operations["complaint"];
         delete?: never;
         options?: never;
         head?: never;
@@ -420,7 +516,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/orders/{id}/requests": {
+    "/api/v1/orders/{id}/reschedule": {
         parameters: {
             query?: never;
             header?: never;
@@ -430,10 +526,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Storno, Terminverschiebung oder Reklamation senden
-         * @description Storno und Terminverschiebung werden aus dem ursprünglichen Auftrag abgeleitet (5.1.3/5.1.4). 409 enthält in `allowedActions`, was jetzt zulässig ist.
+         * Terminverschiebung senden
+         * @description Der ursprüngliche Auftrag mit `terminNeu` (5.1.4).
          */
-        post: operations["request"];
+        post: operations["reschedule"];
         delete?: never;
         options?: never;
         head?: never;
@@ -448,10 +544,10 @@ export interface paths {
             cookie?: never;
         };
         /** Partner auflisten */
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         /** Partner anlegen */
-        post: operations["create_2"];
+        post: operations["create_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -513,7 +609,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Partner ändern */
-        patch: operations["update_1"];
+        patch: operations["update_2"];
         trace?: never;
     };
     "/api/v1/partners/{id}/certificates": {
@@ -581,7 +677,7 @@ export interface paths {
             cookie?: never;
         };
         /** Firmendaten und Optionen */
-        get: operations["get"];
+        get: operations["get_1"];
         /** Firmendaten und Optionen ändern */
         put: operations["put"];
         post?: never;
@@ -647,13 +743,13 @@ export interface paths {
             cookie?: never;
         };
         /** Tokens auflisten */
-        get: operations["list_1"];
+        get: operations["list_2"];
         put?: never;
         /**
          * Token anlegen
          * @description Das Geheimnis wird nur in der Antwort angezeigt; gespeichert wird ausschließlich sein Hash.
          */
-        post: operations["create_1"];
+        post: operations["create_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -688,10 +784,10 @@ export interface paths {
             cookie?: never;
         };
         /** Benutzer auflisten */
-        get: operations["list"];
+        get: operations["list_1"];
         put?: never;
         /** Benutzer anlegen */
-        post: operations["create"];
+        post: operations["create_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -715,7 +811,50 @@ export interface paths {
          * Benutzer ändern
          * @description Name, Rolle, Sperre oder Passwort.
          */
-        patch: operations["update"];
+        patch: operations["update_1"];
+        trace?: never;
+    };
+    "/api/v1/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Webhooks auflisten */
+        get: operations["list"];
+        put?: never;
+        /**
+         * Webhook anlegen
+         * @description Der Empfänger erhält alle Ereignisse **ab jetzt**, ältere liest er über GET /events. Das Geheimnis wird verschlüsselt gespeichert und nur in dieser Antwort angezeigt. Braucht `OPENSPRI_MASTER_KEY`.
+         */
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Webhook lesen */
+        get: operations["get"];
+        /**
+         * Webhook ändern
+         * @description Das Geheimnis bleibt; für ein neues Geheimnis den Webhook neu anlegen.
+         */
+        put: operations["update"];
+        post?: never;
+        /** Webhook löschen */
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }
@@ -754,7 +893,7 @@ export interface components {
              * @example Standard
              */
             changeIndicator?: string | null;
-            /** @description MESSAGE (POST /orders/{id}/messages) oder REQUEST (POST /orders/{id}/requests) */
+            /** @description MESSAGE (POST /orders/{id}/messages) oder REQUEST (STORNO: /cancel, TERMINVERSCHIEBUNG: /reschedule, REKLAMATION: /complaint) */
             kind: string;
             /**
              * @description bei MESSAGE: Meldungstyp
@@ -814,18 +953,6 @@ export interface components {
         CertificateRequest: {
             pem: string;
         };
-        /** @description Storno, Terminverschiebung oder Reklamation zu einem eigenen Auftrag */
-        ChangeRequest: {
-            /** @description bei REKLAMATION: der Entstörauftrag mit `reklamation` (wie bei POST /orders) */
-            auftrag?: components["schemas"]["JsonNode"] | null;
-            /** @description STORNO, TERMINVERSCHIEBUNG oder REKLAMATION */
-            kind: string;
-            /**
-             * Format: date
-             * @description bei TERMINVERSCHIEBUNG: neuer Termin (terminNeu)
-             */
-            newDate?: string | null;
-        };
         /** @description Ein Meldungscode; ohne Text wird der Text aus der Meldungscodetabelle übernommen */
         CodeDto: {
             /** @example 0000 */
@@ -871,6 +998,11 @@ export interface components {
             thirdPartyOrdersEnabled?: boolean;
             /** @enum {string} */
             wbciMode?: "SERVICE_PROVIDER" | "OWN_INTERFACE" | "NONE";
+        };
+        /** @description Reklamation einer abgeschlossenen Entstörung */
+        ComplaintRequest: {
+            /** @description der Entstörauftrag mit `reklamation` (wie bei POST /orders) */
+            auftrag: components["schemas"]["JsonNode"];
         };
         /** @description Neuer Auftrag an einen Partner (wir sind Auftraggeber) */
         CreateOrderRequest: {
@@ -938,6 +1070,15 @@ export interface components {
             /** @example spri_Ab3dE7fG_… */
             token: string;
         };
+        /** @description Angelegter Webhook mit Geheimnis. Das Geheimnis wird nur dieses eine Mal angezeigt. */
+        CreatedWebhookDto: {
+            /**
+             * @description HMAC-SHA256-Schlüssel für `X-OpenSpri-Signature`
+             * @example whsec_…
+             */
+            secret: string;
+            webhook: components["schemas"]["WebhookDto"];
+        };
         /** @description Eine ausgehende Nachricht im Postausgang */
         DeliveryDto: {
             /** Format: int32 */
@@ -965,17 +1106,58 @@ export interface components {
             /** @description ORDER oder MESSAGE */
             type: string;
         };
+        /** @description Ein Ereignis. Enthält Kennungen, Status und Meldungscodes, aber keine Endkundendaten; den Auftrag liest man über GET /orders/{orderId}. */
+        EventDto: {
+            /** Format: date-time */
+            at: string;
+            businessCase?: string | null;
+            /** @example Standard */
+            changeIndicator?: string | null;
+            codes: string[];
+            /**
+             * Format: int64
+             * @description bei delivery.updated: Id im Postausgang
+             */
+            deliveryId?: number | null;
+            /** @description bei delivery.updated: neuer Zustellstatus */
+            deliveryStatus?: string | null;
+            externalOrderNumber?: string | null;
+            /** @description Befunde der Prüfungen, z. B. warum eine Meldung nicht zum Ablauf passte */
+            findings: string[];
+            /**
+             * Format: int64
+             * @description streng steigend; Cursor für `after`
+             */
+            id: number;
+            /** @example TAM */
+            messageType?: string | null;
+            /** Format: int64 */
+            orderId?: number | null;
+            /** Format: int64 */
+            partnerId: number;
+            /** @description Phase des Auftrags nach dem Ereignis */
+            phase?: string | null;
+            /** @description unsere Rolle im Auftrag */
+            role?: string | null;
+            /**
+             * @description order.received, request.received, message.received, order.submitted, request.submitted, message.submitted, delivery.updated
+             * @example message.received
+             */
+            type: string;
+        };
         /** @description Ein Eintrag im Verlauf: Auftrag, Änderung oder Meldung mit den Befunden der Prüfungen */
         HistoryDto: {
             /**
              * Format: int64
-             * @description ein- oder ausgehend: Archiv-Id der Rohnachricht (nur eingehend)
+             * @description eingehend: Id der Rohnachricht (GET /messages/{id}/raw); ausgehend: siehe GET /deliveries?orderId=…
              */
             archiveId?: number | null;
             /** Format: date-time */
             at: string;
             changeIndicator: string;
             codes: string[];
+            /** @description INBOUND (vom Partner) oder OUTBOUND (von uns) */
+            direction: string;
             /** @description Befunde der Prüfungen (z. B. Anlage 1 im Report-Modus) */
             findings: string[];
             /** @description ORDER, REQUEST oder MESSAGE */
@@ -986,7 +1168,7 @@ export interface components {
         InboxDto: {
             /**
              * Format: int64
-             * @description Rohnachricht: GET /archive/{archiveId}
+             * @description Rohnachricht: GET /messages/{archiveId}/raw
              */
             archiveId: number;
             error?: string | null;
@@ -1166,6 +1348,14 @@ export interface components {
             /** @description technischer Kontakt; erhält die Ausfall-Mail (11.2.3.2) */
             technicalContactEmail?: string | null;
         };
+        /** @description Terminverschiebung */
+        RescheduleRequest: {
+            /**
+             * Format: date
+             * @description neuer Termin (terminNeu)
+             */
+            newDate: string;
+        };
         /** @description Eine Meldung zu einem Auftrag. Kopf, externe Auftragsnummer und Auftraggebernummer übernimmt open-spri aus dem Auftrag. */
         SendMessageRequest: {
             /** @description weitere `meldungsattribute` des XSD-Typs `Meldungsattribute<Typ>Type`, z. B. `{"verbindlicherLiefertermin": "2026-12-01"}` bei ABM */
@@ -1282,6 +1472,43 @@ export interface components {
             role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION";
             username: string;
         };
+        /** @description Ein Webhook-Empfänger */
+        WebhookDto: {
+            /** Format: date-time */
+            createdAt: string;
+            description?: string | null;
+            enabled: boolean;
+            /**
+             * Format: int32
+             * @description Fehlversuche in Folge
+             */
+            failures: number;
+            /** Format: int64 */
+            id: number;
+            lastError?: string | null;
+            /**
+             * Format: int64
+             * @description Id des zuletzt zugestellten Ereignisses
+             */
+            lastEventId: number;
+            /** Format: date-time */
+            lastSuccessAt?: string | null;
+            /** Format: date-time */
+            nextAttemptAt: string;
+            /** @description Ereignistypen; leer = alle */
+            types: string[];
+            /** @example https://crm.example.invalid/hooks/open-spri */
+            url: string;
+        };
+        /** @description Neuer Webhook-Empfänger oder Änderung */
+        WebhookRequest: {
+            description?: string | null;
+            enabled?: boolean;
+            /** @description Ereignistypen; leer = alle */
+            types?: string[];
+            /** @description http(s)-URL des Empfängers */
+            url: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1307,72 +1534,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AboutResponse"];
-                };
-            };
-        };
-    };
-    get_5: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ArchiveEntryDto"];
-                };
-            };
-        };
-    };
-    request_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/xml": string;
-                };
-            };
-        };
-    };
-    response: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/xml": string;
                 };
             };
         };
@@ -1459,7 +1620,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    list_5: {
         parameters: {
             query?: {
                 status?: string;
@@ -1485,7 +1646,7 @@ export interface operations {
             };
         };
     };
-    get_4: {
+    get_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -1507,7 +1668,7 @@ export interface operations {
             };
         };
     };
-    cancel: {
+    cancel_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1595,6 +1756,32 @@ export interface operations {
             };
         };
     };
+    after: {
+        parameters: {
+            query?: {
+                /** @description Cursor: größte `id` der vorigen Antwort, 0 für den Anfang */
+                after?: number;
+                limit?: number;
+                /** @description nur diese Typen, kommagetrennt */
+                types?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventDto"][];
+                };
+            };
+        };
+    };
     inbox: {
         parameters: {
             query?: {
@@ -1640,7 +1827,7 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    get_5: {
         parameters: {
             query?: {
                 messageType?: string;
@@ -1694,7 +1881,73 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    get_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveEntryDto"];
+                };
+            };
+        };
+    };
+    request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+        };
+    };
+    response: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+        };
+    };
+    list_4: {
         parameters: {
             query?: {
                 role?: string;
@@ -1727,7 +1980,7 @@ export interface operations {
             };
         };
     };
-    create_3: {
+    create_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -1764,6 +2017,76 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
+                };
+            };
+        };
+    };
+    allowedActions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionDto"][];
+                };
+            };
+        };
+    };
+    cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
+                };
+            };
+        };
+    };
+    complaint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComplaintRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1821,7 +2144,7 @@ export interface operations {
             };
         };
     };
-    request: {
+    reschedule: {
         parameters: {
             query?: never;
             header?: never;
@@ -1832,7 +2155,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ChangeRequest"];
+                "application/json": components["schemas"]["RescheduleRequest"];
             };
         };
         responses: {
@@ -1847,7 +2170,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -1867,7 +2190,7 @@ export interface operations {
             };
         };
     };
-    create_2: {
+    create_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -1953,7 +2276,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -2052,7 +2375,7 @@ export interface operations {
             };
         };
     };
-    get: {
+    get_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2187,7 +2510,7 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    list_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -2207,7 +2530,7 @@ export interface operations {
             };
         };
     };
-    create_1: {
+    create_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -2251,7 +2574,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    list_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2271,7 +2594,7 @@ export interface operations {
             };
         };
     };
-    create: {
+    create_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2295,7 +2618,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    update_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2318,6 +2641,118 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserResponse"];
                 };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDto"][];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedWebhookDto"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDto"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDto"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

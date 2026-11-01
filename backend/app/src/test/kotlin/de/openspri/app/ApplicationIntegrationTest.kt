@@ -27,7 +27,7 @@ import kotlin.test.assertIs
 @SpringBootTest(
     classes = [OpenSpriApplication::class],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["openspri.inbox.initial-delay=0s", "openspri.inbox.poll-interval=200ms"],
+    properties = ["openspri.inbox.initial-delay=0s", "openspri.inbox.poll-interval=200ms", "openspri.webhooks.initial-delay=1h"],
 )
 @AutoConfigureMockMvc
 @Testcontainers(disabledWithoutDocker = true)
@@ -41,6 +41,8 @@ class ApplicationIntegrationTest(
     @Autowired private val outbox: de.openspri.persistence.JdbcOutbox,
     @Autowired private val inbox: de.openspri.persistence.JdbcInboxQueue,
     @Autowired private val archive: de.openspri.persistence.JdbcMessageArchive,
+    @Autowired private val events: de.openspri.persistence.JdbcEvents,
+    @Autowired private val idempotency: de.openspri.persistence.JdbcIdempotencyStore,
 ) {
     @LocalServerPort
     private var port = 0
@@ -119,7 +121,7 @@ class ApplicationIntegrationTest(
                 de.openspri.domain.order.OrderLifecycle.submitted(data.businessCase), now, now, sequenceKey = "k"),
         )
         orderRepository.append(
-            de.openspri.domain.order.OrderHistoryEntry(order.id, partner, null, de.openspri.domain.order.OrderHistoryEntry.Kind.ORDER, findings = listOf("a", "b"), at = now),
+            de.openspri.domain.order.OrderHistoryEntry(order.id, partner, null, de.openspri.domain.order.OrderHistoryEntry.Kind.ORDER, findings = listOf("a", "b"), at = now, direction = de.openspri.domain.exchange.Direction.OUTBOUND),
         )
         outbox.enqueue(
             de.openspri.domain.delivery.OutboxEntry(null, partner, order.id, de.openspri.domain.delivery.RequestType.ORDER, SoapOperation.ANNEHMEN_AUFTRAG,
@@ -142,5 +144,34 @@ class ApplicationIntegrationTest(
             ),
         )
         assertEquals(TeqCode.STRUCTURE_INVALID, archive.get(archiveId)!!.teqCode)
+    }
+
+    @Test
+    fun `events become visible after the delay, webhooks advance, idempotency keys are unique`() {
+        val partner = partners.create(name = "Ereignis", carrierCode = "DEU.EVENT", certificates = listOf(credentials.certificate), networks = emptyList())
+        val start = events.latestId()
+        val now = java.time.Instant.now()
+        events.publish(de.openspri.domain.event.BusinessEvent(null, de.openspri.domain.event.EventType.MESSAGE_RECEIVED, partner, null, null, "EVT-1", null, null,
+            messageType = de.openspri.domain.message.MessageType.TAM, codes = listOf("0000"), at = now))
+        assertEquals(emptyList(), events.after(start, 10), "not visible within the delay")
+
+        val webhook = events.create(de.openspri.domain.event.WebhookSubscription(null, "https://hook.example.invalid", byteArrayOf(1, 2), emptySet(), true, null, start, nextAttemptAt = now, createdAt = now))
+        Thread.sleep(de.openspri.persistence.JdbcEvents.VISIBILITY_DELAY_MS + 500L)
+        val visible = events.after(start, 10).single()
+        assertEquals(de.openspri.domain.message.MessageType.TAM, visible.messageType)
+        assertEquals(listOf("0000"), visible.codes)
+        assertEquals(emptyList(), events.after(start, 10, setOf(de.openspri.domain.event.EventType.ORDER_RECEIVED)))
+
+        assertEquals(true, events.deliverNext(java.time.Instant.now()) { it.copy(lastEventId = visible.id!!) })
+        assertEquals(visible.id, events.get(webhook.id!!)!!.lastEventId)
+        assertEquals(false, events.deliverNext(java.time.Instant.now()) { it }, "nothing new")
+
+        val claim = idempotency.claim("token:a", "k1", "h1", now)
+        assertIs<de.openspri.domain.event.IdempotencyClaim.Claimed>(claim)
+        assertEquals(de.openspri.domain.event.IdempotencyClaim.InProgress, idempotency.claim("token:a", "k1", "h1", now))
+        assertEquals(de.openspri.domain.event.IdempotencyClaim.Mismatch, idempotency.claim("token:a", "k1", "h2", now))
+        idempotency.complete(claim.id, de.openspri.domain.event.StoredResponse(202, "{}".toByteArray(), "application/json"))
+        assertEquals(202, assertIs<de.openspri.domain.event.IdempotencyClaim.Replay>(idempotency.claim("token:a", "k1", "h1", now)).response.status)
+        assertIs<de.openspri.domain.event.IdempotencyClaim.Claimed>(idempotency.claim("token:b", "k1", "h1", now), "keys are per actor")
     }
 }

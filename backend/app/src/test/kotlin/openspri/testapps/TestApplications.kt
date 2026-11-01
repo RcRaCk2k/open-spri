@@ -74,4 +74,6 @@ class SoapInMemoryTestApplication : InMemoryAuthStores() {
     @Bean fun transactions(): de.openspri.domain.order.Transactions = de.openspri.domain.DirectTransactions
     @Bean fun settingsRepository() = de.openspri.domain.InMemorySettings()
     @Bean fun signingKeyRepository() = de.openspri.domain.InMemorySigningKeys()
+    @Bean fun events() = de.openspri.domain.InMemoryEvents()
+    @Bean fun idempotencyStore() = de.openspri.domain.InMemoryIdempotencyStore()
 }

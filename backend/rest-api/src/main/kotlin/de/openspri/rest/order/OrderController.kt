@@ -93,20 +93,33 @@ class OrderController(
         return detail(order.id!!)
     }
 
-    @PostMapping("/{id}/requests", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    @PostMapping("/{id}/cancel")
     @ResponseStatus(HttpStatus.ACCEPTED)
     @PreAuthorize(Requires.ORDERS_WRITE)
     @Operation(
-        summary = "Storno, Terminverschiebung oder Reklamation senden",
-        description = "Storno und Terminverschiebung werden aus dem ursprünglichen Auftrag abgeleitet (5.1.3/5.1.4). " +
-            "409 enthält in `allowedActions`, was jetzt zulässig ist.",
+        summary = "Storno senden",
+        description = "Der Storno wird aus dem ursprünglichen Auftrag abgeleitet (5.1.3). 409 enthält in `allowedActions`, was jetzt zulässig ist.",
     )
-    fun request(@PathVariable id: Long, @RequestBody body: ChangeRequest): OrderDetailDto {
-        val kind = enumValue<RequestKind>(body.kind, "kind")
-        commands.request(OrderId(id), kind, body.newDate, body.auftrag)
-        audit.record(currentActor(), "order.request", "order:$id", kind.name)
-        return detail(OrderId(id))
-    }
+    fun cancel(@PathVariable id: Long): OrderDetailDto = change(id, RequestKind.STORNO, null, null)
+
+    @PostMapping("/{id}/reschedule", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @PreAuthorize(Requires.ORDERS_WRITE)
+    @Operation(summary = "Terminverschiebung senden", description = "Der ursprüngliche Auftrag mit `terminNeu` (5.1.4).")
+    fun reschedule(@PathVariable id: Long, @RequestBody body: RescheduleRequest): OrderDetailDto =
+        change(id, RequestKind.TERMINVERSCHIEBUNG, body.newDate, null)
+
+    @PostMapping("/{id}/complaint", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @PreAuthorize(Requires.ORDERS_WRITE)
+    @Operation(summary = "Reklamation einer Entstörung senden", description = "Ein Entstörauftrag mit dem Element `reklamation` (6.1.5).")
+    fun complaint(@PathVariable id: Long, @RequestBody body: ComplaintRequest): OrderDetailDto =
+        change(id, RequestKind.REKLAMATION, null, body.auftrag)
+
+    @GetMapping("/{id}/allowed-actions")
+    @PreAuthorize(Requires.ORDERS_READ)
+    @Operation(summary = "Zulässige Aktionen", description = "Was wir nach dem Zustandsautomaten jetzt senden dürfen.")
+    fun allowedActions(@PathVariable id: Long): List<ActionDto> = service.allowedActions(commands.order(OrderId(id))).map(ActionDto::of)
 
     @PostMapping("/{id}/messages", consumes = [MediaType.APPLICATION_JSON_VALUE])
     @ResponseStatus(HttpStatus.ACCEPTED)
@@ -125,6 +138,12 @@ class OrderController(
             ?: throw IllegalArgumentException("changeIndicator: erlaubt sind ${ChangeIndicator.entries.joinToString { it.code }}")
         commands.message(OrderId(id), type, indicator, body.codes.map { it.code to it.text }, body.attributes)
         audit.record(currentActor(), "order.message", "order:$id", "${type.code} ${body.codes.joinToString(",") { it.code }}")
+        return detail(OrderId(id))
+    }
+
+    private fun change(id: Long, kind: RequestKind, newDate: java.time.LocalDate?, auftrag: tools.jackson.databind.JsonNode?): OrderDetailDto {
+        commands.request(OrderId(id), kind, newDate, auftrag)
+        audit.record(currentActor(), "order.request", "order:$id", kind.name)
         return detail(OrderId(id))
     }
 

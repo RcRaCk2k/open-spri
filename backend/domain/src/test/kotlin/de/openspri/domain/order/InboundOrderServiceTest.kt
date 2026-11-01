@@ -28,7 +28,8 @@ class InboundOrderServiceTest {
             MessageCode("0010", "erledigt", setOf("ERLM", "ENTM"), setOf("NEU"), setOf("FTTH"), setOf("S/PRI")),
         ),
     )
-    private val service = InboundOrderService(repository, { catalog }, clock)
+    private val events = de.openspri.domain.InMemoryEvents()
+    private val service = InboundOrderService(repository, { catalog }, clock, events)
 
     private fun neu(number: String = "A-1", date: LocalDate = LocalDate.of(2026, 12, 1), key: String? = "ADDR:x") =
         OrderData(number, BusinessCase.NEU, desiredDate = date, products = listOf("FTTH 100"), infrastructureKey = key)
@@ -42,6 +43,21 @@ class InboundOrderServiceTest {
         assertEquals(emptyList(), result.findings)
         assertEquals(Phase.SUBMITTED, repository.orders.single().state.phase)
         assertEquals(10L, repository.history.single().archiveId)
+    }
+
+    @Test
+    fun `every history entry is also an event for external systems`() {
+        service.receiveOrder(partner, neu(), archiveId = 10)
+        service.receiveMessage(partner, message(MessageType.QEB, "UNBEKANNT", codes = arrayOf("0000")), archiveId = 11)
+        val (order, unknown) = events.events
+        assertEquals(de.openspri.domain.event.EventType.ORDER_RECEIVED, order.type)
+        assertEquals(Phase.SUBMITTED, order.phase)
+        assertEquals(OrderRole.LEISTUNGSERBRINGER, order.role)
+        assertEquals(de.openspri.domain.event.EventType.MESSAGE_RECEIVED, unknown.type)
+        assertEquals("UNBEKANNT", unknown.externalOrderNumber)
+        assertEquals(null, unknown.orderId)
+        assertContains(unknown.findings.single(), "unbekanntem Auftrag")
+        assertEquals(de.openspri.domain.exchange.Direction.INBOUND, repository.history.first().direction)
     }
 
     @Test

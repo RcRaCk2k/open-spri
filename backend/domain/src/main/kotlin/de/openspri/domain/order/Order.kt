@@ -2,6 +2,7 @@ package de.openspri.domain.order
 
 import de.openspri.domain.BusinessCase
 import de.openspri.domain.ChangeIndicator
+import de.openspri.domain.exchange.Direction
 import de.openspri.domain.message.MessageType
 import de.openspri.domain.partner.PartnerId
 import java.time.Instant
@@ -80,6 +81,8 @@ data class OrderHistoryEntry(
     val codes: List<String> = emptyList(),
     val findings: List<String> = emptyList(),
     val at: Instant,
+    /** INBOUND: from the partner, OUTBOUND: from us. */
+    val direction: Direction,
 ) {
     enum class Kind { ORDER, REQUEST, MESSAGE }
 }

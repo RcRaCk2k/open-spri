@@ -175,9 +175,20 @@ Alles, was open-spri an Partner sendet, läuft über den Postausgang `outbox_mes
   | `DELIVERED_WITH_ERROR` | Meldung mit negativer TEQ. Sie gilt laut Spezifikation als zugestellt. | Fehlerliste prüfen und mit dem Partner klären |
   | `REJECTED` | eigener Auftrag mit negativer TEQ | Auftrag korrigieren und neu stellen |
 
-  Bis M4 stehen diese Einträge nur in der Datenbank: `SELECT id, status, external_order_number, last_error FROM outbox_message WHERE status IN ('UNCLEAR','UNDELIVERABLE','DELIVERED_WITH_ERROR','REJECTED')`. Der Zustellmonitor in Oberfläche und REST folgt mit M4.
+  Abfrage und Eingriff über die REST-API: `GET /api/v1/deliveries?status=UNCLEAR`, `POST /api/v1/deliveries/{id}/retry`, `…/sent-by-email`, `…/cancel` (Scope `deliveries:write`, jeder Eingriff steht im Audit-Log). Ein Auftrag im Status `UNCLEAR` lässt sich **nicht** mit derselben Nummer erneut senden (NF-05): mit neuer Nummer neu stellen und den alten Eintrag zurückziehen. Der Eingang steht unter `GET /api/v1/inbox`; eine fehlgeschlagene Verarbeitung (`FAILED`) blockiert weitere Nachrichten desselben Auftrags, bis sie mit `POST /api/v1/inbox/{id}/reprocess` wiederholt wird.
 
 **Voraussetzung für das Senden:** Die Meldungscodetabelle muss importiert sein. Ohne sie lehnt open-spri jede eigene Meldung ab, weil kein Meldungscode geprüft werden kann (R-13).
+
+## Ereignisse und Webhooks
+
+Fremdsysteme (CRM, Workflow) erfahren von neuen Aufträgen, Meldungen und Zustellproblemen auf zwei Wegen (D-14):
+
+- **Event-Feed:** `GET /api/v1/events?after=<id>`. Der Client merkt sich die größte `id`. Ereignisse erscheinen mit etwa 2 s Verzögerung, damit beim Polling keines übersprungen wird.
+- **Webhooks:** `POST /api/v1/webhooks` mit Ziel-URL und optional den gewünschten Typen. open-spri sendet jedes Ereignis einzeln als JSON und signiert es mit HMAC-SHA256 (Header `X-OpenSpri-Signature: t=…,v1=…`). Antwortet der Empfänger nicht mit 2xx, wiederholt open-spri **dasselbe** Ereignis mit wachsendem Abstand (10 s, verdoppelt, höchstens 1 h). Die folgenden Ereignisse warten so lange, damit die Reihenfolge erhalten bleibt. Das Geheimnis wird mit `OPENSPRI_MASTER_KEY` verschlüsselt gespeichert, Webhooks gibt es also nur mit Master-Key.
+
+Ereignisse enthalten Nummern, Status und Meldungscodes, aber keine Endkundendaten. Sie werden nach `OPENSPRI_EVENTS_RETENTION` (Standard `90d`) gelöscht.
+
+**Idempotenz:** Wer `POST /api/v1/orders…` mit dem Header `Idempotency-Key` aufruft, kann die Anfrage nach einem Netzfehler gefahrlos wiederholen: Eine Wiederholung mit demselben Schlüssel bekommt die gespeicherte Antwort, ohne dass etwas erneut gesendet wird. Die Schlüssel werden 24 h aufbewahrt.
 
 ## Benachrichtigungen per E-Mail
 

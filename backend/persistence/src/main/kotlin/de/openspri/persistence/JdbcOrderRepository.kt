@@ -13,6 +13,7 @@ import de.openspri.domain.order.OrderState
 import de.openspri.domain.order.Phase
 import de.openspri.domain.order.RequestKind
 import de.openspri.domain.partner.PartnerId
+import de.openspri.domain.exchange.Direction
 import de.openspri.domain.message.MessageType
 import de.openspri.domain.query.OrderFilter
 import de.openspri.domain.query.OrderQueries
@@ -76,6 +77,7 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository, Order
                 codes = rs.getString("codes")?.split(',').orEmpty(),
                 findings = rs.getString("findings")?.split('\n').orEmpty(),
                 at = rs.getTimestamp("created_at").toInstant(),
+                direction = Direction.valueOf(rs.getString("direction")),
             )
         }.list()
 
@@ -124,9 +126,10 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository, Order
 
     override fun append(entry: OrderHistoryEntry) {
         jdbc.sql(
-            """INSERT INTO spri_order_history (order_id, partner_id, archive_id, kind, message_type, change_indicator, codes, findings, created_at)
-               VALUES (:order, :partner, :archive, :kind, :type, :indicator, :codes, :findings, :at)""",
+            """INSERT INTO spri_order_history (order_id, partner_id, archive_id, kind, direction, message_type, change_indicator, codes, findings, created_at)
+               VALUES (:order, :partner, :archive, :kind, :direction, :type, :indicator, :codes, :findings, :at)""",
         )
+            .param("direction", entry.direction.name)
             .param("order", entry.orderId?.value).param("partner", entry.partnerId.value).param("archive", entry.archiveId)
             .param("kind", entry.kind.name).param("type", entry.messageType?.code).param("indicator", entry.changeIndicator.name)
             .param("codes", entry.codes.joinToString(",").ifEmpty { null })

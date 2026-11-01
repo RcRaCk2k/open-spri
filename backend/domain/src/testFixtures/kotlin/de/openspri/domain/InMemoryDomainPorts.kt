@@ -171,3 +171,57 @@ class InMemoryPartners : de.openspri.domain.partner.PartnerAdministration {
         if (i >= 0) partners[i] = change(partners[i])
     }
 }
+
+/** Events, feed and webhooks in memory; events are visible immediately. */
+class InMemoryEvents : de.openspri.domain.event.EventLog, de.openspri.domain.event.EventFeed, de.openspri.domain.event.WebhookStore {
+    val events = mutableListOf<de.openspri.domain.event.BusinessEvent>()
+    val webhooks = mutableListOf<de.openspri.domain.event.WebhookSubscription>()
+
+    @Synchronized
+    override fun publish(event: de.openspri.domain.event.BusinessEvent) { events += event.copy(id = events.size + 1L) }
+
+    @Synchronized
+    override fun after(id: Long, limit: Int, types: Set<de.openspri.domain.event.EventType>?) =
+        events.filter { it.id!! > id && (types.isNullOrEmpty() || it.type in types) }.take(limit)
+
+    override fun latestId() = events.size.toLong()
+    override fun purgeBefore(time: Instant) = 0
+
+    override fun list() = webhooks.toList()
+    override fun get(id: Long) = webhooks.firstOrNull { it.id == id }
+    override fun create(subscription: de.openspri.domain.event.WebhookSubscription) = subscription.copy(id = webhooks.size + 1L).also { webhooks += it }
+    override fun update(id: Long, url: String, types: Set<de.openspri.domain.event.EventType>, enabled: Boolean, description: String?): Boolean {
+        val i = webhooks.indexOfFirst { it.id == id }
+        if (i < 0) return false
+        webhooks[i] = webhooks[i].copy(url = url, types = types, enabled = enabled, description = description); return true
+    }
+    override fun delete(id: Long) = webhooks.removeIf { it.id == id }
+
+    @Synchronized
+    override fun deliverNext(now: Instant, deliver: (de.openspri.domain.event.WebhookSubscription) -> de.openspri.domain.event.WebhookSubscription): Boolean {
+        val i = webhooks.indexOfFirst { it.enabled && !it.nextAttemptAt.isAfter(now) && events.any { e -> e.id!! > it.lastEventId } }
+        if (i < 0) return false
+        webhooks[i] = deliver(webhooks[i]); return true
+    }
+}
+
+class InMemoryIdempotencyStore : de.openspri.domain.event.IdempotencyStore {
+    private data class Row(val id: Long, val hash: String, var response: de.openspri.domain.event.StoredResponse?)
+    private val rows = mutableMapOf<Pair<String, String>, Row>()
+
+    @Synchronized
+    override fun claim(actor: String, key: String, requestSha256: String, now: Instant): de.openspri.domain.event.IdempotencyClaim {
+        val row = rows[actor to key] ?: return Row(rows.size + 1L, requestSha256, null).also { rows[actor to key] = it }
+            .let { de.openspri.domain.event.IdempotencyClaim.Claimed(it.id) }
+        return when {
+            row.hash != requestSha256 -> de.openspri.domain.event.IdempotencyClaim.Mismatch
+            row.response == null -> de.openspri.domain.event.IdempotencyClaim.InProgress
+            else -> de.openspri.domain.event.IdempotencyClaim.Replay(row.response!!)
+        }
+    }
+    @Synchronized
+    override fun complete(id: Long, response: de.openspri.domain.event.StoredResponse) { rows.values.first { it.id == id }.response = response }
+    @Synchronized
+    override fun release(id: Long) { rows.entries.removeIf { it.value.id == id } }
+    override fun purgeBefore(time: Instant) = 0
+}

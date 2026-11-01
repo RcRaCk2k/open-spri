@@ -2,7 +2,7 @@ package de.openspri.rest.delivery
 
 import de.openspri.auth.AuditLog
 import de.openspri.domain.delivery.DeliveryStatus
-import de.openspri.domain.delivery.Outbox
+import de.openspri.domain.delivery.DeliveryOperations
 import de.openspri.domain.delivery.OutboxEntry
 import de.openspri.domain.order.OrderId
 import de.openspri.domain.query.DeliveryQueries
@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
-import java.time.Clock
 import java.time.Instant
 
 
@@ -59,7 +58,7 @@ data class DeliveryDto(
 @Schema(description = "Eine eingegangene Nachricht in der Verarbeitung")
 data class InboxDto(
     @field:Schema(requiredMode = REQUIRED) val id: Long,
-    @field:Schema(description = "Rohnachricht: GET /archive/{archiveId}", requiredMode = REQUIRED) val archiveId: Long,
+    @field:Schema(description = "Rohnachricht: GET /messages/{archiveId}/raw", requiredMode = REQUIRED) val archiveId: Long,
     @field:Schema(requiredMode = REQUIRED) val partnerId: Long,
     @field:Schema(requiredMode = REQUIRED) val operation: String,
     val externalOrderNumber: String?,
@@ -81,10 +80,9 @@ data class InboxDto(
 @Tag(name = "Zustellung", description = "Postausgang und Eingang überwachen und eingreifen (AUFGABE 5.7, 11.2.3.2)")
 class DeliveryController(
     private val deliveries: DeliveryQueries,
-    private val outbox: Outbox,
+    private val operations: DeliveryOperations,
     private val inbox: InboxQueries,
     private val audit: AuditLog,
-    private val clock: Clock = Clock.systemDefaultZone(),
 ) {
     @GetMapping("/api/v1/deliveries")
     @PreAuthorize(Requires.DELIVERIES_READ)
@@ -113,18 +111,22 @@ class DeliveryController(
 
     @PostMapping("/api/v1/deliveries/{id}/retry")
     @PreAuthorize(Requires.DELIVERIES_WRITE)
-    @Operation(summary = "Erneut senden", description = "Nur für UNDELIVERABLE und UNCLEAR. Bei UNCLEAR vorher mit dem Partner klären, ob der Auftrag ankam (11.2.3.1).")
-    fun retry(@PathVariable id: Long): DeliveryDto = act(id, "retry") { outbox.retry(id, clock.instant()) }
+    @Operation(
+        summary = "Erneut senden",
+        description = "Für UNDELIVERABLE und für Meldungen im Status UNCLEAR. Ein Auftrag im Status UNCLEAR wird nie mit derselben " +
+            "Nummer erneut gesendet (NF-05, 11.2.3.1): mit neuer Auftragsnummer neu stellen und diesen Eintrag zurückziehen (409).",
+    )
+    fun retry(@PathVariable id: Long): DeliveryDto = act(id, "retry") { operations.retry(id) }
 
     @PostMapping("/api/v1/deliveries/{id}/sent-by-email")
     @PreAuthorize(Requires.DELIVERIES_WRITE)
     @Operation(summary = "Als per E-Mail versendet markieren", description = "Ersatzweg nach 11.2.3.2; nur für UNDELIVERABLE und UNCLEAR.")
-    fun sentByEmail(@PathVariable id: Long): DeliveryDto = act(id, "sent-by-email") { outbox.markSentByEmail(id, clock.instant()) }
+    fun sentByEmail(@PathVariable id: Long): DeliveryDto = act(id, "sent-by-email") { operations.markSentByEmail(id) }
 
     @PostMapping("/api/v1/deliveries/{id}/cancel")
     @PreAuthorize(Requires.DELIVERIES_WRITE)
     @Operation(summary = "Zurückziehen", description = "Für PENDING, UNDELIVERABLE und UNCLEAR. Gibt die folgenden Nachrichten desselben Reihenfolgeschlüssels frei.")
-    fun cancel(@PathVariable id: Long): DeliveryDto = act(id, "cancel") { outbox.cancel(id, clock.instant()) }
+    fun cancel(@PathVariable id: Long): DeliveryDto = act(id, "cancel") { operations.cancel(id) }
 
     @GetMapping("/api/v1/inbox")
     @PreAuthorize(Requires.DELIVERIES_READ)
@@ -148,10 +150,9 @@ class DeliveryController(
 
     private fun find(id: Long) = deliveries.get(id) ?: throw NoSuchElementException("Nachricht $id existiert nicht")
 
-    private fun act(id: Long, action: String, change: () -> Boolean): DeliveryDto {
-        val entry = find(id)
-        check(change()) { "Im Status ${entry.status} nicht möglich" }
+    private fun act(id: Long, action: String, change: () -> OutboxEntry): DeliveryDto {
+        val entry = change()
         audit.record(currentActor(), "delivery.$action", "delivery:$id")
-        return DeliveryDto.of(find(id))
+        return DeliveryDto.of(entry)
     }
 }

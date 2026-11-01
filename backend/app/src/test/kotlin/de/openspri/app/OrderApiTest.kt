@@ -89,12 +89,12 @@ class OrderApiTest(
         assertContains(queued.body(), "\"status\":\"PENDING\"")
         assertContains(String(outbox.entries.last().payload), "<externeAuftragsnummer>API-0001</externeAuftragsnummer>")
 
-        val storno = call("POST", "/api/v1/orders/$orderId/requests", """{"kind":"STORNO"}""", operatorAg)
+        val storno = call("POST", "/api/v1/orders/$orderId/cancel", null, operatorAg)
         assertEquals(202, storno.statusCode(), storno.body())
         assertContains(storno.body(), "\"openRequests\":[\"STORNO\"]")
         assertContains(String(outbox.entries.last().payload), "<aenderungskennzeichen>Storno</aenderungskennzeichen>")
 
-        val again = call("POST", "/api/v1/orders/$orderId/requests", """{"kind":"STORNO"}""", operatorAg)
+        val again = call("POST", "/api/v1/orders/$orderId/cancel", null, operatorAg)
         assertEquals(409, again.statusCode())
         assertContains(again.body(), "\"allowedActions\"")
 
@@ -104,9 +104,28 @@ class OrderApiTest(
         assertEquals(200, cancelled.statusCode())
         assertContains(cancelled.body(), "\"status\":\"CANCELLED\"")
 
+        val allowed = call("GET", "/api/v1/orders/$orderId/allowed-actions")
+        assertEquals(200, allowed.statusCode())
+
         val found = call("GET", "/api/v1/orders?q=API-00&role=AUFTRAGGEBER")
         assertContains(found.body(), "\"externalOrderNumber\":\"API-0001\"")
-        assertEquals(2, Regex("\"kind\":\"(ORDER|REQUEST)\"").findAll(call("GET", "/api/v1/orders/$orderId/history").body()).count())
+        val history = call("GET", "/api/v1/orders/$orderId/history").body()
+        assertEquals(2, Regex("\"kind\":\"(ORDER|REQUEST)\"").findAll(history).count())
+        assertEquals(2, Regex("\"direction\":\"OUTBOUND\"").findAll(history).count())
+    }
+
+    @Test
+    fun `terminverschiebung carries terminNeu`() {
+        val created = call("POST", "/api/v1/orders", """{"partnerId":77,"auftrag":${auftrag("API-0004")}}""")
+        val orderId = id(created.body())
+        // the partner acknowledged the order (QEB): a Terminverschiebung is possible now (5.1.4)
+        val order = orders.get(de.openspri.domain.order.OrderId(orderId))!!
+        orders.save(order.copy(state = order.state.copy(phase = de.openspri.domain.order.Phase.ACKNOWLEDGED)))
+        val date = LocalDate.now().plusDays(90)
+        val tv = call("POST", "/api/v1/orders/$orderId/reschedule", """{"newDate":"$date"}""")
+        assertEquals(202, tv.statusCode(), tv.body())
+        assertContains(String(outbox.entries.last().payload), "<terminNeu>$date</terminNeu>")
+        assertEquals(400, call("POST", "/api/v1/orders/$orderId/complaint", """{"auftrag":${auftrag("API-0005")}}""").statusCode())
     }
 
     @Test

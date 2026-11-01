@@ -1,5 +1,7 @@
 package de.openspri.domain.delivery
 
+import de.openspri.domain.event.BusinessEvent
+import de.openspri.domain.event.EventLog
 import de.openspri.domain.partner.PartnerId
 import java.time.Clock
 import java.time.Duration
@@ -17,6 +19,7 @@ class DeliveryService(
     private val policy: RetryPolicy = RetryPolicy(),
     private val outageNotificationInterval: Duration = Duration.ofDays(1),
     private val clock: Clock = Clock.systemUTC(),
+    private val events: EventLog = EventLog.NONE,
 ) {
 
     fun dispatchNext(): Boolean = outbox.dispatchNext(clock.instant()) { entry ->
@@ -28,6 +31,8 @@ class DeliveryService(
         val updated = DeliveryDecisions.after(entry, result, policy, clock.instant())
         track(entry.partnerId, result, updated)
         if (updated.status == DeliveryStatus.UNDELIVERABLE) safely { notifier.undeliverable(updated) }
+        // same transaction as the status change (dispatchNext holds it while sending)
+        if (updated.status != entry.status) events.publish(BusinessEvent.of(updated, clock.instant()))
         updated
     }
 

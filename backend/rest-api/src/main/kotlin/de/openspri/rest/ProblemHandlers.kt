@@ -1,5 +1,6 @@
 package de.openspri.rest
 
+import de.openspri.domain.delivery.DeliveryActionRejected
 import de.openspri.domain.order.OrderActionRejected
 import de.openspri.rest.order.ActionDto
 import de.openspri.soap.NotFoundException
@@ -25,6 +26,9 @@ class ProblemHandlers {
 
     @ExceptionHandler(NotFoundException::class)
     fun notFound(e: NotFoundException): ProblemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.message ?: "Nicht gefunden")
+
+    @ExceptionHandler(DeliveryActionRejected::class)
+    fun deliveryRejected(e: DeliveryActionRejected): ProblemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.message ?: "Konflikt")
 
     @ExceptionHandler(IllegalArgumentException::class)
     fun badRequest(e: IllegalArgumentException): ProblemDetail =

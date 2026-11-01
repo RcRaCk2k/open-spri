@@ -33,7 +33,7 @@ data class ArchiveEntryDto(
 )
 
 @RestController
-@RequestMapping("/api/v1/archive")
+@RequestMapping("/api/v1/messages")
 @Tag(name = "Archiv", description = "Nachrichtenarchiv: SOAP-Nachrichten byte-genau, wie sie über die Leitung gingen")
 class ArchiveController(private val archive: ArchiveQueries, private val audit: AuditLog) {
 
@@ -47,9 +47,9 @@ class ArchiveController(private val archive: ArchiveQueries, private val audit: 
         )
     }
 
-    @GetMapping("/{id}/request", produces = [MediaType.APPLICATION_XML_VALUE])
+    @GetMapping("/{id}/raw", produces = [MediaType.APPLICATION_XML_VALUE])
     @PreAuthorize(Requires.ORDERS_READ)
-    @Operation(summary = "Anfrage (SOAP-Envelope, byte-genau)", description = "Enthält Endkundendaten; der Zugriff wird protokolliert.")
+    @Operation(summary = "Rohnachricht (SOAP-Envelope, byte-genau)", description = "Enthält Endkundendaten; der Zugriff wird protokolliert.")
     fun request(@PathVariable id: Long): ByteArray {
         val entry = find(id)
         audit.record(currentActor(), "archive.read", "archive:$id", "request")

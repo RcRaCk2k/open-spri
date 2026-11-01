@@ -1,5 +1,6 @@
 package de.openspri.soap.config
 
+import de.openspri.domain.event.EventLog
 import de.openspri.domain.exchange.InboxQueue
 import de.openspri.domain.message.MessageCodeCatalog
 import de.openspri.domain.message.MessageCodeStore
@@ -61,7 +62,8 @@ class OrderProcessingConfiguration {
     }
 
     @Bean
-    fun inboundOrderService(orders: OrderRepository, codes: MessageCodeCatalogHolder) = InboundOrderService(orders, codes::get)
+    fun inboundOrderService(orders: OrderRepository, codes: MessageCodeCatalogHolder, events: EventLog) =
+        InboundOrderService(orders, codes::get, events = events)
 
     @Bean
     fun inboxWorker(queue: InboxQueue, service: InboundOrderService) = InboxWorker(queue, service)
