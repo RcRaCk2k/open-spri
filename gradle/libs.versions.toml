@@ -2,10 +2,12 @@
 [versions]
 kotlin = "2.3.21"            # aligned with spring-boot-dependencies 4.1.1
 spring-boot = "4.1.1"
-cxf = "4.2.4"                # built against Spring Boot 4.1 / Spring 7 (used from M1)
+cxf = "4.2.4"
+wss4j = "4.0.2"             # version used by CXF 4.2.4 (cxf.jakarta.wss4j.version)                # built against Spring Boot 4.1 / Spring 7 (used from M1)
 springdoc = "3.1.1"          # Spring Boot 4.1 line
 archunit = "1.5.1"
-flyway-mysql = "12.4.0"      # keep in sync with flyway.version of the Boot BOM
+flyway-mysql = "12.4.0"
+bouncycastle = "1.86"      # same as CXF 4.2.4 (cxf.bcprov.version)      # keep in sync with flyway.version of the Boot BOM
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -26,6 +28,16 @@ testcontainers-mariadb = { module = "org.testcontainers:testcontainers-mariadb" 
 testcontainers-junit = { module = "org.testcontainers:testcontainers-junit-jupiter" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+jaxb-xjc = { module = "org.glassfish.jaxb:jaxb-xjc" }
+jaxb-runtime = { module = "org.glassfish.jaxb:jaxb-runtime" }
+jakarta-xml-bind-api = { module = "jakarta.xml.bind:jakarta.xml.bind-api" }
+cxf-frontend-jaxws = { module = "org.apache.cxf:cxf-rt-frontend-jaxws", version.ref = "cxf" }
+cxf-transports-http = { module = "org.apache.cxf:cxf-rt-transports-http", version.ref = "cxf" }
+cxf-transports-http-hc5 = { module = "org.apache.cxf:cxf-rt-transports-http-hc5", version.ref = "cxf" }
+saaj-impl = { module = "com.sun.xml.messaging.saaj:saaj-impl" }   # version from Spring Boot BOM, same as CXF
+wss4j-dom = { module = "org.apache.wss4j:wss4j-ws-security-dom", version.ref = "wss4j" }
+bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
+cxf-spring-boot-starter-jaxws = { module = "org.apache.cxf:cxf-spring-boot-starter-jaxws", version.ref = "cxf" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 # build-logic
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }

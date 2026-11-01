@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Minimal, schema-valid NEU order (FTTH) used by the tests. All data is fictitious. -->
+<envelope:annehmenAuftragRequest
+    xmlns:envelope="http://spri.telekom.de/oss/v4/envelope"
+    xmlns:order="http://spri.telekom.de/oss/v4/order"
+    xmlns:fttx="http://spri.telekom.de/oss/v4/fttx"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <control>
+    <zeitstempel>2026-11-01T12:00:00.000+01:00</zeitstempel>
+    <majorRelease>4</majorRelease>
+    <minorRelease>4</minorRelease>
+    <signaturId>
+      <issuer>CN=Test Partner</issuer>
+      <serial>1</serial>
+    </signaturId>
+  </control>
+  <auftrag>
+    <externeAuftragsnummer>TEST-0001</externeAuftragsnummer>
+    <auftraggeber>
+      <auftraggebernummer>AG4711</auftraggebernummer>
+      <leistungsnummer>LN0815</leistungsnummer>
+    </auftraggeber>
+    <geschaeftsfall xsi:type="order:BereitstellungType">
+      <ansprechpartner>
+        <auftragsmanagement>
+          <anrede>9</anrede>
+          <nachname>Auftragsmanagement</nachname>
+          <telefonnummer>0861 123456</telefonnummer>
+        </auftragsmanagement>
+      </ansprechpartner>
+      <termine>
+        <auftraggeberWunschtermin>
+          <datum>2026-12-01</datum>
+        </auftraggeberWunschtermin>
+      </termine>
+      <auftragsposition>
+        <produkt xsi:type="fttx:ProduktFTTXType">
+          <bezeichner>FTTH L2 ETH 100.40</bezeichner>
+        </produkt>
+        <geschaeftsfallProdukt xsi:type="fttx:FTTXBereitstellungType">
+          <standortA>
+            <person>
+              <anrede>1</anrede>
+              <vorname>Erika</vorname>
+              <nachname>Musterfrau</nachname>
+            </person>
+            <strasse>
+              <strassenname>Musterstraße</strassenname>
+              <hausnummer>1</hausnummer>
+            </strasse>
+            <postleitzahl>83395</postleitzahl>
+            <ort>
+              <ortsname>Freilassing</ortsname>
+            </ort>
+          </standortA>
+        </geschaeftsfallProdukt>
+      </auftragsposition>
+    </geschaeftsfall>
+    <geschaeftsfallArt>Bereitstellung</geschaeftsfallArt>
+    <aenderungskennzeichen>Standard</aenderungskennzeichen>
+  </auftrag>
+</envelope:annehmenAuftragRequest>

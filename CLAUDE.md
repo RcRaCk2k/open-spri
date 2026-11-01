@@ -50,6 +50,7 @@ open-spri ist eine MIT-lizenzierte Implementierung der **S/PRI-Schnittstelle V4.
 - Fachlogik in Controller, SOAP-Endpunkte oder Repositories schreiben
 - Den Frontend-Zugriff an der öffentlichen API vorbei bauen
 - Meldungen ohne Outbox versenden oder die Reihenfolge parallelisieren
+- Eingehende S/PRI-Nachrichten an `InboundProcessor` vorbei prüfen, oder CXF-Security-Interceptors einsetzen, die SOAP-Faults statt TEQ liefern (ADR-0005)
 - Validierung abschalten oder lockern, „weil ein Partner es so schickt“. Dafür gibt es stattdessen eine partnerbezogene, dokumentierte Ausnahme mit ADR.
 - Echte Kunden-, Partner- oder Zertifikatsdaten in Tests, Logs oder Beispielen verwenden
 

@@ -32,7 +32,15 @@ services:
       SPRING_DATASOURCE_USERNAME: openspri
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       OPENSPRI_BUILD_DIGEST: ${OPENSPRI_BUILD_DIGEST:-}
+      # WS-Security signing key (PKCS#12, RSA >= 3072). Without it a temporary key is generated (development only).
+      OPENSPRI_SOAP_SIGNING_KEYSTORE: ${OPENSPRI_SOAP_SIGNING_KEYSTORE:-}
+      OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD: ${OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD:-}
+      OPENSPRI_SOAP_PUBLISHED_ENDPOINT_URL: ${OPENSPRI_SOAP_PUBLISHED_ENDPOINT_URL:-https://${PUBLIC_HOSTNAME:-localhost}/spri/v4}
+      SPRI_OUTBOUND_PROXY: ${SPRI_OUTBOUND_PROXY:-}
       TZ: Europe/Berlin
+    volumes:
+      # Directory for the signing keystore, e.g. ./secrets/spri-signature.p12 -> /run/openspri/spri-signature.p12
+      - ./secrets:/run/openspri:ro
     depends_on:
       db:
         condition: service_healthy

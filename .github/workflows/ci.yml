@@ -23,6 +23,8 @@ jobs:
           distribution: temurin
           java-version: "25"
       - uses: gradle/actions/setup-gradle@v6
+      - name: Install xmlsec1 (independent signature check in WsSecurityTest)
+        run: sudo apt-get update -q && sudo apt-get install -y -q xmlsec1
       # Includes unit tests, ArchUnit rules, Testcontainers integration tests (MariaDB)
       # and the check that docs/api/openapi.json matches the served specification.
       - run: ./gradlew build --console=plain
@@ -75,6 +77,8 @@ jobs:
           curl -kfsS https://localhost/ | grep -q '<title>open-spri</title>'
           curl -kfsS https://localhost/api/v1/openapi.json | grep -q '"openapi"'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/api/v1/about)" = "301"
+          # S/PRI endpoint: no partner configured, so every address must be refused (AK security document 2.6)
+          test "$(curl -ks -o /dev/null -w '%{http_code}' 'https://localhost/spri/v4?wsdl')" = "403"
       - name: TLS protocols (TLS 1.0/1.1 must be refused)
         run: |
           echo | openssl s_client -connect localhost:443 -tls1_2 >/dev/null 2>&1

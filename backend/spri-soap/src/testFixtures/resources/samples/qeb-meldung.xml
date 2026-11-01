@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Minimal, schema-valid QEB message for order TEST-0001 used by the tests. All data is fictitious. -->
+<envelope:annehmenMeldungRequest
+    xmlns:envelope="http://spri.telekom.de/oss/v4/envelope"
+    xmlns:message="http://spri.telekom.de/oss/v4/message"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <control>
+    <zeitstempel>2026-11-01T12:00:05.000+01:00</zeitstempel>
+    <majorRelease>4</majorRelease>
+    <minorRelease>4</minorRelease>
+    <signaturId>
+      <issuer>CN=Test Partner</issuer>
+      <serial>1</serial>
+    </signaturId>
+  </control>
+  <meldung>
+    <auftragstyp>
+      <geschaeftsfall>NEU</geschaeftsfall>
+      <aenderungsKennzeichen>Standard</aenderungsKennzeichen>
+      <geschaeftsfallart>Bereitstellung</geschaeftsfallart>
+    </auftragstyp>
+    <meldungstyp xsi:type="message:MeldungstypQEBType">
+      <meldungsattribute>
+        <externeAuftragsnummer>TEST-0001</externeAuftragsnummer>
+        <auftraggebernummer>AG4711</auftraggebernummer>
+      </meldungsattribute>
+      <meldungspositionen>
+        <position>
+          <meldungscode>0000</meldungscode>
+          <meldungstext>Auftrag eingegangen.</meldungstext>
+        </position>
+      </meldungspositionen>
+    </meldungstyp>
+  </meldung>
+</envelope:annehmenMeldungRequest>

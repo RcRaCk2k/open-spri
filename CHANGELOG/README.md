@@ -40,3 +40,4 @@ Welche Tests belegen die Änderung?
 | [CL-0002](CL-0002-scope-final-diagnose.md) | Scope final, Diagnose in v1, Security-Meldeweg | 2026-11-01 |
 | [CL-0003](CL-0003-all-in-one-proxy.md) | All-in-One-Stack mit nginx/certbot, getrennte Inbound-/Outbound-IPs | 2026-11-01 |
 | [CL-0004](CL-0004-m0-grundgeruest.md) | M0: Grundgerüst, Container-Stack, CI | 2026-11-01 |
+| [CL-0005](CL-0005-m1-soap-signatur.md) | M1: S/PRI-SOAP-Schnittstelle, WS-Security, TEQ, Nachrichtenarchiv | 2026-11-01 |

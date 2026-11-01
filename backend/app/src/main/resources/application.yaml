@@ -19,6 +19,13 @@ spring:
 server:
   port: 8080
   shutdown: graceful
+  # Behind the proxy the client address comes from X-Forwarded-For. Tomcat trusts it only from
+  # internal addresses (10/8, 172.16/12, 192.168/16, 127/8, ...), see server.tomcat.remoteip.internal-proxies.
+  forward-headers-strategy: native
+
+# S/PRI SOAP endpoint: <cxf.path>/v4 = /spri/v4 (WSDL: /spri/v4?wsdl)
+cxf:
+  path: /spri
 
 management:
   endpoints:
@@ -41,6 +48,12 @@ springdoc:
   writer-with-order-by-keys: true
 
 openspri:
+  soap:
+    signing-keystore: ${OPENSPRI_SOAP_SIGNING_KEYSTORE:}
+    signing-keystore-password: ${OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD:}
+    published-endpoint-url: ${OPENSPRI_SOAP_PUBLISHED_ENDPOINT_URL:}
+    client:
+      outbound-proxy: ${SPRI_OUTBOUND_PROXY:}
   certification:
     build-digest: ${OPENSPRI_BUILD_DIGEST:}
     certified-digests: []

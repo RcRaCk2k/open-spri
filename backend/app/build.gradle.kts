@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     implementation(project(":domain"))
+    implementation(project(":spri-soap"))
     implementation(project(":persistence"))
     implementation(project(":rest-api"))
     implementation(libs.spring.boot.starter.actuator)
@@ -18,6 +19,7 @@ dependencies {
     testImplementation(libs.testcontainers.mariadb)
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.archunit.junit5)
+    testImplementation(testFixtures(project(":spri-soap")))
 }
 
 springBoot {

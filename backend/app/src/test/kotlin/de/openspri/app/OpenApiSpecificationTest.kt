@@ -16,13 +16,7 @@ import kotlin.test.assertEquals
  * API-first check (CLAUDE.md, principle 4): the committed docs/api/openapi.json must match what the
  * application actually serves. Regenerate with `./gradlew :app:test -PupdateOpenApi`.
  */
-@SpringBootTest(
-    properties = [
-        "spring.autoconfigure.exclude=" +
-            "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration," +
-            "org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration",
-    ],
-)
+@SpringBootTest(classes = [RestOnlyTestApplication::class])
 @AutoConfigureMockMvc
 class OpenApiSpecificationTest(@Autowired private val mockMvc: MockMvc) {
 

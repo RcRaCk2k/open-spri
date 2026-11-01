@@ -14,3 +14,7 @@ dist/
 frontend/*.tsbuildinfo
 .kotlin/
 build-logic/.kotlin/
+
+# Secrets (keystores) - only secrets/README.md is versioned
+secrets/*
+!secrets/README.md

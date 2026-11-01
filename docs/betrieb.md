@@ -69,15 +69,53 @@ docker compose -f compose.yaml -f compose.external-proxy.yaml up -d --build
 | `HTTP_PORT`, `HTTPS_PORT` | Ports des Proxys auf dem Host | `80`, `443` |
 | `OPENSPRI_BUILD_DIGEST` | Image-Digest, an dem zertifizierte Builds erkannt werden | leer |
 
+## Signaturschlüssel (WS-Security)
+
+Jede S/PRI-Nachricht wird signiert (AK-Sicherheitsdokument V3.0, Kap. 2.5): X.509 v3, SHA256withRSA, **RSA ≥ 3072 Bit**. Selbstsignierte Zertifikate sind erlaubt. Der AK empfiehlt einen **eigenen** Schlüssel, getrennt vom TLS-Zertifikat.
+
+```bash
+mkdir -p secrets
+keytool -genkeypair -alias spri-signature -keyalg RSA -keysize 3072 -sigalg SHA256withRSA \
+  -validity 3650 -dname "CN=S/PRI Signatur, O=Beispiel GmbH, C=DE" \
+  -storetype PKCS12 -keystore secrets/spri-signature.p12
+chmod 600 secrets/spri-signature.p12
+```
+
+In `.env`:
+```
+OPENSPRI_SOAP_SIGNING_KEYSTORE=/run/openspri/spri-signature.p12
+OPENSPRI_SOAP_SIGNING_KEYSTORE_PASSWORD=<Passwort>
+```
+
+Ohne konfigurierten Schlüssel erzeugt open-spri beim Start einen **vorläufigen** Schlüssel und warnt im Log. Partner können unsere Signaturen dann nach jedem Neustart nicht mehr prüfen. Das ist nur für die Entwicklung gedacht. Ab M4 erzeugt und speichert der Setup-Assistent den Schlüssel.
+
+Das Zertifikat (`keytool -exportcert -rfc -alias spri-signature -keystore secrets/spri-signature.p12`) geht an jeden Partner, zusammen mit unserer Outbound-IP und der Endpunkt-Adresse.
+
+## S/PRI-Endpunkt
+
+- Adresse: `https://<PUBLIC_HOSTNAME>/spri/v4`, WSDL unter `…/spri/v4?wsdl` (Service `SpriService`, Operationen `annehmenAuftrag` und `annehmenMeldung`)
+- Nur freigeschaltete Partner-IPs erreichen den Endpunkt, alle anderen erhalten HTTP 403. Partner werden ab M4 über REST und Oberfläche angelegt.
+- Jede Anfrage wird mit einer signierten TEQ beantwortet:
+
+  | Prüfung | TEQ |
+  |---|---|
+  | alles in Ordnung | `OK` |
+  | kein SOAP 1.1 bzw. kein gültiges XML, XSD-Verstoß | `0995` |
+  | Signatur fehlt oder ist ungültig, fremdes Zertifikat, signaturId passt nicht | `0999` |
+  | Major-Release ≠ 4 oder Versionsfelder fehlerhaft | `0993` |
+  | Speichern fehlgeschlagen | `0999` (der Partner sendet erneut) |
+
+- Jede ein- und ausgehende Nachricht wird unverändert archiviert (Tabelle `soap_archive`, inkl. SHA-256 der Anfrage). Der Grund einer Ablehnung steht nur intern im Archiv und geht nie an den Partner.
+
 ## Zusätzliche IP-Sperre für den S/PRI-Endpunkt
 
-open-spri prüft die IPs der Partner selbst (ab M1). Zusätzlich lässt sich in nginx eine zweite Sperre setzen: `deploy/nginx/snippets/openspri-spri-allowlist.conf` bearbeiten, dann `docker compose restart proxy`.
+open-spri prüft die IPs der Partner selbst. Zusätzlich lässt sich in nginx eine zweite Sperre setzen: `deploy/nginx/snippets/openspri-spri-allowlist.conf` bearbeiten, dann `docker compose restart proxy`.
 
 ## Endpunkte
 
 | Pfad | Zweck | Zugriff |
 |---|---|---|
-| `/spri/` | S/PRI-SOAP-Endpunkt (ab M1) | Partner, IP-beschränkt |
+| `/spri/v4` | S/PRI-SOAP-Endpunkt, WSDL unter `?wsdl` | Partner, IP-beschränkt |
 | `/replikat/` | Replikat-Download (ab M6) | Partner |
 | `/api/v1/…` | REST-API | Nutzer, Fremdsysteme |
 | `/api/docs` | Swagger UI | Nutzer |

@@ -2,7 +2,7 @@
 
 Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requisition Interface, V4.4) des [Arbeitskreises Schnittstellen & Prozesse](https://ak-spri.de/spri/). Mit ihr bestellen Telekommunikationsanbieter Vorleistungsprodukte (FTTH, FTTB, FTTC) bei anderen Netzbetreibern und bieten ihre eigenen Anschlüsse über einen Standard an.
 
-> **Status: in Entwicklung (Meilenstein M0 abgeschlossen).** Grundgerüst, Container-Stack und CI stehen. Die S/PRI-Funktionen folgen ab M1. Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
+> **Status: in Entwicklung (Meilenstein M1 abgeschlossen).** Der S/PRI-SOAP-Endpunkt nimmt signierte Aufträge und Meldungen an, prüft sie und quittiert sie mit TEQ. Der Client versendet signiert. Die fachliche Verarbeitung der Geschäftsfälle folgt mit M2. Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
 
 ## Funktionsumfang (Ziel v1.0)
 

@@ -549,8 +549,8 @@ Der echte KFT-Simulator von Enghouse ist nicht öffentlich. Unser Simulator bild
 | M | Inhalt | Abnahmekriterium |
 |---|---|---|
 | **M0** Grundgerüst | Repo, Gradle-Multimodule, CI, Compose (api, db, frontend, proxy/certbot im Staging-Modus), Flyway, Health, OpenAPI-Grundgerüst, ArchUnit-Regeln, LICENSE/README | `docker compose up` startet. CI ist grün. |
-| **M1** Schema und Signatur | JAXB-Codegen, Anlage-1-Regelgenerator, WSS4J-Signatur und -Prüfung, CXF-Endpunkt `annehmenAuftrag`/`annehmenMeldung` mit TEQ, IP-Allowlist, SOAP-Archiv | Signatur-Interop-Tests grün. Ungültige Nachrichten liefern die passende TEQ. |
-| **M2** Domain-Kern | Zustandsautomaten aller GF (v1), Regeln R-01 bis R-15, Meldungscode-Tabelle (Import) | Unit-Abdeckung domain ≥ 90 %, alle Übergänge getestet |
+| **M1** Schema und Signatur | JAXB-Codegen, WSS4J-Signatur und -Prüfung, CXF-Endpunkt `annehmenAuftrag`/`annehmenMeldung` mit TEQ, IP-Allowlist, SOAP-Archiv | Signatur-Interop-Tests grün. Ungültige Nachrichten liefern die passende TEQ. |
+| **M2** Domain-Kern | Zustandsautomaten aller GF (v1), Regeln R-01 bis R-15, Meldungscode-Tabelle (Import), **Anlage-1-Regelgenerator und Attributprüfung** (aus M1 verschoben, siehe CL-0005) | Unit-Abdeckung domain ≥ 90 %, alle Übergänge getestet |
 | **M3** Outbox und Inbox | Reihenfolgegarantie, Retry, Timeout-Behandlung, E-Mail-Rückfall, Zustellmonitor | Tests aus Kap. 10.1 Punkt 4 grün |
 | **M4** Auth und REST | Auth-SPI, `local-users`, `api-token`, RBAC/Scopes, alle Endpunkte aus Kap. 8.5, Webhooks, Event-Feed, Setup-API | OpenAPI vollständig. Auth-Tests grün. Ein Architekturtest zeigt, dass ein Dummy-Modul ohne Kernänderung andocken kann. |
 | **M5** Simulator und Szenarien | Simulator beider Rollen, alle TF aus Anhang A im Scope automatisiert, Selbsttest AG ↔ LE | **100 % der TF im Scope grün** in beiden Rollen |
