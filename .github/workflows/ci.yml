@@ -23,6 +23,12 @@ jobs:
           distribution: temurin
           java-version: "25"
       - uses: gradle/actions/setup-gradle@v6
+      # AK S&P files (XSD, downloaded and checksum-verified by the build) - keeps CI independent of ak-spri.de.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.gradle/caches/open-spri
+          key: ak-spri-${{ hashFiles('backend/spri-schema/build.gradle.kts') }}
+          restore-keys: ak-spri-
       - name: Install xmlsec1 (independent signature check in WsSecurityTest)
         run: sudo apt-get update -q && sudo apt-get install -y -q xmlsec1
       # Includes unit tests, ArchUnit rules, Testcontainers integration tests (MariaDB)
@@ -32,7 +38,9 @@ jobs:
         if: failure()
         with:
           name: backend-test-reports
-          path: backend/*/build/reports/tests/
+          path: |
+            backend/*/build/reports/
+            build/reports/problems/
 
   frontend:
     name: Frontend (pnpm)
