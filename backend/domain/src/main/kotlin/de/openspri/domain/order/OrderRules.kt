@@ -45,6 +45,11 @@ object OrderRules {
             if (data.businessCase == BusinessCase.KUE_AG) add("R-12: Kündigungen dürfen nicht geklammert werden")
         }
 
+        // Geschäftsfall and Geschäftsfallart must fit (KFT Z.5.2.01/Z.12.2.01: "Diagnose" instead of "Änderung", ABBM 1102)
+        data.declaredKind?.let { kind ->
+            if (kind != data.businessCase.kind) add("Unzulässiger Geschäftsfall: Geschäftsfallart $kind passt nicht zu ${data.businessCase.code} (erwartet ${data.businessCase.kind})")
+        }
+
         // R-11 (formal part): a Besteller needs both numbers
         if ((data.ordererClientNumber == null) != (data.ordererServiceNumber == null)) {
             add("R-11: Bestellung im Namen Dritter braucht Auftraggeber- und Leistungsnummer des Bestellers")

@@ -55,15 +55,22 @@ Der KFT bei Enghouse bricht nach drei erfolglosen Versuchen ab. Deshalb müssen 
   - Ohne Bestandsvertrag antwortet die API mit 409. **Bisher gingen diese Meldungen fälschlich an den Auftraggeber.**
 - Migration V12: `inventory_contract`; `spri_order.handover_partner_id`, `handover_contract_number`, `handover_client_number`.
 
+### Teil 5: Negativ-Testfälle als Leistungserbringer
+- **Geschäftsfallart:** `OrderRules` prüft, ob die Geschäftsfallart (`geschaeftsfallArt`) zum Geschäftsfall passt. `BusinessCase.kind` ist die Zuordnung aus SA-011, die jetzt auch `OutboundPayloads` verwendet.
+- **Storno oder Terminverschiebung zu einem unbekannten Auftrag** legt jetzt einen Auftrag in der Phase `NOT_STARTED` mit offener Änderung an (`OrderLifecycle.requestWithoutOrder`). Bisher entstand nur ein Verlaufseintrag ohne Auftrag, und der Leistungserbringer konnte nicht antworten. Der Befund lautet „unzulässiges Änderungskennzeichen“. Zulässig ist nur eine ABBM, die den Auftrag beendet (KFT Z.11.2.01, ABBM 1007).
+- Szenarien: Der Simulator sendet die fehlerhaften Aufträge. Der Runner verlangt den passenden Befund und legt dafür unseren Produktkatalog an.
+
 ## Auswirkungen
 - S/PRI-Schnittstelle: Meldungen zu Aufträgen im Namen Dritter tragen jetzt die Auftraggebernummer des Bestellers, Meldungen zu Aufträgen mit VorabstimmungsID die VorabstimmungsID. TBK-Meldungen werden jetzt XSD-konform gebaut; die ENTM als Leistungserbringer enthält die Vertragsnummer aus der ABM. Entstöraufträge ohne Auftragsposition sind jetzt auch nach Anlage 1 gültig (SA-015), eingehend wie ausgehend.
 - S/PRI-Schnittstelle (Teil 4): Meldungen an den abgebenden EKP gehen jetzt an ihn statt an den Auftraggeber.
 - REST-API: `GET /inventory`, `GET /inventory/{lineId}` (Teil 4)
 - Datenbank: Migration V12 (Teil 4)
+- Fachlogik (Teil 5): neuer Befund „Unzulässiger Geschäftsfall“, eigene Aufträge mit unpassender Geschäftsfallart werden abgewiesen (409); Änderungen zu unbekannten Aufträgen erzeugen einen Auftrag, auf den nur ABBM zulässig ist.
 - Konfiguration: keine Änderung
 - Build: neues Modul `simulator`; `:app`-Tests laden die Testfallliste über `:simulator:downloadKftTestCases`
 
 ## Tests
+- Teil 5: `KftScenarioTest` 204 Testfälle grün, 7 offen (Negativ-Testfälle als Auftraggeber); `InboundOrderServiceTest` (Storno zu unbekanntem Auftrag, Geschäftsfallart)
 - Teil 4: `KftScenarioTest` 197 Testfälle grün, 14 offen (Negativ-Testfälle); `InventoryBookTest` (Vertrag aus NEU/PV, Ablösung, Kündigung, Storno ohne Wirkung, abgebender EKP, Providerwechsel an den Vertragsinhaber, 409 ohne Bestand); `ApplicationIntegrationTest` (Bestand und abgebender EKP auf MariaDB)
 - Teil 3: `KftScenarioTest` 191 Testfälle grün, 20 offen (Negativ-Testfälle, Providerwechsel als Leistungserbringer); `OrderTemplatesTest`: NEU mit allen Varianten
 - Teil 2: `KftScenarioTest` 151 Testfälle grün, 60 offen mit Grund; `OrderTemplatesTest` (jede Vorlage gültig nach XSD und Anlage 1, richtiger Geschäftsfall, Reklamation)

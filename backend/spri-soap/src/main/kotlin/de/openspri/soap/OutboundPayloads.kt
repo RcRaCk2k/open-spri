@@ -153,14 +153,7 @@ class OutboundPayloads(
         return node
     }
 
-    private fun art(case: BusinessCase) = when (case) {
-        BusinessCase.NEU -> "Bereitstellung"
-        BusinessCase.KUE_AG, BusinessCase.KUE_LE -> "Kuendigung"
-        BusinessCase.AEN_LMAE, BusinessCase.LAE -> "Aenderung"
-        BusinessCase.EST -> "Entstoerung"
-        BusinessCase.PV -> "Endkundenanbieterwechsel"
-        BusinessCase.DIAG_GET, BusinessCase.DIAG_SET -> "Diagnose"
-    }
+    private fun art(case: BusinessCase) = case.kind
 
     private fun control() = WholesaleRequestType().apply {
         zeitstempel = datatypes.newXMLGregorianCalendar(GregorianCalendar.from(ZonedDateTime.now(clock).truncatedTo(ChronoUnit.MILLIS)))

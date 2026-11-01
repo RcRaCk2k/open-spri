@@ -77,9 +77,15 @@ class InboundOrderService(
             else -> RequestKind.TERMINVERSCHIEBUNG
         }
         if (existing == null) {
-            val findings = listOf("${kind.changeIndicator.code} zu unbekanntem Auftrag ${data.externalOrderNumber}")
-            record(OrderHistoryEntry(null, partnerId, archiveId, OrderHistoryEntry.Kind.REQUEST, changeIndicator = kind.changeIndicator, findings = findings, at = now, direction = INBOUND), null, data.externalOrderNumber)
-            return ProcessingResult(null, findings)
+            // KFT Z.11.2.01: e.g. "Storno" instead of "Standard" in a new order. The record lets the Leistungserbringer
+            // answer with ABBM (1007 unzulässiges Änderungskennzeichen); nothing else is possible (OrderLifecycle).
+            val findings = listOf(
+                "${kind.changeIndicator.code} zu unbekanntem Auftrag ${data.externalOrderNumber}: unzulässiges Änderungskennzeichen, Antwort ABBM",
+            )
+            val state = OrderLifecycle.requestWithoutOrder(data.businessCase, kind)
+            val saved = orders.save(Order(null, partnerId, OrderRole.LEISTUNGSERBRINGER, data.copy(changeIndicator = ChangeIndicator.STANDARD), state, now, now))
+            record(OrderHistoryEntry(saved.id, partnerId, archiveId, OrderHistoryEntry.Kind.REQUEST, changeIndicator = kind.changeIndicator, findings = findings, at = now, direction = INBOUND), saved, data.externalOrderNumber)
+            return ProcessingResult(saved.id, findings)
         }
         val findings = OrderRules.check(data, today, original = existing.data).toMutableList()
         val updated = when (val transition = OrderLifecycle.apply(existing.state, OrderEvent.Request(kind))) {

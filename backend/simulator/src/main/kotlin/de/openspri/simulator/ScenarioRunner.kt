@@ -58,6 +58,11 @@ class ScenarioRunner(
         if (us.get("$path/projects").items().none { it.path("projectId").stringValue() == OrderTemplates.PROJECT_ID }) {
             us.post("$path/projects", us.objectNode().put("projectId", OrderTemplates.PROJECT_ID).put("description", "KFT-Szenarien"))
         }
+        // product catalog of our products: without it, "Dummy" and "TEST" (negative test cases) would not be found
+        val catalog = us.get("/api/v1/products?role=LEISTUNGSERBRINGER").items().map { it.path("identifier").stringValue() }.toSet()
+        OrderTemplates.PRODUCTS.filter { it !in catalog }.forEach { product ->
+            us.post("/api/v1/products", us.objectNode().put("role", "LEISTUNGSERBRINGER").put("identifier", product).put("description", "KFT-Szenarien"))
+        }
         val parties = OrderTemplates.Parties()
         us.post(
             "$path/powers-of-attorney",
@@ -113,7 +118,11 @@ class ScenarioRunner(
         val transcript = mutableListOf<String>()
         val case = scenario.case
         val number = "KFT" + case.id.filter { it.isDigit() }.take(8) + "-" + counter.incrementAndGet() + "-" + (System.nanoTime() % 1000)
-        val desiredDate: LocalDate = LocalDate.now().plusDays(30)
+        val variants = TestCaseVariants.of(case)
+        /** KFT Z.2.2.x/Z.9.2.x: "KWT > 179 Tage" */
+        val desiredDate: LocalDate = LocalDate.now().plusDays(if (Variant.FAR_DATE in variants) 200 else 30)
+        /** findings open-spri must report for a faulty order of the simulator */
+        val expectedFindings = variants.mapNotNull(TestCaseVariants::expectedFinding)
         private val newLineId = "DEU.SIMLE." + number.filter { it.isDigit() }.takeLast(10)
         var inventory: OrderTemplates.Inventory? = null
         val lineId get() = inventory?.lineId ?: newLineId
@@ -152,7 +161,7 @@ class ScenarioRunner(
         // --- orders and requests --------------------------------------------------------------
 
         fun ourOrder() {
-            val auftrag = OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory, variants = TestCaseVariants.of(case), owner = TestCaseVariants.withOwner(case))
+            val auftrag = OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory, variants = variants, owner = TestCaseVariants.withOwner(case))
             val body = us.objectNode().put("partnerId", partnerId)
             body.set("auftrag", auftrag)
             ourOrderId = us.post("/api/v1/orders?send=true", body).path("order").path("id").longValue()
@@ -162,7 +171,7 @@ class ScenarioRunner(
         }
 
         fun simulatorOrder() {
-            val (teq, payload) = simulator.sendOrder(OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory, variants = TestCaseVariants.of(case), owner = TestCaseVariants.withOwner(case)))
+            val (teq, payload) = simulator.sendOrder(OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory, variants = variants, owner = TestCaseVariants.withOwner(case)))
             expectOk(teq, "Auftrag")
             simOriginal = payload
             log("Simulator → Auftrag ${case.businessCase.code} $number (TEQ OK)")
@@ -171,7 +180,8 @@ class ScenarioRunner(
                 number, case.businessCase, clientNumber = OrderTemplates.Parties().clientNumber, serviceNumber = OrderTemplates.Parties().serviceNumber,
                 contractNumber = inventory?.contractNumber, lineId = inventory?.lineId,
             )
-            awaitHistory("ORDER", null)
+            // an order with "Storno" instead of "Standard" is processed as a request to an unknown order
+            awaitHistory(if (Variant.WRONG_CHANGE_INDICATOR in variants) "REQUEST" else "ORDER", null, expectedFindings)
         }
 
         fun ourRequest(kind: RequestKind) {
@@ -360,7 +370,7 @@ class ScenarioRunner(
         }
 
         /** Waits until our instance has processed the simulator's request; fails on lifecycle or code findings. */
-        fun awaitHistory(kind: String, type: MessageType?) {
+        fun awaitHistory(kind: String, type: MessageType?, expected: List<String> = emptyList()) {
             val id = ourOrderId ?: await("Auftrag $number bei open-spri") {
                 us.findOrders(ourRoleName(), number).firstOrNull()?.path("id")?.longValue()
             }.also { ourOrderId = it }
@@ -369,7 +379,12 @@ class ScenarioRunner(
             }
             historySeen = us.history(id).indexOfFirst { it == entry } + 1
             val findings = entry.path("findings").items().map { it.stringValue() }
-            if (findings.isNotEmpty()) throw ScenarioFailure("${type?.code ?: kind}: Befunde bei open-spri: $findings")
+            val unexpected = findings.filter { finding -> expected.none { it in finding } }
+            if (unexpected.isNotEmpty()) throw ScenarioFailure("${type?.code ?: kind}: Befunde bei open-spri: $unexpected")
+            expected.filter { e -> findings.none { e in it } }.takeIf { it.isNotEmpty() }?.let {
+                throw ScenarioFailure("${type?.code ?: kind}: open-spri hat den fehlerhaften Auftrag nicht erkannt, erwartet Befund $it, erhalten $findings")
+            }
+            if (findings.isNotEmpty()) log("  open-spri meldet: ${findings.joinToString(" | ")}")
             if (type != null && entry.path("messageType").stringValue() != type.code) {
                 throw ScenarioFailure("erwartet ${type.code}, open-spri verarbeitete ${entry.path("messageType").stringValue()}")
             }

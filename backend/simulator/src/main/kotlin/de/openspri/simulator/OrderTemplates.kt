@@ -17,6 +17,9 @@ object OrderTemplates {
     /** Besteller of an order in the name of a third party (4.2, R-11); the power of attorney is set up by [ScenarioRunner.prepare]. */
     val ORDERER = Parties("B4712", "BL0816")
 
+    /** Products and features the templates order (catalog of our products in [ScenarioRunner.prepare]). */
+    val PRODUCTS = listOf("FTTH 100", "FTTH 250", "Feste IP-Adresse")
+
     /** Projektkenner agreed with the simulator (R-12), set up by [ScenarioRunner.prepare]. */
     const val PROJECT_ID = "PRJ-KFT-1"
 
@@ -76,6 +79,8 @@ object OrderTemplates {
                     // the HomeID is part of the Vormieter (Anlage 1 rows 113-118)
                     fttx.putObject("vormieter").putObject("homeId").put("homeIdNummer", "HID" + externalOrderNumber.filter { it.isDigit() }.takeLast(12))
                 }
+                // KFT S.1.2.7/S.8.2.7: a valid product with the invalid feature "TEST"
+                if (Variant.INVALID_FEATURE in variants) product(position.putObject("position"), "TEST")
                 if (Variant.CONNECTIVITY in variants) {
                     // Konnektivitätsauftrag: product position "Konnektivität" (Anlage 1 row 154)
                     product(position.putObject("position"), "Konnektivität")
@@ -108,7 +113,8 @@ object OrderTemplates {
                 product(position, "FTTH 100")
                 // a feature is an additional position with action code A (add)
                 val feature = position.putObject("position")
-                product(feature, "Feste IP-Adresse")
+                // KFT Z.4.2.02/Z.11.2.02: the invalid feature "TEST"
+                product(feature, if (Variant.INVALID_FEATURE in variants) "TEST" else "Feste IP-Adresse")
                 feature.put("aktionscode", "A")
             }
             BusinessCase.LAE -> {
@@ -116,7 +122,8 @@ object OrderTemplates {
                 line(geschaeftsfall, inventory!!)
                 contact(geschaeftsfall)
                 desired(geschaeftsfall, desiredDate)
-                product(geschaeftsfall.putObject("auftragsposition"), "FTTH 250")
+                // KFT Z.5.2.02/Z.12.2.02: the product "Dummy" that is technically not possible
+                product(geschaeftsfall.putObject("auftragsposition"), if (Variant.INVALID_PRODUCT in variants) "Dummy" else "FTTH 250")
             }
             BusinessCase.PV -> {
                 geschaeftsfall.put("@type", "ProviderwechselType")
@@ -149,8 +156,9 @@ object OrderTemplates {
             }
             BusinessCase.KUE_LE -> error("KUE-LE starts with KDLE")
         }
-        auftrag.put("geschaeftsfallArt", art(case))
-        auftrag.put("aenderungskennzeichen", "Standard")
+        // KFT Z.5.2.01/Z.12.2.01: "Diagnose" instead of "Änderung"; Z.4.2.01/Z.11.2.01: "Storno" instead of "Standard"
+        auftrag.put("geschaeftsfallArt", if (Variant.WRONG_BUSINESS_CASE in variants) "Diagnose" else art(case))
+        auftrag.put("aenderungskennzeichen", if (Variant.WRONG_CHANGE_INDICATOR in variants) "Storno" else "Standard")
         return auftrag
     }
 

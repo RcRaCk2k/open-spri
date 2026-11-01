@@ -152,6 +152,13 @@ object OrderLifecycle {
     /** Kündigung durch Leistungserbringer: the order record is created by the KDLE message (5.2.2). */
     fun announcedByLeistungserbringer(): OrderState = OrderState(BusinessCase.KUE_LE, Phase.NOT_STARTED)
 
+    /**
+     * A Storno or Terminverschiebung of an order we do not know (e.g. "Storno" instead of "Standard" in a new
+     * order, KFT Z.11.2.01). The only possible answer is an ABBM, which ends the record.
+     */
+    fun requestWithoutOrder(businessCase: BusinessCase, kind: RequestKind): OrderState =
+        OrderState(businessCase, Phase.NOT_STARTED, openRequests = setOf(kind))
+
     /** View of the abgebender EKP: the record is created by AKM-PV (5.5.1). */
     fun handoverAnnounced(): OrderState =
         OrderState(BusinessCase.PV, Phase.NOT_STARTED, handoverOnly = true)
@@ -281,6 +288,7 @@ object OrderLifecycle {
         if (RequestKind.STORNO !in state.openRequests && !(state.cancelled && type == ENTM)) {
             return reject("${type.code} zu einem Storno, obwohl kein Storno offen ist")
         }
+        if (state.phase == Phase.NOT_STARTED) return withoutOrder(state, type)
         return when (type) {
             VZM -> accept(state)
             ERLM -> accept(state.copy(phase = Phase.COMPLETED, cancelled = true, openRequests = emptySet()))
@@ -296,6 +304,7 @@ object OrderLifecycle {
         if (RequestKind.TERMINVERSCHIEBUNG !in state.openRequests) {
             return reject("${type.code} zu einer Terminverschiebung, obwohl keine offen ist")
         }
+        if (state.phase == Phase.NOT_STARTED) return withoutOrder(state, type)
         val closed = state.openRequests - RequestKind.TERMINVERSCHIEBUNG
         return when (type) {
             VZM -> accept(state)
@@ -304,6 +313,11 @@ object OrderLifecycle {
             else -> reject("${type.code} ist keine Antwort auf eine Terminverschiebung")
         }
     }
+
+    /** [requestWithoutOrder]: only ABBM, which ends it. */
+    private fun withoutOrder(state: OrderState, type: MessageType): Transition =
+        if (type == ABBM) accept(state.copy(phase = Phase.ABORTED, openRequests = emptySet()))
+        else reject("Zu einer Änderung ohne Ursprungsauftrag ist nur ABBM zulässig")
 
     // --- provider change: exchange with the abgebender EKP (5.5.1) --------------------------------
 

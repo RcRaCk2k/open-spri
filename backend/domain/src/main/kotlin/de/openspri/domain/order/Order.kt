@@ -52,6 +52,8 @@ data class OrderData(
     val complaint: Boolean = false,
     /** Key of the technical infrastructure for R-10 (LineID, HomeID or normalized address). */
     val infrastructureKey: String? = null,
+    /** `geschaeftsfallArt` as stated in the order; checked against [businessCase] (not stored). */
+    val declaredKind: String? = null,
     /** Provider change as Leistungserbringer: the abgebender EKP, fixed with the AKM-PV (5.5.1). */
     val handover: HandoverParty? = null,
 ) {

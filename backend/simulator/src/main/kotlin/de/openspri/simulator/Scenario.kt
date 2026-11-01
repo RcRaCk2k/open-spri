@@ -74,6 +74,8 @@ object ScenarioPlanner {
                 is OrderEvent.Request -> ScenarioStep(if (role == OrderRole.AUFTRAGGEBER) Side.US else Side.SIMULATOR, Action.Request(event.kind))
                 is OrderEvent.Message -> {
                     val side = if (event.type.sender == ourParty) Side.US else Side.SIMULATOR
+                    // the ABBM answers the order with "Storno" (KFT Z.4.2.01/Z.11.2.01) and carries its change indicator
+                    val indicator = if (event.type == MessageType.ABBM && Variant.WRONG_CHANGE_INDICATOR in variants) ChangeIndicator.STORNO else event.changeIndicator
                     val newDate = event.type == MessageType.ABM && Variant.NEW_DATE in variants
                     // "ABM (0002, 0003 oder 0005->neuer Termin, *2)", TF S.1.1.02 "2x MC": 0002 plus one of 0003/0005
                     val codes = if (newDate && "oder" in case.sequence && event.codes.size == 3) event.codes.take(2) else event.codes
@@ -81,7 +83,7 @@ object ScenarioPlanner {
                     val overloadedSeen = steps.any { (it.action as? Action.Message)?.overloaded == true }
                     val overloaded = Variant.OVERLOADED in variants && side == Side.US && event.type == MessageType.QEB && !overloadedSeen
                     val repeated = Variant.OVERLOADED in variants && side == Side.US && event.type == MessageType.QEB && overloadedSeen
-                    ScenarioStep(side, Action.Message(event.type, event.changeIndicator, codes, newDate, overloaded, repeated), step.thirdParty)
+                    ScenarioStep(side, Action.Message(event.type, indicator, codes, newDate, overloaded, repeated), step.thirdParty)
                 }
                 OrderEvent.Send -> error("not part of the test case list")
             }

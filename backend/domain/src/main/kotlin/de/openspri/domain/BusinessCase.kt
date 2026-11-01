@@ -38,6 +38,21 @@ enum class BusinessCase(
     DIAG_SET("DIAG-SET", "SET", true, emptySet()),
     ;
 
+    /**
+     * `geschaeftsfallArt` (order) and `geschaeftsfallart` (message header) for this business case (SA-011):
+     * NEU → Bereitstellung, KUE → Kuendigung, AEN-LMAE/LAE → Aenderung, EST → Entstoerung, PV → Endkundenanbieterwechsel,
+     * DIAG → Diagnose.
+     */
+    val kind: String
+        get() = when (this) {
+            NEU -> "Bereitstellung"
+            KUE_AG, KUE_LE -> "Kuendigung"
+            AEN_LMAE, LAE -> "Aenderung"
+            EST -> "Entstoerung"
+            PV -> "Endkundenanbieterwechsel"
+            DIAG_GET, DIAG_SET -> "Diagnose"
+        }
+
     /** Diagnosis orders carry no change indicator (specification chapter 6.2). */
     fun allows(indicator: ChangeIndicator?): Boolean =
         if (changeIndicators.isEmpty()) indicator == null else indicator in changeIndicators

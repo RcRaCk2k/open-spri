@@ -60,6 +60,7 @@ object SpriPayloadMapper {
             bracketSize = kenner?.text("anzahlAuftraege")?.toIntOrNull(),
             ontSerial = geschaeftsfall.text("seriennummerONT"),
             complaint = businessCase == BusinessCase.EST && geschaeftsfall.descendantOrNull("reklamation") != null,
+            declaredKind = auftrag.childOrNull("geschaeftsfallArt")?.textContent?.trim(),
             infrastructureKey = OrderRules.infrastructureKey(
                 lineId, homeId,
                 standortA?.let { listOf(it.text("postleitzahl"), it.text("strassenname"), it.text("hausnummer")) }.orEmpty() +

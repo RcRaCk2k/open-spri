@@ -40,6 +40,21 @@ object TestCaseVariants {
         Variant.PROVIDER_CHANGE_LE,
     )
 
+    /**
+     * Faulty orders of the Auftraggeber (negative test cases). As Leistungserbringer the simulator sends them and
+     * open-spri must report the matching finding ([expectedFinding]); the Auftraggeber side is not implemented yet.
+     */
+    val faultyOrders = setOf(Variant.FAR_DATE, Variant.INVALID_PRODUCT, Variant.INVALID_FEATURE, Variant.WRONG_BUSINESS_CASE, Variant.WRONG_CHANGE_INDICATOR)
+
+    /** The finding open-spri as Leistungserbringer reports for a faulty order (basis of the ABBM). */
+    fun expectedFinding(variant: Variant): String? = when (variant) {
+        Variant.FAR_DATE -> "R-05"
+        Variant.INVALID_PRODUCT, Variant.INVALID_FEATURE -> "nicht im Produktkatalog"
+        Variant.WRONG_BUSINESS_CASE -> "Unzulässiger Geschäftsfall"
+        Variant.WRONG_CHANGE_INDICATOR -> "unzulässiges Änderungskennzeichen"
+        else -> null
+    }
+
     /** Konnektivitätsauftrag with owner data ("mit Eigentümerdaten" in the description). */
     fun withOwner(case: KftTestCase) = "mit Eigentümerdaten" in case.description
 
@@ -70,5 +85,5 @@ object TestCaseVariants {
     fun hintCode(case: KftTestCase): String? =
         HINT_CODE.find(case.hint)?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.takeIf { "1312" !in case.hint }
 
-    fun missing(case: KftTestCase): Set<Variant> = of(case) - implemented
+    fun missing(case: KftTestCase): Set<Variant> = of(case) - implemented - (if (case.partnerSheet) emptySet() else faultyOrders)
 }

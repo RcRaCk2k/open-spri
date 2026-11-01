@@ -13,6 +13,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class InboundOrderServiceTest {
@@ -44,6 +45,25 @@ class InboundOrderServiceTest {
         val result = checked.receiveOrder(partner, neu().copy(clientNumber = "AG1", serviceNumber = "LN1", ordererClientNumber = "B1", ordererServiceNumber = "BL1", projectId = "P1"), 1)
         assertEquals(listOf("R-11", "R-12"), result.findings.map { it.substringBefore(':') })
         assertEquals(result.findings, repository.history.single().findings)
+    }
+
+    @Test
+    fun `a Storno to an unknown order becomes a record that only an ABBM ends (KFT Z_11_2_01)`() {
+        val result = service.receiveOrder(partner, neu("X-1").copy(changeIndicator = ChangeIndicator.STORNO), 1)
+        assertContains(result.findings.single(), "unzulässiges Änderungskennzeichen")
+        val order = repository.get(result.orderId!!)!!
+        assertEquals(Phase.NOT_STARTED, order.state.phase)
+        assertIs<Transition.Rejected>(OrderLifecycle.apply(order.state, OrderEvent.Message(MessageType.QEB)))
+        assertIs<Transition.Rejected>(OrderLifecycle.apply(order.state, OrderEvent.Message(MessageType.ERLM, ChangeIndicator.STORNO)))
+        val ended = assertIs<Transition.Accepted>(OrderLifecycle.apply(order.state, OrderEvent.Message(MessageType.ABBM, ChangeIndicator.STORNO))).state
+        assertTrue(ended.finished)
+    }
+
+    @Test
+    fun `Geschäftsfallart must fit the business case (KFT Z_12_2_01)`() {
+        val result = service.receiveOrder(partner, neu().copy(declaredKind = "Diagnose"), 1)
+        assertContains(result.findings.single(), "Unzulässiger Geschäftsfall")
+        assertEquals(emptyList(), service.receiveOrder(partner, neu("A-2", key = "ADDR:y").copy(declaredKind = "Bereitstellung"), 2).findings)
     }
 
     @Test
