@@ -33,7 +33,16 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q xmlsec1
       # Includes unit tests, ArchUnit rules, Testcontainers integration tests (MariaDB)
       # and the check that docs/api/openapi.json matches the served specification.
-      - run: ./gradlew build --console=plain
+      - name: Build and test
+        run: |
+          set -o pipefail
+          ./gradlew build --console=plain 2>&1 | tee gradle.log
+      - name: Report build failure as annotation
+        if: failure()
+        run: |
+          echo "::notice title=ak-spri.de reachable?::HTTP $(curl -s -o /dev/null -m 20 -w '%{http_code}' -A 'open-spri-build (+https://github.com/RcRaCk2k/open-spri)' https://ak-spri.de/wp-content/uploads/Anlage_3_XSD_SPRI_V.4.x.zip || true)"
+          summary=$(grep -E "What went wrong|Caused by|Exception|FAILED|^e: |^> |error" gradle.log | grep -v "^> Task" | head -40 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::error title=Gradle build failed::${summary}"
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
