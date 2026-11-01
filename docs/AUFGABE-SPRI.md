@@ -107,7 +107,7 @@ Wichtig sind diese Regeln der Testfallliste:
 | D-12 | v1 ist **Single-Tenant** (eine Installation = ein ICC). Mandantenfähigkeit für Dienstleister kommt in v2, die Datenbank bekommt aber schon jetzt eine `tenant_id`-Spalte. | entschieden 2026-11-01 |
 | D-13 | Die Datenquelle für eigene Verfügbarkeiten (LE) ist eine eigene Tabelle, gefüllt per REST-API oder CSV/XML-Import. Eine direkte Anbindung an GIS oder Netzinventar ist nicht Teil von v1. | entschieden 2026-11-01 |
 | D-14 | Für Ereignisse an Fremdsysteme gibt es **Webhooks** (HMAC-signiert) und zusätzlich einen Event-Feed per Polling (`GET /events?after=`) | entschieden 2026-11-01 |
-| D-15 | Der Betreiber nutzt einen **vorhandenen nginx-Reverse-Proxy mit Let's Encrypt** auf einer VM. Der Proxy-Container im Stack bleibt optional für andere Nutzer. Die Doku liefert eine geprüfte nginx-Konfiguration (Kap. 7.4). | entschieden 2026-11-01 |
+| D-15 | **All-in-One-Stack:** Standardmäßig startet der Compose-Stack einen eigenen Container **`proxy` (nginx)** und einen Container **`certbot`** (Let's Encrypt, automatische Verlängerung). Damit läuft die Software nach `docker compose up` ohne weitere Infrastruktur. Ein **externer nginx bzw. Reverse-Proxy** bleibt möglich (Compose-Profil abschalten, Beispielkonfiguration in der Doku). Eingehende und ausgehende IP-Adressen können getrennt sein (Kap. 7.6). | entschieden 2026-11-01 (ADR-0003, ersetzt die erste Fassung von D-15) |
 | D-16 | Security-Meldeweg: GitHub Private Vulnerability Reporting als primärer Kanal, `abuse@rsm-freilassing.de` als E-Mail-Alternative. Copyright-Vermerk der Lizenz: „open-spri contributors“. | entschieden 2026-11-01 |
 
 ## 5. Fachliche Anforderungen
@@ -319,18 +319,33 @@ Grundlagen sind Spezifikation Kap. 6.2 und NGA-Forum „L2-BSA IV – Diagnosesc
 - XML-Härtung: XXE deaktiviert, Größenlimits, Begrenzung der Entity Expansion
 - REST: Rate Limiting je Token, CORS nur für die eigene Frontend-Origin, Security-Header, CSRF-Schutz für Cookie-Sessions
 
-### 7.4 TLS-Bereitstellung im Stack
+### 7.4 TLS-Bereitstellung im Stack (D-15)
 
-Der SOAP-Endpunkt muss aus dem Internet erreichbar sein und ein Whitelist-CA-Zertifikat haben. TLS darf am Proxy enden, weil WS-Security auf Nachrichtenebene unabhängig davon ist.
+Der SOAP-Endpunkt muss aus dem Internet erreichbar sein und ein Zertifikat einer Whitelist-CA haben. TLS darf am Proxy enden, weil WS-Security auf Nachrichtenebene unabhängig davon ist.
 
-- **Referenzbetrieb (D-15):** Ein vorhandener **nginx mit Let's Encrypt** auf der VM des Betreibers. Der Compose-Stack veröffentlicht `api` und `frontend` nur auf `127.0.0.1` bzw. in einem internen Netz. Die Doku (`docs/betrieb.md`) enthält eine **geprüfte nginx-Beispielkonfiguration**:
-  - `ssl_protocols TLSv1.2 TLSv1.3;`, BSI-konforme Cipher-Liste
-  - `client_max_body_size` für Anlagen
-  - `proxy_read_timeout` ≥ 130 s, für Anlagen bis 120 s
-  - Weitergabe von `X-Forwarded-For`/`X-Real-IP`. Die App vertraut nur der Proxy-IP und wertet nur dann die Partner-IP für die Allowlist aus.
-  - optional eine zusätzliche IP-Allowlist für `/spri/` im nginx
-- **Schlüssel des Let's-Encrypt-Zertifikats:** Er muss die AK-Vorgabe erfüllen, also **ECDSA P-256 oder höher** (certbot-Standard ab 2.0) oder **RSA ≥ 3072**. Ein RSA-2048-Schlüssel ist für neue Zertifikate unzulässig, das muss beim Setup geprüft werden. Die Software prüft das ausgelieferte Zertifikat über einen Selbsttest (`GET /api/v1/selftest/tls`, ruft die eigene öffentliche URL auf) und warnt in der Oberfläche.
-- **Für andere Nutzer:** ein optionaler Container `proxy` (Caddy oder Traefik mit ACME) als Compose-Profil
+**Variante A: All-in-One (Standard).** Die Container `proxy` und `certbot` gehören zum Stack (Compose-Profil `proxy`, in `.env.example` über `COMPOSE_PROFILES=proxy` voreingestellt).
+- `proxy`: offizielles nginx-Image mit mitgelieferter, kommentierter Konfiguration als Template. Die Werte kommen aus `.env`: `PUBLIC_HOSTNAME`, optional getrennte `SPRI_HOSTNAME`/`APP_HOSTNAME`, `ACME_EMAIL`. Nur der Proxy öffnet Ports (80 für die ACME-HTTP-01-Challenge und die Umleitung, 443). `api`, `frontend` und `db` liegen ausschließlich im internen Docker-Netz.
+- `certbot`: offizielles certbot-Image mit Webroot-Verfahren über ein gemeinsames Volume.
+  - Erstausstellung beim ersten Start, danach Verlängerungsschleife (`certbot renew` alle 12 h)
+  - Schlüssel fest auf **`--key-type ecdsa --elliptic-curve secp256r1`** (alternativ `rsa --rsa-key-size 3072` per Variable). RSA 2048 ist nicht konfigurierbar.
+  - `nginx` lädt Zertifikate per Deploy-Hook bzw. regelmäßigem `nginx -s reload` neu, ohne Ausfall.
+- **Start ohne Henne-Ei-Problem:** Fehlt noch ein Zertifikat, erzeugt das Entrypoint-Skript von `proxy` ein temporäres selbstsigniertes Zertifikat, damit nginx starten und die Challenge beantworten kann. Danach wird automatisch neu geladen. Der Setup-Assistent zeigt an, solange noch das Übergangszertifikat aktiv ist. In diesem Zustand ist kein Partnerbetrieb möglich.
+- **Staging-Schalter** (`ACME_STAGING=true`) für Tests, damit die Ratenlimits von Let's Encrypt nicht greifen
+- **Alternative für Umgebungen ohne Port 80:** DNS-01-Challenge über certbot-DNS-Plugins. Das ist dokumentiert, aber nicht der Standard.
+
+**nginx-Konfiguration (beide Varianten identisch, liegt als `deploy/nginx/` im Repo):**
+- `ssl_protocols TLSv1.2 TLSv1.3;`, BSI-konforme Cipher-Liste (TR-02102-2), HSTS für die App-Oberfläche, OCSP-Stapling
+- **Getrennte Bereiche:**
+  - `/spri/` (SOAP, nur Partner), mit optionaler zusätzlicher IP-Allowlist im nginx (`allow`/`deny`, aus Datei erzeugt)
+  - `/replikat/` und `/api/v1/availability` (Partnerzugriffe)
+  - `/api/` und `/` (Oberfläche und Integrationen)
+  - Optional über getrennte Hostnamen, z. B. `spri.example.de` für Partner und `app.example.de` intern
+- `client_max_body_size` passend für Anlagen, `proxy_read_timeout` ≥ 130 s (Anlagen bis 120 s)
+- `X-Forwarded-For`/`X-Real-IP` setzen. Die App vertraut diesen Headern nur von der konfigurierten Proxy-IP bzw. aus dem Proxy-Netz und wertet nur dann die Partner-IP für die Allowlist aus.
+
+**Variante B: externer Reverse-Proxy.** Ein vorhandener nginx o. ä. des Betreibers übernimmt TLS. Dafür wird `COMPOSE_PROFILES` ohne `proxy` gesetzt, und `api`/`frontend` werden auf `127.0.0.1` veröffentlicht. Die Doku liefert dieselbe nginx-Konfiguration als Snippet für den externen nginx sowie die Anforderungen an Zertifikate (ECDSA P-256 oder RSA ≥ 3072) und an Header.
+
+**Selbsttest in beiden Varianten:** `GET /api/v1/selftest/tls` ruft die eigene öffentliche URL auf und prüft Protokolle, Schlüsseltyp und -länge, Aussteller-CA gegen die Whitelist und die Restlaufzeit. Das Ergebnis erscheint im Setup-Assistenten und im Dashboard. Ab 14 Tagen Restlaufzeit gibt es eine Warnung.
 
 ### 7.5 Authentifizierung und Autorisierung der REST-API (modular)
 
@@ -356,30 +371,47 @@ Module werden per Classpath (ServiceLoader/Spring-Auto-Configuration) gefunden u
 
 **Partner-Zugriffe** (Replikat-Download, Online-Abfrage) laufen über eigene Partner-Tokens mit Scope `partner:<id>:availability`.
 
+### 7.6 Eingehende und ausgehende IP-Adressen
+
+S/PRI unterscheidet zwei Richtungen. Sie dürfen über **verschiedene IP-Adressen** laufen:
+
+| Richtung | Wer prüft | Was der Partner braucht |
+|---|---|---|
+| **Ausgehend** (wir → Partner: Aufträge als AG, Meldungen als LE, Replikat-Download, Online-Abfrage) | Der Partner schaltet laut Security-Dokument 2.6 **unsere Outbound-IP(s)** frei. | feste Quell-IPv4 (ggf. mehrere, ggf. IPv6) |
+| **Eingehend** (Partner → wir: unser SOAP-Endpunkt, Replikat, Online-Abfrage) | Wir prüfen die Outbound-IPs des Partners (IP-Allowlist je Partner). | unsere Endpunkt-URL (DNS-Name) aus der WSDL. Manche Partner beschränken ihren ausgehenden Verkehr und brauchen zusätzlich **unsere Inbound-IP**. |
+
+Anforderungen an die Software:
+- Ausgehende Verbindungen der `api` lassen sich über eine **feste Quelladresse** führen:
+  1. Standard: das Routing bzw. SNAT des Hosts. Die Doku zeigt die Docker-Variante mit eigenem Netz und SNAT-Regel.
+  2. Optional: ein **HTTP(S)-Egress-Proxy** (`SPRI_OUTBOUND_PROXY`, z. B. Firmen-Proxy oder Squid mit fester IP), je Partner abschaltbar
+- Im Setup und in den Einstellungen werden die **öffentlichen Inbound-Adressen** (DNS-Name, IPv4/IPv6) und die **Outbound-Adressen** getrennt erfasst. Beide erscheinen auf dem Partner-Onboarding-Blatt (`GET /api/v1/partners/onboarding-sheet`: WSDL mit Endpoint, Inbound-Adresse, Outbound-IPs, Signaturzertifikat, technischer Kontakt).
+- Selbsttest „Outbound-IP“: Die `api` ermittelt ihre tatsächliche öffentliche Quell-IP und vergleicht sie mit der konfigurierten Adresse. Bei Abweichung erscheint eine Warnung, weil Partner sonst die Verbindung ablehnen würden.
+- Ändert sich eine Adresse, hilft die Funktion „Wartung ankündigen“ (NF-08) mit einer Vorlage für die Partner-Mitteilung.
+
 ## 8. Architektur
 
 ### 8.1 Container (docker-compose)
 
 ```
-                 Internet (Partner)                Intern (Nutzer, CRM)
-                        │ HTTPS 443                        │
-                 ┌──────▼───────┐  (optional, Profil "proxy")
-                 │ proxy (Caddy)│──────────────┐
-                 └──────┬───────┘              │
-              /spri/v4  │ /replikat /api       │ /
-                 ┌──────▼──────────┐   ┌───────▼────────┐
-                 │ api (Kotlin)    │◀──│ frontend       │  nginx + React-SPA,
-                 │ SOAP+REST+Jobs  │   │ (nginx)        │  proxy /api → api
-                 └──────┬──────────┘   └────────────────┘
-                        │ JDBC
-                 ┌──────▼──────────┐   ┌────────────────────────┐
-                 │ db (MariaDB 11) │   │ spri-simulator         │ nur Profil
-                 └─────────────────┘   │ (gleiches Image, Modus)│ "dev"/"test"
-                                       └────────────────────────┘
+        Internet: Partner (SOAP, Replikat, Online-Abfrage)   Nutzer, CRM
+                         │ 80/443  (Inbound-IP)                 │
+   ┌─────────────────────▼──────────────────────────────────────▼──────┐
+   │ proxy (nginx)  /spri/ · /replikat/ · /api/ · /     Profil "proxy" │◀── certbot
+   └──────────┬──────────────────────────────────────────┬─────────────┘    (Let's Encrypt,
+              │                                          │                   Verlängerung)
+   ┌──────────▼──────────┐                      ┌────────▼───────┐
+   │ api (Kotlin)        │◀─────── /api ────────│ frontend       │ nginx + React-SPA
+   │ SOAP · REST · Jobs  │                      │ (statisch)     │
+   └──────┬───────┬──────┘                      └────────────────┘
+          │ JDBC  └──────▶ ausgehend zu Partnern (Outbound-IP, SNAT oder Egress-Proxy)
+   ┌──────▼──────────┐     ┌────────────────────────┐
+   │ db (MariaDB 11) │     │ spri-simulator         │ nur Profil "dev"/"test"
+   └─────────────────┘     └────────────────────────┘
 ```
 
 - `api`: ein Image mit Spring Boot. Es enthält den SOAP-Endpunkt (CXF), die REST-API, den Scheduler (Outbox-Dispatcher, Replikat-Jobs, Retries) und Flyway-Migrationen beim Start.
 - `frontend`: statischer Build hinter nginx. Leitet `/api` an `api` weiter, damit es keine CORS-Probleme gibt.
+- `proxy` + `certbot`: TLS-Terminierung und Zertifikate (Kap. 7.4), Standard im All-in-One-Stack. Bei externem Reverse-Proxy wird das Profil abgeschaltet.
 - `db`: MariaDB 11 LTS mit Volume, Healthcheck, Backup-Skript (mariadb-dump) als Dokumentation bzw. Sidecar-Beispiel
 - `spri-simulator`: dasselbe `api`-Image im Modus `SIMULATOR`, siehe Kap. 10.3
 - Konfiguration über Umgebungsvariablen bzw. `.env`, Geheimnisse über Docker-Secrets. Images für amd64 und arm64.
@@ -516,7 +548,7 @@ Der echte KFT-Simulator von Enghouse ist nicht öffentlich. Unser Simulator bild
 
 | M | Inhalt | Abnahmekriterium |
 |---|---|---|
-| **M0** Grundgerüst | Repo, Gradle-Multimodule, CI, Compose (api, db, frontend), Flyway, Health, OpenAPI-Grundgerüst, ArchUnit-Regeln, LICENSE/README | `docker compose up` startet. CI ist grün. |
+| **M0** Grundgerüst | Repo, Gradle-Multimodule, CI, Compose (api, db, frontend, proxy/certbot im Staging-Modus), Flyway, Health, OpenAPI-Grundgerüst, ArchUnit-Regeln, LICENSE/README | `docker compose up` startet. CI ist grün. |
 | **M1** Schema und Signatur | JAXB-Codegen, Anlage-1-Regelgenerator, WSS4J-Signatur und -Prüfung, CXF-Endpunkt `annehmenAuftrag`/`annehmenMeldung` mit TEQ, IP-Allowlist, SOAP-Archiv | Signatur-Interop-Tests grün. Ungültige Nachrichten liefern die passende TEQ. |
 | **M2** Domain-Kern | Zustandsautomaten aller GF (v1), Regeln R-01 bis R-15, Meldungscode-Tabelle (Import) | Unit-Abdeckung domain ≥ 90 %, alle Übergänge getestet |
 | **M3** Outbox und Inbox | Reihenfolgegarantie, Retry, Timeout-Behandlung, E-Mail-Rückfall, Zustellmonitor | Tests aus Kap. 10.1 Punkt 4 grün |
@@ -547,6 +579,7 @@ Leitsatz: **Keine Blackbox.** Jede Entscheidung, jedes Verhalten an der Schnitts
 | `CLAUDE.md` | Grundsatzentscheidungen und Arbeitsregeln für Entwickler und KI-Assistenten, damit das Projekt die Richtung behält | ab dem 1. Commit |
 | `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `LICENSE` (MIT), Issue- und PR-Vorlagen | übliche Open-Source-Bestandteile, deutschsprachig | M0 |
 | `scripts/fetch-spec.sh`, `scripts/gen-testmatrix.py` | Laden der AK-Dokumente, Erzeugen der Testfallmatrix | M0 |
+| `deploy/` | `compose.yaml`, `.env.example`, `nginx/` (Templates für All-in-One und externen Proxy), certbot-Skripte, Beispiel für SNAT bzw. Egress | M0 (Grundgerüst), M8 (gehärtet) |
 
 ### 12.2 Commits und CHANGELOG
 
@@ -587,7 +620,7 @@ Dokumentation, Commits, UI und Issues sind **deutsch**, denn die Zielgruppe ist 
 | ~~OP-06~~ | ~~Bestätigung D-10 bis D-14~~. **Erledigt am 2026-11-01** | – | – |
 | ~~OP-07~~ | ~~Produktname und Repo~~. **Erledigt:** `open-spri`, github.com/RcRaCk2k/open-spri | – | – |
 | OP-08 | Die XSD 4.00.03 stammt von 2014. Abgleich mit Anlage 1 V4.4: Welche V4.4-Attribute (Konnektivität, Seriennummer ONT, Medienkonverter …) laufen über generische Attributstrukturen? Das Ergebnis wird als Mapping-Tabelle dokumentiert. | Entwickler | M1 |
-| OP-09 | Test-Infrastruktur für den KFT: VM und nginx mit Let's Encrypt sind vorhanden (D-15). **Noch offen:** feste ausgehende IPv4 (Enghouse und Partner schalten IPs frei), DNS-Name, Schlüsseltyp des Zertifikats prüfen (Kap. 7.4) | Auftraggeber | M8 |
+| OP-09 | Test- und Betriebsinfrastruktur für den KFT: Eine VM ist vorhanden. Der All-in-One-Stack bringt nginx und certbot mit, oder es wird der vorhandene nginx genutzt (D-15). **Noch offen:** feste **Outbound**-IPv4 (wird von Enghouse und Partnern freigeschaltet), **Inbound**-IP und DNS-Name(n), Ports 80/443 erreichbar | Auftraggeber | M8 |
 | OP-11 | Fehlende Meldungscodes 1089 und 7501, TEQ-Fehlercode für Signaturfehler: beim AK erfragen. Bis dahin gelten die Annahmen aus R-13 und Kap. 5.3. | Auftraggeber | M1/M2 (Annahme reicht) |
 | ~~OP-12~~ | ~~Copyright-Inhaber und Security-Kontakt~~. **Erledigt (D-16)** | – | – |
 | OP-10 | Anlage 7 (EPKs V.13 vom 09.10.2026) und Arbeitshandbuch 2.9.5 (09.10.2026) sind brandneu. Wir prüfen, ob sie Änderungen enthalten, die den KFT-Umfang betreffen. | Entwickler | M2 |

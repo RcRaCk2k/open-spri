@@ -23,7 +23,7 @@ open-spri ist eine MIT-lizenzierte Implementierung der **S/PRI-Schnittstelle V4.
 9. **Sicherheit ist nicht verhandelbar.** TLS ≥ 1.2 mit Whitelist-CA. WS-Security-Signatur mit RSA ≥ 3072 und SHA256. IP-Allowlist je Partner. XML ist gehärtet (kein XXE). Geheimnisse liegen nie im Repo, in Logs oder unverschlüsselt in der DB. API-Tokens werden nur als Hash gespeichert.
 10. **Regeln sind Daten.** Die Attributregeln aus Anlage 1 und die Meldungscodes aus Anlage 5 werden aus den Quelldateien generiert bzw. importiert und versioniert. Sie werden nicht von Hand in den Code geschrieben.
 11. **Die Testfallliste ist das Abnahmekriterium.** Jeder KFT-Testfall im Scope wird ein automatisierter Szenario-Test mit der TF-ID im Namen (`S_1_1_07_...`). Ein Coverage-Gate lässt den Build scheitern, wenn ein TF ohne Test ist. Vor einem KFT-Termin müssen alle TF im eigenen Simulator grün sein.
-12. **Einfacher Betrieb.** Docker Compose mit den Containern `api`, `db` (MariaDB) und `frontend`. Optional kommen `proxy` (TLS/ACME) und `spri-simulator` dazu (nur Test/Dev). Es gibt keine zusätzlichen Infrastruktur-Abhängigkeiten wie einen Message-Broker, ohne ADR.
+12. **Einfacher Betrieb.** Docker Compose mit den Containern `api`, `db` (MariaDB) und `frontend`. Dazu kommen standardmäßig `proxy` (nginx) und `certbot` (Let's Encrypt), abschaltbar für einen externen Reverse-Proxy (ADR-0003), sowie `spri-simulator` (nur Test/Dev). Es gibt keine zusätzlichen Infrastruktur-Abhängigkeiten wie einen Message-Broker, ohne ADR.
 13. **Datenschutz.** Endkundendaten sind personenbezogen: Daten sparsam erheben, Aufbewahrung konfigurierbar, Zugriffe auditieren. In Tests und Beispielen stehen nur erfundene Daten.
 
 ## Technik (festgelegt, Änderung nur per ADR)

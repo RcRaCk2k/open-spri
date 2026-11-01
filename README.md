@@ -24,7 +24,8 @@ Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requ
 - Webhooks und Event-Feed für Statusänderungen
 
 **Betrieb**
-- Docker-Compose-Stack: API, MariaDB, Frontend. Läuft hinter einem vorhandenen Reverse-Proxy (geprüfte nginx-Konfiguration inklusive) oder mit dem optionalen TLS-Proxy-Container (Let's Encrypt).
+- **All-in-One-Stack:** API, MariaDB, Frontend sowie nginx und certbot (Let's Encrypt mit automatischer Verlängerung). Nach `docker compose up` ist die Software per HTTPS erreichbar. Alternativ läuft sie hinter einem vorhandenen Reverse-Proxy (Konfiguration inklusive).
+- Eingehende und ausgehende IP-Adressen sind getrennt konfigurierbar, mit Selbsttests für Zertifikat und Outbound-IP.
 - Setup-Assistent beim ersten Start (Firmendaten, ITU Carrier Code, Rollen, Zertifikate)
 - Eingebauter Simulator, der die Testfälle des Konformitätstests nachbildet
 

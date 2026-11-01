@@ -21,4 +21,5 @@ Status: vorgeschlagen | Datum: JJJJ-MM-TT
 | Nr. | Titel | Status |
 |---|---|---|
 | [ADR-0001](ADR-0001-ausgangsentscheidungen.md) | Ausgangsentscheidungen der Spezifikationsphase | angenommen, ergänzt durch ADR-0002 |
-| [ADR-0002](ADR-0002-scope-bestaetigung-diagnose.md) | Scope bestätigt, Diagnose in v1, Betrieb hinter nginx | angenommen |
+| [ADR-0002](ADR-0002-scope-bestaetigung-diagnose.md) | Scope bestätigt, Diagnose in v1, Betrieb hinter nginx | angenommen, D-15 ersetzt durch ADR-0003 |
+| [ADR-0003](ADR-0003-all-in-one-proxy-ip-trennung.md) | All-in-One-Stack mit nginx/certbot, getrennte Inbound-/Outbound-IPs | angenommen |

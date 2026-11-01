@@ -38,3 +38,4 @@ Welche Tests belegen die Änderung?
 |---|---|---|
 | [CL-0001](CL-0001-projektspezifikation.md) | Projektspezifikation und Grundsätze | 2026-11-01 |
 | [CL-0002](CL-0002-scope-final-diagnose.md) | Scope final, Diagnose in v1, Security-Meldeweg | 2026-11-01 |
+| [CL-0003](CL-0003-all-in-one-proxy.md) | All-in-One-Stack mit nginx/certbot, getrennte Inbound-/Outbound-IPs | 2026-11-01 |
