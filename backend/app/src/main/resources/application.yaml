@@ -33,6 +33,10 @@ management:
       base-path: /
       exposure:
         include: health, info
+  health:
+    # The S/PRI interface is available even when the mail server is not; notifications are only an add-on.
+    mail:
+      enabled: false
   endpoint:
     health:
       probes:

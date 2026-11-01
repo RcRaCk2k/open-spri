@@ -58,7 +58,8 @@ class DeliveryConfiguration {
 
     @Bean
     fun notifier(mail: ObjectProvider<JavaMailSender>, partners: PartnerDirectory, properties: NotificationProperties): Notifier =
-        MailNotifier(mail.ifAvailable, partners, properties)
+        // An empty spring.mail.host (e.g. an unset variable in compose) means: no mail server
+        MailNotifier(mail.ifAvailable?.takeUnless { (it as? org.springframework.mail.javamail.JavaMailSenderImpl)?.host.isNullOrBlank() }, partners, properties)
 
     @Bean
     fun deliveryService(outbox: Outbox, sender: OutboxSender, outages: OutageRegistry, notifier: Notifier, properties: OutboxProperties) =
