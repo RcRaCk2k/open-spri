@@ -23,6 +23,7 @@ dependencies {
     implementation(libs.cxf.spring.boot.starter.jaxws)
     implementation(libs.spring.boot.starter.mail)
     implementation("org.slf4j:slf4j-api")
+    api("tools.jackson.core:jackson-databind")
     compileOnly("jakarta.servlet:jakarta.servlet-api")
     testImplementation("jakarta.servlet:jakarta.servlet-api")
 

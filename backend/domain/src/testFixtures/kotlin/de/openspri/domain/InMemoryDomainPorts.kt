@@ -13,11 +13,15 @@ import de.openspri.domain.order.OrderRepository
 import de.openspri.domain.order.OrderRole
 import de.openspri.domain.order.Transactions
 import de.openspri.domain.partner.PartnerId
+import de.openspri.domain.query.DeliveryQueries
+import de.openspri.domain.query.OrderFilter
+import de.openspri.domain.query.OrderQueries
+import de.openspri.domain.delivery.RequestType
 import java.time.Duration
 import java.time.Instant
 
 /** In-memory ports with the same semantics as the JDBC implementations; shared by all test modules. */
-class InMemoryOrderRepository : OrderRepository {
+class InMemoryOrderRepository : OrderRepository, OrderQueries {
     val orders = mutableListOf<Order>()
     val history = mutableListOf<OrderHistoryEntry>()
 
@@ -38,10 +42,26 @@ class InMemoryOrderRepository : OrderRepository {
     }
 
     override fun append(entry: OrderHistoryEntry) { history += entry }
+
+    override fun get(id: OrderId) = orders.firstOrNull { it.id == id }
+
+    override fun search(filter: OrderFilter) = orders.asSequence()
+        .filter { filter.role == null || it.role == filter.role }
+        .filter { filter.partnerId == null || it.partnerId == filter.partnerId }
+        .filter { filter.businessCase == null || it.data.businessCase == filter.businessCase }
+        .filter { filter.phase == null || it.state.phase == filter.phase }
+        .filter { !filter.openOnly || !it.state.finished }
+        .filter { filter.beforeId == null || it.id!!.value < filter.beforeId }
+        .filter { o -> filter.text.isNullOrBlank() || listOfNotNull(o.data.externalOrderNumber, o.data.lineId, o.data.contractNumber).any { it.startsWith(filter.text) } }
+        .sortedByDescending { it.id!!.value }
+        .take(filter.limit.coerceIn(1, 500))
+        .toList()
+
+    override fun history(id: OrderId) = history.filter { it.orderId == id }
 }
 
 /** Outbox with the ordering semantics of the JDBC outbox: per key, only the oldest unfinished entry is due. */
-class InMemoryOutbox : Outbox {
+class InMemoryOutbox : Outbox, DeliveryQueries {
     val entries = mutableListOf<OutboxEntry>()
 
     override fun enqueue(entry: OutboxEntry) = entry.copy(id = entries.size + 1L).also { entries += it }
@@ -54,6 +74,15 @@ class InMemoryOutbox : Outbox {
         entries[entries.indexOfFirst { it.id == due.id }] = updated
         return true
     }
+
+    override fun get(id: Long) = entries.firstOrNull { it.id == id }
+
+    override fun list(status: DeliveryStatus?, orderId: OrderId?, beforeId: Long?, limit: Int) = entries
+        .filter { (status == null || it.status == status) && (orderId == null || it.orderId == orderId) && (beforeId == null || it.id!! < beforeId) }
+        .sortedByDescending { it.id }
+        .take(limit.coerceIn(1, 500))
+
+    override fun originalOrderPayload(orderId: OrderId) = entries.firstOrNull { it.orderId == orderId && it.type == RequestType.ORDER }?.payload
 
     private fun change(id: Long, from: Set<DeliveryStatus>, to: (OutboxEntry) -> OutboxEntry): Boolean {
         val index = entries.indexOfFirst { it.id == id && it.status in from }

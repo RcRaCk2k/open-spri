@@ -6,7 +6,7 @@ Die REST-API ist die **einzige** Programmierschnittstelle von open-spri. Die Web
 - Interaktiv: `https://<host>/api/docs` (Swagger UI)
 - Basis-Pfad: `/api/v1`
 
-> Stand M0: Es gibt bisher nur `GET /api/v1/about`. Mit M4 kommen Anmeldung, Tokens, Idempotenz, Fehlerformat, Paginierung, Webhooks und alle fachlichen Endpunkte hinzu, jeweils mit Beispielen auf eigenen Seiten in diesem Verzeichnis.
+> Stand M4 (in Arbeit): Anmeldung, Tokens, Benutzer, Setup, Einstellungen, Partner, Aufträge, Meldungen, Zustellung, Eingang, Archiv und Meldungscodes sind umgesetzt (vollständige Liste in `openapi.json`). Die ausführlichen Seiten mit curl-Beispielen und End-to-End-Abläufen folgen zum Abschluss von M4.
 
 ## Konventionen (verbindlich ab M4)
 

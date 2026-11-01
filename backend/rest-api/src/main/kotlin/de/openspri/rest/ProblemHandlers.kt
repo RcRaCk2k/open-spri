@@ -1,6 +1,9 @@
 package de.openspri.rest
 
 import de.openspri.domain.order.OrderActionRejected
+import de.openspri.rest.order.ActionDto
+import de.openspri.soap.NotFoundException
+import de.openspri.soap.PayloadInvalidException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -12,6 +15,16 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
  */
 @RestControllerAdvice
 class ProblemHandlers {
+
+    @ExceptionHandler(PayloadInvalidException::class)
+    fun invalidPayload(e: PayloadInvalidException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Der Inhalt ist nicht gültig").apply {
+            title = "Ungültiger Inhalt"
+            setProperty("errors", e.errors)
+        }
+
+    @ExceptionHandler(NotFoundException::class)
+    fun notFound(e: NotFoundException): ProblemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.message ?: "Nicht gefunden")
 
     @ExceptionHandler(IllegalArgumentException::class)
     fun badRequest(e: IllegalArgumentException): ProblemDetail =
@@ -30,5 +43,6 @@ class ProblemHandlers {
         ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Die Aktion ist nicht zulässig").apply {
             title = "Aktion nicht zulässig"
             setProperty("reasons", e.reasons)
+            setProperty("allowedActions", e.allowed.map(ActionDto::of))
         }
 }

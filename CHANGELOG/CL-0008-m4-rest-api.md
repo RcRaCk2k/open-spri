@@ -52,8 +52,31 @@ M4 macht open-spri bedienbar: Web-Oberfläche und Fremdsysteme steuern alles üb
 - `GET /partners/onboarding-sheet`: ICC, Endpunkt, WSDL, Outbound-IPs, Signaturzertifikat (PEM), Kontakt, S/PRI-Version
 - Einstellungen: `outboundAddresses` (Migration V8)
 
+### Teil 4: Aufträge, Meldungen, Zustellung
+- **`SpriJson`** (spri-soap): generischer Konverter zwischen JSON und den JAXB-Klassen der AK-XSD. Feldnamen wie im XSD, abstrakte Typen mit `"@type": "<XSD-Typname>"`, Fehler mit JSON-Pfad und erlaubten Feldnamen. Es gibt kein zweites, eigenes Auftragsmodell (keine Blackbox).
+- **`OutboundPayloads`:** baut eigene Aufträge und Meldungen, setzt den `control`-Kopf (Zeitstempel, Version, signaturId des aktuellen Schlüssels) und prüft jedes Ergebnis gegen XSD und Anlage 1 (`enforce`), bevor es in den Postausgang darf.
+  - Storno und Terminverschiebung werden aus dem ursprünglichen Auftrag im Postausgang abgeleitet (5.1.3/5.1.4).
+  - Eine Reklamation ist ein Entstörauftrag mit `reklamation` (6.1.5).
+  - Meldungen in vereinfachter Form: Typ, Codes, optionale `meldungsattribute`. Den Kopf, die externe Auftragsnummer, die Auftraggebernummer und Texte aus der Meldungscodetabelle ergänzt open-spri (SA-011).
+- **`OrderCommands`:** Einstieg für die REST-API, nutzt `OutboundOrderService` (Zustandsautomat, R-13, Outbox). Eine Meldung wird **vor** dem Zusammenbau gegen Rolle, Codes und Automat geprüft, damit eine unzulässige Aktion mit 409 und `allowedActions` abgelehnt wird statt mit Inhaltsfehlern.
+- `OrderActionRejected` trägt die zulässigen Aktionen (Grundsatz 6). `OutboundOrderService.allowedActions` filtert die Übergänge des Automaten nach unserer Rolle.
+- **Lese-Ports** im Fachmodell (`domain.query`): `OrderQueries`, `DeliveryQueries`, `InboxQueries`, `ArchiveQueries`, umgesetzt in den JDBC-Klassen. Die Suche maskiert LIKE-Platzhalter.
+- **REST:**
+  - `GET /orders` (Filter, Präfixsuche, Cursor), `GET /orders/{id}` mit `allowedActions`, `GET /orders/{id}/history`
+  - `POST /orders`, `POST /orders/{id}/requests`, `POST /orders/{id}/messages` (202; die Zustellung läuft asynchron)
+  - `GET /deliveries`, `GET /deliveries/{id}`, `GET /deliveries/{id}/payload`, `POST /deliveries/{id}/retry|sent-by-email|cancel`
+  - `GET /inbox`, `POST /inbox/{id}/reprocess`
+  - `GET /archive/{id}`, `GET /archive/{id}/request|response` (byte-genau; Zugriff auf Inhalte wird protokolliert)
+  - `GET /message-codes`, `POST /message-codes` (neue Version importieren, sofort aktiv)
+  - Fehler: 400 mit `errors` (XSD, Anlage 1, JSON-Pfad), 404, 409 mit `reasons` und `allowedActions`
+- Meldungen als Leistungserbringer brauchen den Scope `le:messages:write`, alles andere `orders:write`.
+
 ## Tests
 
+- `SpriJsonTest` (3): XML → JSON → XML für Auftrag und QEB bleibt XSD-gültig, Fehlermeldungen mit Pfad und Vorschlägen
+- `OutboundPayloadsTest` (4): Auftrag mit unserem Kopf, ungültiges JSON mit Pfad, Storno/Terminverschiebung aus dem Original, vereinfachte QEB
+- `OrderApiTest` (4, echtes HTTP): Auftrag → Postausgang → Storno → zweites Storno 409 mit `allowedActions` → Zustellung zurückziehen; 400/404/409 bei ungültigem Inhalt, unbekanntem Partner und doppelter Nummer; QEB als Leistungserbringer (403 ohne Scope, R-13, ERLM vor ABM → 409 mit ABM als erlaubter Aktion); Meldungscodetabelle
+- `ApplicationIntegrationTest` (MariaDB, CI): Lese-Ports inklusive LIKE-Maskierung, Verlauf, Original-Payload, Archiv
 - `PartnerApiTest` (4): Anlage mit Zertifikat und IP-Netzen, Zertifikatswechsel (hinzufügen, alt entfernen), ungültiges PEM/Hostname/URL → 400, VIEWER darf lesen, nicht ändern; WSDL mit unserem Endpunkt, Onboarding-Blatt
 - `SetupTest` (3): vor dem Setup Token nötig (403), Setup mit Token legt Admin, Firma und gespeicherten Schlüssel (3072 Bit) an, Login und Einstellungen funktionieren, kein zweites Setup (409)
 - `SecurityTest` (6, echtes HTTP): öffentliche Endpunkte, 401 ohne Anmeldung, Token mit Berechtigung und 403 ohne, ungültiges und widerrufenes Token, Berechtigungen nicht über die Rolle hinaus, Session-Login mit CSRF-Schutz (ohne Token 403, mit Token 201)

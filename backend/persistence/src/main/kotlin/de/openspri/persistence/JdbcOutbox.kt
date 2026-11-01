@@ -7,6 +7,7 @@ import de.openspri.domain.delivery.RequestType
 import de.openspri.domain.exchange.SoapOperation
 import de.openspri.domain.order.OrderId
 import de.openspri.domain.partner.PartnerId
+import de.openspri.domain.query.DeliveryQueries
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.jdbc.support.GeneratedKeyHolder
 import org.springframework.stereotype.Repository
@@ -25,7 +26,7 @@ import java.time.Instant
  * key. So per key exactly one request is in flight, across all instances.
  */
 @Repository
-class JdbcOutbox(private val jdbc: JdbcClient, private val transactions: TransactionTemplate) : Outbox {
+class JdbcOutbox(private val jdbc: JdbcClient, private val transactions: TransactionTemplate) : Outbox, DeliveryQueries {
 
     private val blocking = DeliveryStatus.entries.filter { it.blocksKey }.joinToString(",") { "'${it.name}'" }
 
@@ -72,6 +73,23 @@ class JdbcOutbox(private val jdbc: JdbcClient, private val transactions: Transac
 
     fun byStatus(status: DeliveryStatus): List<OutboxEntry> =
         jdbc.sql("SELECT * FROM outbox_message WHERE status = :s ORDER BY id").param("s", status.name).query { rs, _ -> map(rs) }.list()
+
+    override fun get(id: Long): OutboxEntry? =
+        jdbc.sql("SELECT * FROM outbox_message WHERE id = :id").param("id", id).query { rs, _ -> map(rs) }.optional().orElse(null)
+
+    override fun list(status: DeliveryStatus?, orderId: OrderId?, beforeId: Long?, limit: Int): List<OutboxEntry> {
+        val where = mutableListOf("tenant_id = :t")
+        val params = mutableMapOf<String, Any?>("t" to Tenant.DEFAULT, "limit" to limit.coerceIn(1, 500))
+        status?.let { where += "status = :s"; params["s"] = it.name }
+        orderId?.let { where += "order_id = :o"; params["o"] = it.value }
+        beforeId?.let { where += "id < :before"; params["before"] = it }
+        return jdbc.sql("SELECT * FROM outbox_message WHERE ${where.joinToString(" AND ")} ORDER BY id DESC LIMIT :limit")
+            .params(params).query { rs, _ -> map(rs) }.list()
+    }
+
+    override fun originalOrderPayload(orderId: OrderId): ByteArray? =
+        jdbc.sql("SELECT payload FROM outbox_message WHERE order_id = :o AND request_type = 'ORDER' ORDER BY id LIMIT 1")
+            .param("o", orderId.value).query(ByteArray::class.java).optional().orElse(null)
 
     private fun change(id: Long, condition: String, assignment: String, now: Instant): Boolean =
         jdbc.sql("UPDATE outbox_message SET $assignment WHERE id = :id AND $condition")

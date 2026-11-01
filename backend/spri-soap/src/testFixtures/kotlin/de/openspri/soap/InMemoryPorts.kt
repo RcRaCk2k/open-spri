@@ -11,6 +11,9 @@ import de.openspri.domain.message.MessageCodeTableParser
 import de.openspri.domain.exchange.OutboundArchive
 import de.openspri.domain.partner.Partner
 import de.openspri.domain.partner.PartnerDirectory
+import de.openspri.domain.query.ArchiveQueries
+import de.openspri.domain.query.InboxItem
+import de.openspri.domain.query.InboxQueries
 import java.net.InetAddress
 
 class InMemoryPartnerDirectory(vararg partners: Partner) : PartnerDirectory {
@@ -19,7 +22,7 @@ class InMemoryPartnerDirectory(vararg partners: Partner) : PartnerDirectory {
     override fun findById(id: de.openspri.domain.partner.PartnerId) = partners.firstOrNull { it.id == id }
 }
 
-class InMemoryInboundStore : InboundStore, InboxQueue {
+class InMemoryInboundStore : InboundStore, InboxQueue, InboxQueries, ArchiveQueries {
     val accepted = mutableListOf<Pair<ArchivedExchange, InboundMessage>>()
     private var processed = 0
     val findings = mutableListOf<List<String>>()
@@ -49,6 +52,18 @@ class InMemoryInboundStore : InboundStore, InboxQueue {
         rejected += exchange
         return 1000L + rejected.size
     }
+
+    override fun list(status: String?, beforeId: Long?, limit: Int) = accepted.mapIndexed { i, (exchange, message) ->
+        val id = i + 1L
+        InboxItem(
+            id, id, message.partnerId, message.operation.wsdlName, message.externalOrderNumber,
+            if (i < processed) "PROCESSED" else "RECEIVED", exchange.startedAt, null, findings.getOrNull(i)?.joinToString("\n"), null,
+        )
+    }.filter { (status == null || it.status == status) && (beforeId == null || it.id < beforeId) }.reversed().take(limit)
+
+    override fun reprocess(id: Long) = false
+
+    override fun get(id: Long) = if (id > 1000) rejected.getOrNull((id - 1001).toInt()) else accepted.getOrNull((id - 1).toInt())?.first
 }
 
 class InMemoryOutboundArchive : OutboundArchive {

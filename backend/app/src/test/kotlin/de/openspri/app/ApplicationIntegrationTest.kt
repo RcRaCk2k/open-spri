@@ -37,6 +37,10 @@ class ApplicationIntegrationTest(
     @Autowired private val partners: JdbcPartnerDirectory,
     @Autowired private val client: SpriClient,
     @Autowired private val keys: de.openspri.soap.SigningKeyHolder,
+    @Autowired private val orderRepository: de.openspri.persistence.JdbcOrderRepository,
+    @Autowired private val outbox: de.openspri.persistence.JdbcOutbox,
+    @Autowired private val inbox: de.openspri.persistence.JdbcInboxQueue,
+    @Autowired private val archive: de.openspri.persistence.JdbcMessageArchive,
 ) {
     @LocalServerPort
     private var port = 0
@@ -103,5 +107,40 @@ class ApplicationIntegrationTest(
         assertEquals(1, orders)
         assertEquals("PROCESSED", jdbc.queryForObject("SELECT status FROM inbox_message WHERE partner_id = ?", String::class.java, id.value))
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM spri_order_history WHERE partner_id = ? AND kind = 'ORDER'", Int::class.java, id.value))
+    }
+
+    @Test
+    fun `query ports for the REST API work on MariaDB`() {
+        val partner = partners.create(name = "Abfrage", carrierCode = "DEU.QUERY", certificates = listOf(credentials.certificate), networks = emptyList())
+        val now = java.time.Instant.now()
+        val data = de.openspri.domain.order.OrderData("QRY_%-1", de.openspri.domain.BusinessCase.NEU, lineId = "DEU.QUERY.L1")
+        val order = orderRepository.save(
+            de.openspri.domain.order.Order(null, partner, de.openspri.domain.order.OrderRole.AUFTRAGGEBER, data,
+                de.openspri.domain.order.OrderLifecycle.submitted(data.businessCase), now, now, sequenceKey = "k"),
+        )
+        orderRepository.append(
+            de.openspri.domain.order.OrderHistoryEntry(order.id, partner, null, de.openspri.domain.order.OrderHistoryEntry.Kind.ORDER, findings = listOf("a", "b"), at = now),
+        )
+        outbox.enqueue(
+            de.openspri.domain.delivery.OutboxEntry(null, partner, order.id, de.openspri.domain.delivery.RequestType.ORDER, SoapOperation.ANNEHMEN_AUFTRAG,
+                data.externalOrderNumber, "k", "<a/>".toByteArray(), nextAttemptAt = now, createdAt = now),
+        )
+
+        // LIKE wildcards in the search text are matched literally
+        assertEquals(listOf(order.id), orderRepository.search(de.openspri.domain.query.OrderFilter(text = "QRY_%")).map { it.id })
+        assertEquals(emptyList(), orderRepository.search(de.openspri.domain.query.OrderFilter(text = "QRYX")))
+        assertEquals(listOf(order.id), orderRepository.search(de.openspri.domain.query.OrderFilter(partnerId = partner, openOnly = true, text = "DEU.QUERY")).map { it.id })
+        assertEquals(listOf("a", "b"), orderRepository.history(order.id!!).single().findings)
+        assertEquals("<a/>", String(outbox.originalOrderPayload(order.id!!)!!))
+        assertEquals(1, outbox.list(de.openspri.domain.delivery.DeliveryStatus.PENDING, order.id, null, 10).size)
+        inbox.list(null, null, 10)
+
+        val archiveId = archive.storeRejected(
+            de.openspri.domain.exchange.ArchivedExchange(
+                de.openspri.domain.exchange.Direction.INBOUND, null, partner, "127.0.0.1", now, 3, "<x/>".toByteArray(), null,
+                TeqCode.STRUCTURE_INVALID, "test", null, null, null,
+            ),
+        )
+        assertEquals(TeqCode.STRUCTURE_INVALID, archive.get(archiveId)!!.teqCode)
     }
 }

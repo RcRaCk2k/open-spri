@@ -14,8 +14,11 @@ import de.openspri.domain.partner.PartnerId
 import java.time.Clock
 import java.time.LocalDate
 
-/** A request we want to send is not allowed; the reason names the rule (REST: 409/422). */
-class OrderActionRejected(val reasons: List<String>) : RuntimeException(reasons.joinToString("; "))
+/**
+ * A request we want to send is not allowed; the reason names the rule (REST: 409). [allowed] lists what the
+ * lifecycle permits instead (principle 6), empty if the order does not exist yet.
+ */
+class OrderActionRejected(val reasons: List<String>, val allowed: List<OrderEvent> = emptyList()) : RuntimeException(reasons.joinToString("; "))
 
 /** Runs a block in one database transaction (implemented by module persistence). */
 interface Transactions {
@@ -57,7 +60,7 @@ class OutboundOrderService(
         val findings = OrderRules.check(data, LocalDate.now(clock), original = order.data).toMutableList()
         val transition = OrderLifecycle.apply(order.state, OrderEvent.Request(kind))
         if (transition is Transition.Rejected) findings += transition.reason
-        if (findings.isNotEmpty()) throw OrderActionRejected(findings)
+        if (findings.isNotEmpty()) throw OrderActionRejected(findings, allowedActions(order))
         val now = clock.instant()
         val newData = if (kind == RequestKind.TERMINVERSCHIEBUNG && data.newDate != null) order.data.copy(desiredDate = data.newDate) else order.data
         val saved = orders.save(order.copy(state = (transition as Transition.Accepted).state, data = newData, updatedAt = now, sequenceKey = order.sequenceKey ?: keyFor(order.partnerId, order.data)))
@@ -71,25 +74,8 @@ class OutboundOrderService(
      * ERLM-K) or as abgebender EKP (RUEM-PV). [payload] is the annehmenMeldungRequest element.
      */
     fun sendMessage(order: Order, message: MessageInfo, payload: ByteArray): Order = transactions.run {
-        val reasons = mutableListOf<String>()
-        val sender = message.type.sender
-        val allowedSender = when (order.role) {
-            OrderRole.LEISTUNGSERBRINGER -> Party.LEISTUNGSERBRINGER
-            OrderRole.AUFTRAGGEBER -> Party.AUFTRAGGEBER
-            OrderRole.ABGEBENDER_EKP -> Party.ABGEBENDER_EKP
-        }
-        if (sender != allowedSender) reasons += "${message.type.code} wird vom ${sender.name} gesendet, wir sind ${order.role.name}"
-        if (message.businessCase != order.data.businessCase && !(order.data.businessCase == BusinessCase.KUE_LE)) {
-            reasons += "Geschäftsfall ${message.businessCase.code} passt nicht zum Auftrag (${order.data.businessCase.code})"
-        }
-        val catalog = codes()
-        message.codes.forEach { code ->
-            (catalog.check(code, message.type, message.businessCase) as? CodeCheck.Rejected)?.let { reasons += "R-13: ${it.reason}" }
-        }
-        if (message.codes.isEmpty()) reasons += "Eine Meldung braucht mindestens einen Meldungscode (11.2.4)"
-        val transition = OrderLifecycle.apply(order.state, OrderEvent.Message(message.type, message.changeIndicator, message.codes))
-        if (transition is Transition.Rejected) reasons += transition.reason
-        if (reasons.isNotEmpty()) throw OrderActionRejected(reasons)
+        val (reasons, transition) = messageChecks(order, message.type, message.changeIndicator, message.codes, message.businessCase)
+        if (reasons.isNotEmpty()) throw OrderActionRejected(reasons, allowedActions(order))
 
         val now = clock.instant()
         val data = message.lineId?.takeIf { order.data.lineId == null }?.let { order.data.copy(lineId = it) } ?: order.data
@@ -98,6 +84,54 @@ class OutboundOrderService(
         enqueue(saved, RequestType.MESSAGE, SoapOperation.ANNEHMEN_MELDUNG, payload)
         orders.append(OrderHistoryEntry(saved.id, order.partnerId, null, OrderHistoryEntry.Kind.MESSAGE, message.type, message.changeIndicator, message.codes, at = now))
         saved
+    }
+
+    /**
+     * Checks role, message codes and lifecycle before the payload is built, so that a message the order does
+     * not allow is rejected with the allowed actions (409) rather than with content errors.
+     */
+    fun precheckMessage(order: Order, type: MessageType, changeIndicator: ChangeIndicator, codes: List<String>) {
+        val (reasons, _) = messageChecks(order, type, changeIndicator, codes, order.data.businessCase)
+        if (reasons.isNotEmpty()) throw OrderActionRejected(reasons, allowedActions(order))
+    }
+
+    private fun messageChecks(
+        order: Order,
+        type: MessageType,
+        changeIndicator: ChangeIndicator,
+        codes: List<String>,
+        businessCase: BusinessCase,
+    ): Pair<List<String>, Transition> {
+        val reasons = mutableListOf<String>()
+        if (type.sender != ourParty(order.role)) reasons += "${type.code} wird vom ${type.sender.name} gesendet, wir sind ${order.role.name}"
+        if (businessCase != order.data.businessCase && order.data.businessCase != BusinessCase.KUE_LE) {
+            reasons += "Geschäftsfall ${businessCase.code} passt nicht zum Auftrag (${order.data.businessCase.code})"
+        }
+        val catalog = this.codes()
+        codes.forEach { code ->
+            (catalog.check(code, type, businessCase) as? CodeCheck.Rejected)?.let { reasons += "R-13: ${it.reason}" }
+        }
+        if (codes.isEmpty()) reasons += "Eine Meldung braucht mindestens einen Meldungscode (11.2.4)"
+        val transition = OrderLifecycle.apply(order.state, OrderEvent.Message(type, changeIndicator, codes))
+        if (transition is Transition.Rejected) reasons += transition.reason
+        return reasons to transition
+    }
+
+    /**
+     * What we may send next for [order]: lifecycle transitions whose sender is our role (principle 6:
+     * REST answers 409 with this list when an action is not allowed).
+     */
+    fun allowedActions(order: Order): List<OrderEvent> = OrderLifecycle.allowedEvents(order.state).filter { event ->
+        when (event) {
+            is OrderEvent.Request -> order.role == OrderRole.AUFTRAGGEBER
+            is OrderEvent.Message -> event.type.sender == ourParty(order.role)
+        }
+    }
+
+    private fun ourParty(role: OrderRole) = when (role) {
+        OrderRole.LEISTUNGSERBRINGER -> Party.LEISTUNGSERBRINGER
+        OrderRole.AUFTRAGGEBER -> Party.AUFTRAGGEBER
+        OrderRole.ABGEBENDER_EKP -> Party.ABGEBENDER_EKP
     }
 
     /**

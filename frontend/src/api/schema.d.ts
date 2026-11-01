@@ -24,6 +24,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/archive/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Metadaten einer archivierten Nachricht */
+        get: operations["get_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/archive/{id}/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Anfrage (SOAP-Envelope, byte-genau)
+         * @description Enthält Endkundendaten; der Zugriff wird protokolliert.
+         */
+        get: operations["request_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/archive/{id}/response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Antwort (TEQ, byte-genau) */
+        get: operations["response"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -104,6 +158,288 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Postausgang
+         * @description Neueste zuerst. Blättern mit `cursor`.
+         */
+        get: operations["list_4"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliveries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Eine ausgehende Nachricht */
+        get: operations["get_4"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliveries/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Zurückziehen
+         * @description Für PENDING, UNDELIVERABLE und UNCLEAR. Gibt die folgenden Nachrichten desselben Reihenfolgeschlüssels frei.
+         */
+        post: operations["cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliveries/{id}/payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inhalt (unsigniert)
+         * @description Der Body der SOAP-Nachricht, wie er signiert und gesendet wird. Der Zugriff wird protokolliert.
+         */
+        get: operations["payload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliveries/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Erneut senden
+         * @description Nur für UNDELIVERABLE und UNCLEAR. Bei UNCLEAR vorher mit dem Partner klären, ob der Auftrag ankam (11.2.3.1).
+         */
+        post: operations["retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliveries/{id}/sent-by-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Als per E-Mail versendet markieren
+         * @description Ersatzweg nach 11.2.3.2; nur für UNDELIVERABLE und UNCLEAR.
+         */
+        post: operations["sentByEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Eingang
+         * @description Eingegangene Nachrichten mit Verarbeitungsstatus. FAILED blockiert weitere Nachrichten desselben Auftrags.
+         */
+        get: operations["inbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/{id}/reprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fehlgeschlagene Verarbeitung wiederholen
+         * @description Nur für FAILED.
+         */
+        post: operations["reprocess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/message-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Aktive Meldungscodetabelle
+         * @description Optional gefiltert nach Meldungstyp, z. B. `?messageType=ABM`.
+         */
+        get: operations["get_1"];
+        put?: never;
+        /**
+         * Neue Version importieren
+         * @description Die Datei so, wie sie aus dem AK-Confluence exportiert wurde (UTF-16-TSV oder CSV). Sie wird versioniert gespeichert und sofort aktiv. Bei mehreren Instanzen übernehmen die anderen die Version beim nächsten Neustart.
+         */
+        post: operations["import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Aufträge suchen
+         * @description Neueste zuerst. Blättern mit `cursor` = kleinste `id` der vorigen Seite.
+         */
+        get: operations["list_3"];
+        put?: never;
+        /**
+         * Auftrag an einen Partner senden
+         * @description Prüft gegen XSD, Anlage 1 und die Auftragsregeln und legt den Auftrag in den Postausgang. Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.
+         */
+        post: operations["create_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Auftrag mit zulässigen Aktionen lesen */
+        get: operations["get_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Verlauf eines Auftrags
+         * @description Aufträge, Änderungen und Meldungen in beiden Richtungen, älteste zuerst.
+         */
+        get: operations["history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Meldung zu einem Auftrag senden
+         * @description Als Leistungserbringer (QEB, ABM, …, Scope `le:messages:write`), als Auftraggeber (ZWM-AG, TBK-AG, ERLM-K) oder als abgebender EKP (RUEM-PV). 409 enthält in `allowedActions`, was jetzt zulässig ist.
+         */
+        post: operations["message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Storno, Terminverschiebung oder Reklamation senden
+         * @description Storno und Terminverschiebung werden aus dem ursprünglichen Auftrag abgeleitet (5.1.3/5.1.4). 409 enthält in `allowedActions`, was jetzt zulässig ist.
+         */
+        post: operations["request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/partners": {
         parameters: {
             query?: never;
@@ -170,7 +506,7 @@ export interface paths {
             cookie?: never;
         };
         /** Partner lesen */
-        get: operations["get_1"];
+        get: operations["get_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -411,6 +747,23 @@ export interface components {
              */
             version: string;
         };
+        /** @description Eine Aktion, die der Zustandsautomat jetzt zulässt */
+        ActionDto: {
+            /**
+             * @description bei MESSAGE: Änderungskennzeichen des beantworteten Auftrags
+             * @example Standard
+             */
+            changeIndicator?: string | null;
+            /** @description MESSAGE (POST /orders/{id}/messages) oder REQUEST (POST /orders/{id}/requests) */
+            kind: string;
+            /**
+             * @description bei MESSAGE: Meldungstyp
+             * @example ABM
+             */
+            messageType?: string | null;
+            /** @description bei REQUEST: STORNO, TERMINVERSCHIEBUNG oder REKLAMATION */
+            request?: string | null;
+        };
         /** @description Erster Administrator */
         AdminAccount: {
             /** @example Administration */
@@ -419,6 +772,27 @@ export interface components {
             password: string;
             /** @example admin */
             username: string;
+        };
+        /** @description Eine archivierte SOAP-Nachricht mit Antwort (NF-09) */
+        ArchiveEntryDto: {
+            /** @description INBOUND oder OUTBOUND */
+            direction: string;
+            /** Format: int64 */
+            durationMillis: number;
+            externalOrderNumber?: string | null;
+            findings?: string | null;
+            /** Format: int64 */
+            id: number;
+            operation?: string | null;
+            /** Format: int64 */
+            partnerId?: number | null;
+            /** @description interner Grund einer Ablehnung; geht nie an den Partner */
+            rejectionReason?: string | null;
+            remoteAddress: string;
+            signerSubject?: string | null;
+            /** Format: date-time */
+            startedAt: string;
+            teqCode?: string | null;
         };
         /** @description Ein Signaturzertifikat des Partners */
         CertificateDto: {
@@ -439,6 +813,24 @@ export interface components {
         /** @description Ein Zertifikat als PEM */
         CertificateRequest: {
             pem: string;
+        };
+        /** @description Storno, Terminverschiebung oder Reklamation zu einem eigenen Auftrag */
+        ChangeRequest: {
+            /** @description bei REKLAMATION: der Entstörauftrag mit `reklamation` (wie bei POST /orders) */
+            auftrag?: components["schemas"]["JsonNode"] | null;
+            /** @description STORNO, TERMINVERSCHIEBUNG oder REKLAMATION */
+            kind: string;
+            /**
+             * Format: date
+             * @description bei TERMINVERSCHIEBUNG: neuer Termin (terminNeu)
+             */
+            newDate?: string | null;
+        };
+        /** @description Ein Meldungscode; ohne Text wird der Text aus der Meldungscodetabelle übernommen */
+        CodeDto: {
+            /** @example 0000 */
+            code: string;
+            text?: string | null;
         };
         /** @description Firmendaten und Optionen */
         CompanySettingsDto: {
@@ -479,6 +871,13 @@ export interface components {
             thirdPartyOrdersEnabled?: boolean;
             /** @enum {string} */
             wbciMode?: "SERVICE_PROVIDER" | "OWN_INTERFACE" | "NONE";
+        };
+        /** @description Neuer Auftrag an einen Partner (wir sind Auftraggeber) */
+        CreateOrderRequest: {
+            /** @description Das XSD-Element `auftrag` (Anlage 3, order.xsd) als JSON: Feldnamen wie im XSD, abstrakte Typen mit `@type` (z. B. `"geschaeftsfall": {"@type": "BereitstellungType", …}`). Den Kopf (`control`) setzt open-spri. */
+            auftrag: components["schemas"]["JsonNode"];
+            /** Format: int64 */
+            partnerId: number;
         };
         /** @description Neuer Partner */
         CreatePartnerRequest: {
@@ -539,6 +938,100 @@ export interface components {
             /** @example spri_Ab3dE7fG_… */
             token: string;
         };
+        /** @description Eine ausgehende Nachricht im Postausgang */
+        DeliveryDto: {
+            /** Format: int32 */
+            attempts: number;
+            /** Format: date-time */
+            createdAt: string;
+            externalOrderNumber?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+            /** Format: int64 */
+            id: number;
+            lastError?: string | null;
+            /** Format: date-time */
+            nextAttemptAt: string;
+            /** @description annehmenAuftrag oder annehmenMeldung */
+            operation: string;
+            /** Format: int64 */
+            orderId?: number | null;
+            /** Format: int64 */
+            partnerId: number;
+            /** @description PENDING, DELIVERED, DELIVERED_WITH_ERROR, REJECTED, UNCLEAR, UNDELIVERABLE, SENT_BY_EMAIL, CANCELLED */
+            status: string;
+            /** @description Code der technischen Quittung (TEQ) des Partners */
+            teqCode?: string | null;
+            /** @description ORDER oder MESSAGE */
+            type: string;
+        };
+        /** @description Ein Eintrag im Verlauf: Auftrag, Änderung oder Meldung mit den Befunden der Prüfungen */
+        HistoryDto: {
+            /**
+             * Format: int64
+             * @description ein- oder ausgehend: Archiv-Id der Rohnachricht (nur eingehend)
+             */
+            archiveId?: number | null;
+            /** Format: date-time */
+            at: string;
+            changeIndicator: string;
+            codes: string[];
+            /** @description Befunde der Prüfungen (z. B. Anlage 1 im Report-Modus) */
+            findings: string[];
+            /** @description ORDER, REQUEST oder MESSAGE */
+            kind: string;
+            messageType?: string | null;
+        };
+        /** @description Eine eingegangene Nachricht in der Verarbeitung */
+        InboxDto: {
+            /**
+             * Format: int64
+             * @description Rohnachricht: GET /archive/{archiveId}
+             */
+            archiveId: number;
+            error?: string | null;
+            externalOrderNumber?: string | null;
+            findings?: string | null;
+            /** Format: int64 */
+            id: number;
+            operation: string;
+            /** Format: int64 */
+            partnerId: number;
+            /** Format: date-time */
+            processedAt?: string | null;
+            /** Format: date-time */
+            receivedAt: string;
+            /** @description RECEIVED, PROCESSED oder FAILED */
+            status: string;
+        };
+        JsonNode: {
+            array?: boolean;
+            bigDecimal?: boolean;
+            bigInteger?: boolean;
+            binary?: boolean;
+            boolean?: boolean;
+            container?: boolean;
+            double?: boolean;
+            embeddedValue?: boolean;
+            empty?: boolean;
+            float?: boolean;
+            floatingPointNumber?: boolean;
+            int?: boolean;
+            integralNumber?: boolean;
+            long?: boolean;
+            missingNode?: boolean;
+            /** @enum {string} */
+            nodeType?: "ARRAY" | "BINARY" | "BOOLEAN" | "MISSING" | "NULL" | "NUMBER" | "OBJECT" | "POJO" | "STRING";
+            null?: boolean;
+            number?: boolean;
+            object?: boolean;
+            pojo?: boolean;
+            short?: boolean;
+            string?: boolean;
+            /** @deprecated */
+            textual?: boolean;
+            valueNode?: boolean;
+        };
         /** @description Anmeldedaten */
         LoginRequest: {
             /** @example ein-langes-passwort */
@@ -553,6 +1046,26 @@ export interface components {
             name: string;
             /** @description Berechtigungen */
             scopes: string[];
+        };
+        /** @description Ein Meldungscode (Anlage 5) */
+        MessageCodeDto: {
+            /** @description Geschäftsfälle laut Tabelle; leer = alle */
+            businessCases: string[];
+            /** @example 0000 */
+            code: string;
+            /** @description von open-spri ergänzt (spec-abweichungen.md), nicht aus der AK-Tabelle */
+            localAddition: boolean;
+            /** @description Meldungstypen, für die der Code vorgesehen ist */
+            messageTypes: string[];
+            text: string;
+        };
+        /** @description Die aktive Meldungscodetabelle */
+        MessageCodeTableDto: {
+            codes: components["schemas"]["MessageCodeDto"][];
+            /** @description SHA-256 der Datei; kennzeichnet die Version */
+            sha256: string;
+            /** @description Dateiname der importierten Tabelle */
+            source: string;
         };
         /** @description Ein verfügbares Anmeldeverfahren */
         ModuleResponse: {
@@ -585,6 +1098,51 @@ export interface components {
             /** @description WSDL mit unserem Endpunkt: GET /api/v1/partners/wsdl */
             wsdlPath: string;
         };
+        /** @description Auftrag mit den jetzt zulässigen Aktionen */
+        OrderDetailDto: {
+            /** @description was wir als Nächstes senden dürfen */
+            allowedActions: components["schemas"]["ActionDto"][];
+            order: components["schemas"]["OrderDto"];
+        };
+        /** @description Ein Auftrag (Übersicht). Der vollständige Auftrag liegt im Nachrichtenarchiv. */
+        OrderDto: {
+            /**
+             * @description Geschäftsfall wie in der Spezifikation
+             * @example NEU
+             */
+            businessCase: string;
+            cancelled: boolean;
+            clientNumber?: string | null;
+            contractNumber?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            desiredDate?: string | null;
+            /** @example AG-2026-000123 */
+            externalOrderNumber: string;
+            finished: boolean;
+            /** @description Austausch mit dem abgebenden EKP beim Providerwechsel */
+            handoverPhase?: string | null;
+            homeId?: string | null;
+            /** Format: int64 */
+            id: number;
+            lineId?: string | null;
+            /** @description offene Änderungen: STORNO, TERMINVERSCHIEBUNG, REKLAMATION */
+            openRequests: string[];
+            /** Format: int64 */
+            partnerId: number;
+            /**
+             * @description Phase des Zustandsautomaten
+             * @example CONFIRMED
+             */
+            phase: string;
+            products: string[];
+            /** @description Unsere Rolle: AUFTRAGGEBER, LEISTUNGSERBRINGER oder ABGEBENDER_EKP */
+            role: string;
+            serviceNumber?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         /** @description Ein Partner */
         PartnerDto: {
             /** @description Outbound-IPs des Partners, die unseren Endpunkt aufrufen dürfen (CIDR) */
@@ -607,6 +1165,22 @@ export interface components {
             name: string;
             /** @description technischer Kontakt; erhält die Ausfall-Mail (11.2.3.2) */
             technicalContactEmail?: string | null;
+        };
+        /** @description Eine Meldung zu einem Auftrag. Kopf, externe Auftragsnummer und Auftraggebernummer übernimmt open-spri aus dem Auftrag. */
+        SendMessageRequest: {
+            /** @description weitere `meldungsattribute` des XSD-Typs `Meldungsattribute<Typ>Type`, z. B. `{"verbindlicherLiefertermin": "2026-12-01"}` bei ABM */
+            attributes?: components["schemas"]["JsonNode"] | null;
+            /**
+             * @description Änderungskennzeichen des Auftrags, auf den die Meldung antwortet
+             * @example Standard
+             */
+            changeIndicator?: string;
+            codes: components["schemas"]["CodeDto"][];
+            /**
+             * @description Meldungstyp
+             * @example ABM
+             */
+            type: string;
         };
         /** @description Alle Angaben der Ersteinrichtung; wird in einem Schritt übernommen */
         SetupRequest: {
@@ -737,6 +1311,72 @@ export interface operations {
             };
         };
     };
+    get_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveEntryDto"];
+                };
+            };
+        };
+    };
+    request_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+        };
+    };
+    response: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+        };
+    };
     login: {
         parameters: {
             query?: never;
@@ -815,6 +1455,394 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModuleResponse"][];
+                };
+            };
+        };
+    };
+    list_4: {
+        parameters: {
+            query?: {
+                status?: string;
+                orderId?: number;
+                /** @description Cursor: kleinste `id` der vorigen Seite */
+                cursor?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryDto"][];
+                };
+            };
+        };
+    };
+    get_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryDto"];
+                };
+            };
+        };
+    };
+    cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryDto"];
+                };
+            };
+        };
+    };
+    payload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+        };
+    };
+    retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryDto"];
+                };
+            };
+        };
+    };
+    sentByEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryDto"];
+                };
+            };
+        };
+    };
+    inbox: {
+        parameters: {
+            query?: {
+                status?: string;
+                /** @description Cursor: kleinste `id` der vorigen Seite */
+                cursor?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxDto"][];
+                };
+            };
+        };
+    };
+    reprocess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_1: {
+        parameters: {
+            query?: {
+                messageType?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageCodeTableDto"];
+                };
+            };
+        };
+    };
+    import: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Dateiname zur Nachverfolgung
+                 * @example SPRI_Meldungscodetabelle.csv
+                 */
+                filename?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+                "text/csv": string;
+                "text/tab-separated-values": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageCodeTableDto"];
+                };
+            };
+        };
+    };
+    list_3: {
+        parameters: {
+            query?: {
+                role?: string;
+                partnerId?: number;
+                /** @description z. B. NEU, KUE-AG, EST */
+                businessCase?: string;
+                phase?: string;
+                /** @description Präfixsuche in externer Auftragsnummer, LineID und Vertragsnummer */
+                q?: string;
+                /** @description nur nicht abgeschlossene Aufträge */
+                open?: boolean;
+                /** @description Cursor: kleinste `id` der vorigen Seite */
+                cursor?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDto"][];
+                };
+            };
+        };
+    };
+    create_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
+                };
+            };
+        };
+    };
+    get_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
+                };
+            };
+        };
+    };
+    history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryDto"][];
+                };
+            };
+        };
+    };
+    message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
+                };
+            };
+        };
+    };
+    request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailDto"];
                 };
             };
         };
@@ -903,7 +1931,7 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    get_2: {
         parameters: {
             query?: never;
             header?: never;

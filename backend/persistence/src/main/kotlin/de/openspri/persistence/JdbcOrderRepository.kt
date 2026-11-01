@@ -13,6 +13,9 @@ import de.openspri.domain.order.OrderState
 import de.openspri.domain.order.Phase
 import de.openspri.domain.order.RequestKind
 import de.openspri.domain.partner.PartnerId
+import de.openspri.domain.message.MessageType
+import de.openspri.domain.query.OrderFilter
+import de.openspri.domain.query.OrderQueries
 import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.jdbc.support.GeneratedKeyHolder
@@ -21,7 +24,7 @@ import java.sql.ResultSet
 import java.sql.Timestamp
 
 @Repository
-class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository {
+class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository, OrderQueries {
 
     override fun find(partnerId: PartnerId, role: OrderRole, externalOrderNumber: String): Order? =
         jdbc.sql("SELECT * FROM spri_order WHERE partner_id = :p AND role = :r AND external_order_number = :n")
@@ -41,6 +44,40 @@ class JdbcOrderRepository(private val jdbc: JdbcClient) : OrderRepository {
 
     fun findById(id: OrderId): Order? =
         jdbc.sql("SELECT * FROM spri_order WHERE id = :id").param("id", id.value).query { rs, _ -> map(rs) }.optional().orElse(null)
+
+    override fun get(id: OrderId): Order? = findById(id)
+
+    override fun search(filter: OrderFilter): List<Order> {
+        val where = mutableListOf("tenant_id = :tenant")
+        val params = mutableMapOf<String, Any?>("tenant" to Tenant.DEFAULT, "limit" to filter.limit.coerceIn(1, 500))
+        filter.role?.let { where += "role = :role"; params["role"] = it.name }
+        filter.partnerId?.let { where += "partner_id = :partner"; params["partner"] = it.value }
+        filter.businessCase?.let { where += "business_case = :bc"; params["bc"] = it.code }
+        filter.phase?.let { where += "phase = :phase"; params["phase"] = it.name }
+        filter.beforeId?.let { where += "id < :before"; params["before"] = it }
+        if (filter.openOnly) where += "NOT finished"
+        filter.text?.takeIf { it.isNotBlank() }?.let {
+            where += "(external_order_number LIKE :text OR line_id LIKE :text OR contract_number LIKE :text)"
+            params["text"] = it.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        }
+        return jdbc.sql("SELECT * FROM spri_order WHERE ${where.joinToString(" AND ")} ORDER BY id DESC LIMIT :limit")
+            .params(params).query { rs, _ -> map(rs) }.list()
+    }
+
+    override fun history(id: OrderId): List<OrderHistoryEntry> =
+        jdbc.sql("SELECT * FROM spri_order_history WHERE order_id = :id ORDER BY id").param("id", id.value).query { rs, _ ->
+            OrderHistoryEntry(
+                orderId = id,
+                partnerId = PartnerId(rs.getLong("partner_id")),
+                archiveId = rs.getLong("archive_id").takeIf { !rs.wasNull() },
+                kind = OrderHistoryEntry.Kind.valueOf(rs.getString("kind")),
+                messageType = rs.getString("message_type")?.let(MessageType::fromCode),
+                changeIndicator = ChangeIndicator.valueOf(rs.getString("change_indicator")),
+                codes = rs.getString("codes")?.split(',').orEmpty(),
+                findings = rs.getString("findings")?.split('\n').orEmpty(),
+                at = rs.getTimestamp("created_at").toInstant(),
+            )
+        }.list()
 
     override fun save(order: Order): Order {
         val s = order.state

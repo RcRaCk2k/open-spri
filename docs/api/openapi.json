@@ -14,6 +14,12 @@
     "description" : "diese Instanz"
   } ],
   "tags" : [ {
+    "description" : "Meldungscodetabelle des AK (Anlage 5): anzeigen und neue Version importieren",
+    "name" : "Meldungscodes"
+  }, {
+    "description" : "Nachrichtenarchiv: SOAP-Nachrichten byte-genau, wie sie über die Leitung gingen",
+    "name" : "Archiv"
+  }, {
     "description" : "Version, Build und Zustand der Instanz",
     "name" : "Betrieb"
   }, {
@@ -25,6 +31,12 @@
   }, {
     "description" : "Ersteinrichtung einer neuen Installation (geschützt durch das Setup-Token aus dem Log)",
     "name" : "Setup"
+  }, {
+    "description" : "Aufträge in allen Rollen, Änderungen und Meldungen (AUFGABE 5.5/5.6)",
+    "name" : "Aufträge"
+  }, {
+    "description" : "Postausgang und Eingang überwachen und eingreifen (AUFGABE 5.7, 11.2.3.2)",
+    "name" : "Zustellung"
   }, {
     "description" : "Gegenstellen: Endpunkt, Signaturzertifikate, freigeschaltete IPs (AUFGABE 5.9)",
     "name" : "Partner"
@@ -54,6 +66,93 @@
         },
         "summary" : "Version und Build der Instanz",
         "tags" : [ "Betrieb" ]
+      }
+    },
+    "/api/v1/archive/{id}" : {
+      "get" : {
+        "operationId" : "get_5",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ArchiveEntryDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Metadaten einer archivierten Nachricht",
+        "tags" : [ "Archiv" ]
+      }
+    },
+    "/api/v1/archive/{id}/request" : {
+      "get" : {
+        "description" : "Enthält Endkundendaten; der Zugriff wird protokolliert.",
+        "operationId" : "request_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/xml" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "byte"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Anfrage (SOAP-Envelope, byte-genau)",
+        "tags" : [ "Archiv" ]
+      }
+    },
+    "/api/v1/archive/{id}/response" : {
+      "get" : {
+        "operationId" : "response",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/xml" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "byte"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Antwort (TEQ, byte-genau)",
+        "tags" : [ "Archiv" ]
       }
     },
     "/api/v1/auth/login" : {
@@ -141,6 +240,614 @@
         },
         "summary" : "Anmeldeverfahren",
         "tags" : [ "Anmeldung" ]
+      }
+    },
+    "/api/v1/deliveries" : {
+      "get" : {
+        "description" : "Neueste zuerst. Blättern mit `cursor`.",
+        "operationId" : "list_4",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "orderId",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "description" : "Cursor: kleinste `id` der vorigen Seite",
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/DeliveryDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Postausgang",
+        "tags" : [ "Zustellung" ]
+      }
+    },
+    "/api/v1/deliveries/{id}" : {
+      "get" : {
+        "operationId" : "get_4",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeliveryDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Eine ausgehende Nachricht",
+        "tags" : [ "Zustellung" ]
+      }
+    },
+    "/api/v1/deliveries/{id}/cancel" : {
+      "post" : {
+        "description" : "Für PENDING, UNDELIVERABLE und UNCLEAR. Gibt die folgenden Nachrichten desselben Reihenfolgeschlüssels frei.",
+        "operationId" : "cancel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeliveryDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Zurückziehen",
+        "tags" : [ "Zustellung" ]
+      }
+    },
+    "/api/v1/deliveries/{id}/payload" : {
+      "get" : {
+        "description" : "Der Body der SOAP-Nachricht, wie er signiert und gesendet wird. Der Zugriff wird protokolliert.",
+        "operationId" : "payload",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/xml" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "byte"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Inhalt (unsigniert)",
+        "tags" : [ "Zustellung" ]
+      }
+    },
+    "/api/v1/deliveries/{id}/retry" : {
+      "post" : {
+        "description" : "Nur für UNDELIVERABLE und UNCLEAR. Bei UNCLEAR vorher mit dem Partner klären, ob der Auftrag ankam (11.2.3.1).",
+        "operationId" : "retry",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeliveryDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Erneut senden",
+        "tags" : [ "Zustellung" ]
+      }
+    },
+    "/api/v1/deliveries/{id}/sent-by-email" : {
+      "post" : {
+        "description" : "Ersatzweg nach 11.2.3.2; nur für UNDELIVERABLE und UNCLEAR.",
+        "operationId" : "sentByEmail",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeliveryDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Als per E-Mail versendet markieren",
+        "tags" : [ "Zustellung" ]
+      }
+    },
+    "/api/v1/inbox" : {
+      "get" : {
+        "description" : "Eingegangene Nachrichten mit Verarbeitungsstatus. FAILED blockiert weitere Nachrichten desselben Auftrags.",
+        "operationId" : "inbox",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Cursor: kleinste `id` der vorigen Seite",
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/InboxDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Eingang",
+        "tags" : [ "Zustellung" ]
+      }
+    },
+    "/api/v1/inbox/{id}/reprocess" : {
+      "post" : {
+        "description" : "Nur für FAILED.",
+        "operationId" : "reprocess",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "summary" : "Fehlgeschlagene Verarbeitung wiederholen",
+        "tags" : [ "Zustellung" ]
+      }
+    },
+    "/api/v1/message-codes" : {
+      "get" : {
+        "description" : "Optional gefiltert nach Meldungstyp, z. B. `?messageType=ABM`.",
+        "operationId" : "get_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "messageType",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageCodeTableDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Aktive Meldungscodetabelle",
+        "tags" : [ "Meldungscodes" ]
+      },
+      "post" : {
+        "description" : "Die Datei so, wie sie aus dem AK-Confluence exportiert wurde (UTF-16-TSV oder CSV). Sie wird versioniert gespeichert und sofort aktiv. Bei mehreren Instanzen übernehmen die anderen die Version beim nächsten Neustart.",
+        "operationId" : "import",
+        "parameters" : [ {
+          "description" : "Dateiname zur Nachverfolgung",
+          "example" : "SPRI_Meldungscodetabelle.csv",
+          "in" : "query",
+          "name" : "filename",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "upload.csv"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/octet-stream" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            },
+            "text/csv" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            },
+            "text/tab-separated-values" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageCodeTableDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Neue Version importieren",
+        "tags" : [ "Meldungscodes" ]
+      }
+    },
+    "/api/v1/orders" : {
+      "get" : {
+        "description" : "Neueste zuerst. Blättern mit `cursor` = kleinste `id` der vorigen Seite.",
+        "operationId" : "list_3",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "role",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "partnerId",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "description" : "z. B. NEU, KUE-AG, EST",
+          "in" : "query",
+          "name" : "businessCase",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "phase",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Präfixsuche in externer Auftragsnummer, LineID und Vertragsnummer",
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "nur nicht abgeschlossene Aufträge",
+          "in" : "query",
+          "name" : "open",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        }, {
+          "description" : "Cursor: kleinste `id` der vorigen Seite",
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/OrderDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Aufträge suchen",
+        "tags" : [ "Aufträge" ]
+      },
+      "post" : {
+        "description" : "Prüft gegen XSD, Anlage 1 und die Auftragsregeln und legt den Auftrag in den Postausgang. Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.",
+        "operationId" : "create_3",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Auftrag an einen Partner senden",
+        "tags" : [ "Aufträge" ]
+      }
+    },
+    "/api/v1/orders/{id}" : {
+      "get" : {
+        "operationId" : "get_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Auftrag mit zulässigen Aktionen lesen",
+        "tags" : [ "Aufträge" ]
+      }
+    },
+    "/api/v1/orders/{id}/history" : {
+      "get" : {
+        "description" : "Aufträge, Änderungen und Meldungen in beiden Richtungen, älteste zuerst.",
+        "operationId" : "history",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/HistoryDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Verlauf eines Auftrags",
+        "tags" : [ "Aufträge" ]
+      }
+    },
+    "/api/v1/orders/{id}/messages" : {
+      "post" : {
+        "description" : "Als Leistungserbringer (QEB, ABM, …, Scope `le:messages:write`), als Auftraggeber (ZWM-AG, TBK-AG, ERLM-K) oder als abgebender EKP (RUEM-PV). 409 enthält in `allowedActions`, was jetzt zulässig ist.",
+        "operationId" : "message",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SendMessageRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Meldung zu einem Auftrag senden",
+        "tags" : [ "Aufträge" ]
+      }
+    },
+    "/api/v1/orders/{id}/requests" : {
+      "post" : {
+        "description" : "Storno und Terminverschiebung werden aus dem ursprünglichen Auftrag abgeleitet (5.1.3/5.1.4). 409 enthält in `allowedActions`, was jetzt zulässig ist.",
+        "operationId" : "request",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailDto"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Storno, Terminverschiebung oder Reklamation senden",
+        "tags" : [ "Aufträge" ]
       }
     },
     "/api/v1/partners" : {
@@ -234,7 +941,7 @@
     },
     "/api/v1/partners/{id}" : {
       "get" : {
-        "operationId" : "get_1",
+        "operationId" : "get_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -752,6 +1459,31 @@
         },
         "required" : [ "certifiedBuild", "name", "spriVersion", "version" ]
       },
+      "ActionDto" : {
+        "type" : "object",
+        "description" : "Eine Aktion, die der Zustandsautomat jetzt zulässt",
+        "properties" : {
+          "changeIndicator" : {
+            "type" : [ "string", "null" ],
+            "description" : "bei MESSAGE: Änderungskennzeichen des beantworteten Auftrags",
+            "example" : "Standard"
+          },
+          "kind" : {
+            "type" : "string",
+            "description" : "MESSAGE (POST /orders/{id}/messages) oder REQUEST (POST /orders/{id}/requests)"
+          },
+          "messageType" : {
+            "type" : [ "string", "null" ],
+            "description" : "bei MESSAGE: Meldungstyp",
+            "example" : "ABM"
+          },
+          "request" : {
+            "type" : [ "string", "null" ],
+            "description" : "bei REQUEST: STORNO, TERMINVERSCHIEBUNG oder REKLAMATION"
+          }
+        },
+        "required" : [ "kind" ]
+      },
       "AdminAccount" : {
         "type" : "object",
         "description" : "Erster Administrator",
@@ -770,6 +1502,55 @@
           }
         },
         "required" : [ "displayName", "password", "username" ]
+      },
+      "ArchiveEntryDto" : {
+        "type" : "object",
+        "description" : "Eine archivierte SOAP-Nachricht mit Antwort (NF-09)",
+        "properties" : {
+          "direction" : {
+            "type" : "string",
+            "description" : "INBOUND oder OUTBOUND"
+          },
+          "durationMillis" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "externalOrderNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "findings" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "operation" : {
+            "type" : [ "string", "null" ]
+          },
+          "partnerId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "rejectionReason" : {
+            "type" : [ "string", "null" ],
+            "description" : "interner Grund einer Ablehnung; geht nie an den Partner"
+          },
+          "remoteAddress" : {
+            "type" : "string"
+          },
+          "signerSubject" : {
+            "type" : [ "string", "null" ]
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "teqCode" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "direction", "durationMillis", "id", "remoteAddress", "startedAt" ]
       },
       "CertificateDto" : {
         "type" : "object",
@@ -812,6 +1593,44 @@
           }
         },
         "required" : [ "pem" ]
+      },
+      "ChangeRequest" : {
+        "type" : "object",
+        "description" : "Storno, Terminverschiebung oder Reklamation zu einem eigenen Auftrag",
+        "properties" : {
+          "auftrag" : {
+            "description" : "bei REKLAMATION: der Entstörauftrag mit `reklamation` (wie bei POST /orders)",
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/JsonNode"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "kind" : {
+            "type" : "string",
+            "description" : "STORNO, TERMINVERSCHIEBUNG oder REKLAMATION"
+          },
+          "newDate" : {
+            "type" : [ "string", "null" ],
+            "format" : "date",
+            "description" : "bei TERMINVERSCHIEBUNG: neuer Termin (terminNeu)"
+          }
+        },
+        "required" : [ "kind" ]
+      },
+      "CodeDto" : {
+        "type" : "object",
+        "description" : "Ein Meldungscode; ohne Text wird der Text aus der Meldungscodetabelle übernommen",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "example" : "0000"
+          },
+          "text" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "code" ]
       },
       "CompanySettingsDto" : {
         "type" : "object",
@@ -879,6 +1698,21 @@
           }
         },
         "required" : [ "carrierCode", "contactEmail", "name", "roleAuftraggeber", "roleLeistungserbringer" ]
+      },
+      "CreateOrderRequest" : {
+        "type" : "object",
+        "description" : "Neuer Auftrag an einen Partner (wir sind Auftraggeber)",
+        "properties" : {
+          "auftrag" : {
+            "$ref" : "#/components/schemas/JsonNode",
+            "description" : "Das XSD-Element `auftrag` (Anlage 3, order.xsd) als JSON: Feldnamen wie im XSD, abstrakte Typen mit `@type` (z. B. `\"geschaeftsfall\": {\"@type\": \"BereitstellungType\", …}`). Den Kopf (`control`) setzt open-spri."
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "auftrag", "partnerId" ]
       },
       "CreatePartnerRequest" : {
         "type" : "object",
@@ -984,6 +1818,225 @@
         },
         "required" : [ "details", "token" ]
       },
+      "DeliveryDto" : {
+        "type" : "object",
+        "description" : "Eine ausgehende Nachricht im Postausgang",
+        "properties" : {
+          "attempts" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "externalOrderNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "finishedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ]
+          },
+          "nextAttemptAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "operation" : {
+            "type" : "string",
+            "description" : "annehmenAuftrag oder annehmenMeldung"
+          },
+          "orderId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64"
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "status" : {
+            "type" : "string",
+            "description" : "PENDING, DELIVERED, DELIVERED_WITH_ERROR, REJECTED, UNCLEAR, UNDELIVERABLE, SENT_BY_EMAIL, CANCELLED"
+          },
+          "teqCode" : {
+            "type" : [ "string", "null" ],
+            "description" : "Code der technischen Quittung (TEQ) des Partners"
+          },
+          "type" : {
+            "type" : "string",
+            "description" : "ORDER oder MESSAGE"
+          }
+        },
+        "required" : [ "attempts", "createdAt", "id", "nextAttemptAt", "operation", "partnerId", "status", "type" ]
+      },
+      "HistoryDto" : {
+        "type" : "object",
+        "description" : "Ein Eintrag im Verlauf: Auftrag, Änderung oder Meldung mit den Befunden der Prüfungen",
+        "properties" : {
+          "archiveId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "ein- oder ausgehend: Archiv-Id der Rohnachricht (nur eingehend)"
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "changeIndicator" : {
+            "type" : "string"
+          },
+          "codes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "findings" : {
+            "type" : "array",
+            "description" : "Befunde der Prüfungen (z. B. Anlage 1 im Report-Modus)",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "kind" : {
+            "type" : "string",
+            "description" : "ORDER, REQUEST oder MESSAGE"
+          },
+          "messageType" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "at", "changeIndicator", "codes", "findings", "kind" ]
+      },
+      "InboxDto" : {
+        "type" : "object",
+        "description" : "Eine eingegangene Nachricht in der Verarbeitung",
+        "properties" : {
+          "archiveId" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Rohnachricht: GET /archive/{archiveId}"
+          },
+          "error" : {
+            "type" : [ "string", "null" ]
+          },
+          "externalOrderNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "findings" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "processedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "receivedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string",
+            "description" : "RECEIVED, PROCESSED oder FAILED"
+          }
+        },
+        "required" : [ "archiveId", "id", "operation", "partnerId", "receivedAt", "status" ]
+      },
+      "JsonNode" : {
+        "type" : "object",
+        "properties" : {
+          "array" : {
+            "type" : "boolean"
+          },
+          "bigDecimal" : {
+            "type" : "boolean"
+          },
+          "bigInteger" : {
+            "type" : "boolean"
+          },
+          "binary" : {
+            "type" : "boolean"
+          },
+          "boolean" : {
+            "type" : "boolean"
+          },
+          "container" : {
+            "type" : "boolean"
+          },
+          "double" : {
+            "type" : "boolean"
+          },
+          "embeddedValue" : {
+            "type" : "boolean"
+          },
+          "empty" : {
+            "type" : "boolean"
+          },
+          "float" : {
+            "type" : "boolean"
+          },
+          "floatingPointNumber" : {
+            "type" : "boolean"
+          },
+          "int" : {
+            "type" : "boolean"
+          },
+          "integralNumber" : {
+            "type" : "boolean"
+          },
+          "long" : {
+            "type" : "boolean"
+          },
+          "missingNode" : {
+            "type" : "boolean"
+          },
+          "nodeType" : {
+            "type" : "string",
+            "enum" : [ "ARRAY", "BINARY", "BOOLEAN", "MISSING", "NULL", "NUMBER", "OBJECT", "POJO", "STRING" ]
+          },
+          "null" : {
+            "type" : "boolean"
+          },
+          "number" : {
+            "type" : "boolean"
+          },
+          "object" : {
+            "type" : "boolean"
+          },
+          "pojo" : {
+            "type" : "boolean"
+          },
+          "short" : {
+            "type" : "boolean"
+          },
+          "string" : {
+            "type" : "boolean"
+          },
+          "textual" : {
+            "type" : "boolean",
+            "deprecated" : true
+          },
+          "valueNode" : {
+            "type" : "boolean"
+          }
+        }
+      },
       "LoginRequest" : {
         "type" : "object",
         "description" : "Anmeldedaten",
@@ -1019,6 +2072,59 @@
           }
         },
         "required" : [ "kind", "name", "scopes" ]
+      },
+      "MessageCodeDto" : {
+        "type" : "object",
+        "description" : "Ein Meldungscode (Anlage 5)",
+        "properties" : {
+          "businessCases" : {
+            "type" : "array",
+            "description" : "Geschäftsfälle laut Tabelle; leer = alle",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "code" : {
+            "type" : "string",
+            "example" : "0000"
+          },
+          "localAddition" : {
+            "type" : "boolean",
+            "description" : "von open-spri ergänzt (spec-abweichungen.md), nicht aus der AK-Tabelle"
+          },
+          "messageTypes" : {
+            "type" : "array",
+            "description" : "Meldungstypen, für die der Code vorgesehen ist",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "businessCases", "code", "localAddition", "messageTypes", "text" ]
+      },
+      "MessageCodeTableDto" : {
+        "type" : "object",
+        "description" : "Die aktive Meldungscodetabelle",
+        "properties" : {
+          "codes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MessageCodeDto"
+            }
+          },
+          "sha256" : {
+            "type" : "string",
+            "description" : "SHA-256 der Datei; kennzeichnet die Version"
+          },
+          "source" : {
+            "type" : "string",
+            "description" : "Dateiname der importierten Tabelle"
+          }
+        },
+        "required" : [ "codes", "sha256", "source" ]
       },
       "ModuleResponse" : {
         "type" : "object",
@@ -1093,6 +2199,106 @@
         },
         "required" : [ "carrierCode", "company", "outboundAddresses", "signingCertificatePem", "spriVersion", "technicalContact", "wsdlPath" ]
       },
+      "OrderDetailDto" : {
+        "type" : "object",
+        "description" : "Auftrag mit den jetzt zulässigen Aktionen",
+        "properties" : {
+          "allowedActions" : {
+            "type" : "array",
+            "description" : "was wir als Nächstes senden dürfen",
+            "items" : {
+              "$ref" : "#/components/schemas/ActionDto"
+            }
+          },
+          "order" : {
+            "$ref" : "#/components/schemas/OrderDto"
+          }
+        },
+        "required" : [ "allowedActions", "order" ]
+      },
+      "OrderDto" : {
+        "type" : "object",
+        "description" : "Ein Auftrag (Übersicht). Der vollständige Auftrag liegt im Nachrichtenarchiv.",
+        "properties" : {
+          "businessCase" : {
+            "type" : "string",
+            "description" : "Geschäftsfall wie in der Spezifikation",
+            "example" : "NEU"
+          },
+          "cancelled" : {
+            "type" : "boolean"
+          },
+          "clientNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "contractNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "desiredDate" : {
+            "type" : [ "string", "null" ],
+            "format" : "date"
+          },
+          "externalOrderNumber" : {
+            "type" : "string",
+            "example" : "AG-2026-000123"
+          },
+          "finished" : {
+            "type" : "boolean"
+          },
+          "handoverPhase" : {
+            "type" : [ "string", "null" ],
+            "description" : "Austausch mit dem abgebenden EKP beim Providerwechsel"
+          },
+          "homeId" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lineId" : {
+            "type" : [ "string", "null" ]
+          },
+          "openRequests" : {
+            "type" : "array",
+            "description" : "offene Änderungen: STORNO, TERMINVERSCHIEBUNG, REKLAMATION",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "phase" : {
+            "type" : "string",
+            "description" : "Phase des Zustandsautomaten",
+            "example" : "CONFIRMED"
+          },
+          "products" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "role" : {
+            "type" : "string",
+            "description" : "Unsere Rolle: AUFTRAGGEBER, LEISTUNGSERBRINGER oder ABGEBENDER_EKP"
+          },
+          "serviceNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "businessCase", "cancelled", "createdAt", "externalOrderNumber", "finished", "id", "openRequests", "partnerId", "phase", "products", "role", "updatedAt" ]
+      },
       "PartnerDto" : {
         "type" : "object",
         "description" : "Ein Partner",
@@ -1137,6 +2343,37 @@
           }
         },
         "required" : [ "allowedSourceNetworks", "carrierCode", "certificates", "enabled", "id", "name" ]
+      },
+      "SendMessageRequest" : {
+        "type" : "object",
+        "description" : "Eine Meldung zu einem Auftrag. Kopf, externe Auftragsnummer und Auftraggebernummer übernimmt open-spri aus dem Auftrag.",
+        "properties" : {
+          "attributes" : {
+            "description" : "weitere `meldungsattribute` des XSD-Typs `Meldungsattribute<Typ>Type`, z. B. `{\"verbindlicherLiefertermin\": \"2026-12-01\"}` bei ABM",
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/JsonNode"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "changeIndicator" : {
+            "type" : "string",
+            "description" : "Änderungskennzeichen des Auftrags, auf den die Meldung antwortet",
+            "example" : "Standard"
+          },
+          "codes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CodeDto"
+            }
+          },
+          "type" : {
+            "type" : "string",
+            "description" : "Meldungstyp",
+            "example" : "ABM"
+          }
+        },
+        "required" : [ "codes", "type" ]
       },
       "SetupRequest" : {
         "type" : "object",

@@ -12,7 +12,13 @@ import de.openspri.domain.order.OutboundOrderService
 import de.openspri.domain.order.Transactions
 import de.openspri.domain.partner.PartnerDirectory
 import de.openspri.domain.partner.PartnerId
+import de.openspri.domain.query.DeliveryQueries
+import de.openspri.domain.query.OrderQueries
+import de.openspri.soap.OrderCommands
+import de.openspri.soap.OutboundPayloads
 import de.openspri.soap.OutboxSender
+import de.openspri.soap.SigningKeyHolder
+import de.openspri.soap.SpriSchema
 import de.openspri.soap.SpriClient
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -75,6 +81,19 @@ class DeliveryConfiguration {
     @Bean
     fun outboundOrderService(orders: OrderRepository, outbox: Outbox, codes: MessageCodeCatalogHolder, transactions: Transactions) =
         OutboundOrderService(orders, outbox, codes::get, transactions)
+
+    @Bean
+    fun outboundPayloads(schema: SpriSchema, keys: SigningKeyHolder) = OutboundPayloads(schema, keys::current)
+
+    @Bean
+    fun orderCommands(
+        payloads: OutboundPayloads,
+        service: OutboundOrderService,
+        orders: OrderQueries,
+        deliveries: DeliveryQueries,
+        partners: PartnerDirectory,
+        codes: MessageCodeCatalogHolder,
+    ) = OrderCommands(payloads, service, orders, deliveries, partners, codes::get)
 
     @Bean
     fun deliveryScheduler(service: DeliveryService, properties: OutboxProperties) = DeliveryScheduler(service, properties.parallelism)

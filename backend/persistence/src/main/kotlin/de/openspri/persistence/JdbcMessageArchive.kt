@@ -1,6 +1,11 @@
 package de.openspri.persistence
 
 import de.openspri.domain.exchange.ArchivedExchange
+import de.openspri.domain.exchange.Direction
+import de.openspri.domain.exchange.SoapOperation
+import de.openspri.domain.exchange.TeqCode
+import de.openspri.domain.partner.PartnerId
+import de.openspri.domain.query.ArchiveQueries
 import de.openspri.domain.exchange.InboundMessage
 import de.openspri.domain.exchange.InboundStore
 import de.openspri.domain.exchange.OutboundArchive
@@ -13,7 +18,7 @@ import java.sql.Timestamp
 
 /** Message archive (NF-09) and inbound queue. */
 @Repository
-class JdbcMessageArchive(private val jdbc: JdbcClient) : InboundStore, OutboundArchive {
+class JdbcMessageArchive(private val jdbc: JdbcClient) : InboundStore, OutboundArchive, ArchiveQueries {
 
     @Transactional
     override fun storeAccepted(exchange: ArchivedExchange, message: InboundMessage): Long {
@@ -35,6 +40,26 @@ class JdbcMessageArchive(private val jdbc: JdbcClient) : InboundStore, OutboundA
 
     @Transactional
     override fun store(exchange: ArchivedExchange): Long = insert(exchange)
+
+    override fun get(id: Long): ArchivedExchange? =
+        jdbc.sql("SELECT * FROM soap_archive WHERE id = :id AND tenant_id = :t").param("id", id).param("t", Tenant.DEFAULT).query { rs, _ ->
+            ArchivedExchange(
+                direction = Direction.valueOf(rs.getString("direction")),
+                operation = rs.getString("operation")?.let(SoapOperation::fromWsdlName),
+                partnerId = rs.getLong("partner_id").takeIf { !rs.wasNull() }?.let(::PartnerId),
+                remoteAddress = rs.getString("remote_address"),
+                startedAt = rs.getTimestamp("started_at").toInstant(),
+                durationMillis = rs.getLong("duration_ms"),
+                request = rs.getBytes("request"),
+                response = rs.getBytes("response"),
+                teqCode = rs.getString("teq_code")?.let(TeqCode::fromCode),
+                rejectionReason = rs.getString("rejection_reason"),
+                signerSubject = rs.getString("signer_subject"),
+                signerSerial = rs.getString("signer_serial"),
+                externalOrderNumber = rs.getString("external_order_number"),
+                findings = rs.getString("findings"),
+            )
+        }.optional().orElse(null)
 
     private fun insert(exchange: ArchivedExchange): Long {
         val keyHolder = GeneratedKeyHolder()
