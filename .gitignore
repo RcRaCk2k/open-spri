@@ -1,0 +1,13 @@
+# Dokumente des AK S&P (Urheberrecht) – nicht veröffentlichen, siehe docs/AUFGABE-SPRI.md Kap. 13
+docs/spec-original/
+docs/spec-text/
+docs/ANHANG-A-Testfaelle.md
+
+# Build / IDE
+build/
+.gradle/
+node_modules/
+dist/
+.idea/
+*.iml
+.env
