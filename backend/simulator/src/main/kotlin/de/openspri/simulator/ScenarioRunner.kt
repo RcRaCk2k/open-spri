@@ -49,6 +49,23 @@ class ScenarioRunner(
         else -> null
     }
 
+    /**
+     * Agreements a KFT needs in our instance (the operator maintains them before the test): the Projektvereinbarung
+     * for the Projektkenner (R-12) and the power of attorney for orders in the name of a third party (R-11).
+     */
+    fun prepare() {
+        val path = "/api/v1/partners/$partnerId"
+        if (us.get("$path/projects").items().none { it.path("projectId").stringValue() == OrderTemplates.PROJECT_ID }) {
+            us.post("$path/projects", us.objectNode().put("projectId", OrderTemplates.PROJECT_ID).put("description", "KFT-Szenarien"))
+        }
+        val parties = OrderTemplates.Parties()
+        us.post(
+            "$path/powers-of-attorney",
+            us.objectNode().put("ordererClientNumber", OrderTemplates.ORDERER.clientNumber).put("ordererServiceNumber", OrderTemplates.ORDERER.serviceNumber)
+                .put("clientNumber", parties.clientNumber).put("serviceNumber", parties.serviceNumber).put("description", "KFT-Szenarien"),
+        )
+    }
+
     fun run(scenario: Scenario): ScenarioResult {
         val started = System.currentTimeMillis()
         val run = Run(scenario)
@@ -135,7 +152,7 @@ class ScenarioRunner(
         // --- orders and requests --------------------------------------------------------------
 
         fun ourOrder() {
-            val auftrag = OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory)
+            val auftrag = OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory, variants = TestCaseVariants.of(case), owner = TestCaseVariants.withOwner(case))
             val body = us.objectNode().put("partnerId", partnerId)
             body.set("auftrag", auftrag)
             ourOrderId = us.post("/api/v1/orders?send=true", body).path("order").path("id").longValue()
@@ -145,7 +162,7 @@ class ScenarioRunner(
         }
 
         fun simulatorOrder() {
-            val (teq, payload) = simulator.sendOrder(OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory))
+            val (teq, payload) = simulator.sendOrder(OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory, variants = TestCaseVariants.of(case), owner = TestCaseVariants.withOwner(case)))
             expectOk(teq, "Auftrag")
             simOriginal = payload
             log("Simulator → Auftrag ${case.businessCase.code} $number (TEQ OK)")

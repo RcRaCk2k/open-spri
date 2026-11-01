@@ -14,6 +14,12 @@ object OrderTemplates {
 
     data class Parties(val clientNumber: String = "AG4711", val serviceNumber: String = "LN0815")
 
+    /** Besteller of an order in the name of a third party (4.2, R-11); the power of attorney is set up by [ScenarioRunner.prepare]. */
+    val ORDERER = Parties("B4712", "BL0816")
+
+    /** Projektkenner agreed with the simulator (R-12), set up by [ScenarioRunner.prepare]. */
+    const val PROJECT_ID = "PRJ-KFT-1"
+
     /** The existing contract an order refers to (inventory build-up, BA = X). */
     data class Inventory(val contractNumber: String, val lineId: String)
 
@@ -26,6 +32,8 @@ object OrderTemplates {
     /**
      * @param houseNumber makes the address unique, so that test orders do not collide with R-10 (open order at the same site)
      * @param inventory contract and LineID for business cases on an existing line
+     * @param variants special content of the test case (Kenner, Besteller, VorabstimmungsID, HomeID, Konnektivität)
+     * @param owner Konnektivitätsauftrag with owner data (Eigentümerdaten, Variante 1 of Anlage 1 row 129)
      */
     fun order(
         case: BusinessCase,
@@ -34,25 +42,59 @@ object OrderTemplates {
         houseNumber: Int = 1,
         inventory: Inventory? = null,
         parties: Parties = Parties(),
+        variants: Set<Variant> = emptySet(),
+        owner: Boolean = false,
     ): ObjectNode {
         require(case in supported) { "keine Auftragsvorlage für ${case.code}" }
         if (case in needsInventory) requireNotNull(inventory) { "${case.code} braucht einen Bestandsvertrag" }
         val auftrag = json.objectNode()
         auftrag.put("externeAuftragsnummer", externalOrderNumber)
         auftrag.putObject("auftraggeber").put("auftraggebernummer", parties.clientNumber).put("leistungsnummer", parties.serviceNumber)
+        if (Variant.THIRD_PARTY in variants) {
+            auftrag.putObject("besteller").put("auftraggebernummer", ORDERER.clientNumber).put("leistungsnummer", ORDERER.serviceNumber)
+        }
+        if (Variant.PROJECT in variants || Variant.ORDER_MARKER in variants) {
+            val kenner = auftrag.putObject("kenner")
+            if (Variant.PROJECT in variants) kenner.putObject("projektId").put("projektkenner", PROJECT_ID)
+            // "Der Wert der Auftragsklammer darf nur einmalig verwendet werden" (Anlage 1 row 166)
+            if (Variant.ORDER_MARKER in variants) {
+                kenner.putObject("auftragskenner").put("auftragsklammer", externalOrderNumber.filter { it.isDigit() }.takeLast(10)).put("anzahlAuftraege", 1)
+            }
+        }
         val geschaeftsfall = auftrag.putObject("geschaeftsfall")
         when (case) {
             BusinessCase.NEU -> {
                 geschaeftsfall.put("@type", "BereitstellungType")
+                if (Variant.PRE_AGREEMENT in variants) geschaeftsfall.put("vorabstimmungId", preAgreementId(externalOrderNumber))
                 contact(geschaeftsfall)
                 desired(geschaeftsfall, desiredDate)
                 val position = geschaeftsfall.putObject("auftragsposition")
                 product(position, "FTTH 100")
-                position.putObject("geschaeftsfallProdukt").put("@type", "FTTXBereitstellungType").set("standortA", address(houseNumber))
+                val fttx = position.putObject("geschaeftsfallProdukt").put("@type", "FTTXBereitstellungType")
+                fttx.set("standortA", address(houseNumber))
+                if (Variant.HOME_ID in variants) {
+                    // the HomeID is part of the Vormieter (Anlage 1 rows 113-118)
+                    fttx.putObject("vormieter").putObject("homeId").put("homeIdNummer", "HID" + externalOrderNumber.filter { it.isDigit() }.takeLast(12))
+                }
+                if (Variant.CONNECTIVITY in variants) {
+                    // Konnektivitätsauftrag: product position "Konnektivität" (Anlage 1 row 154)
+                    product(position.putObject("position"), "Konnektivität")
+                    if (owner) {
+                        val versand = fttx.putObject("standortVersand")
+                        versand.putObject("person").put("anrede", "2").put("vorname", "Otto").put("nachname", "Eigentümer")
+                        versand.putObject("strasse").put("strassenname", "Vermieterweg").put("hausnummer", "5")
+                        versand.put("postleitzahl", "12345")
+                        versand.putObject("ort").put("ortsname", "Musterstadt")
+                        val montage = fttx.putObject("montageleistung")
+                        montage.putObject("ansprechpartner").put("anrede", "2").put("nachname", "Eigentümer").put("telefonnummer", "0123 111222")
+                        montage.put("montagehinweis", "EtFestnetz#0123111222#")
+                    }
+                }
             }
             BusinessCase.KUE_AG -> {
                 geschaeftsfall.put("@type", "KuendigungType")
                 line(geschaeftsfall, inventory!!)
+                if (Variant.PRE_AGREEMENT in variants) geschaeftsfall.put("vorabstimmungId", preAgreementId(externalOrderNumber))
                 contact(geschaeftsfall)
                 desired(geschaeftsfall, desiredDate)
                 // no Auftragsposition: Anlage 1 row 65 does not allow it for KUE-AG (optional in the XSD)

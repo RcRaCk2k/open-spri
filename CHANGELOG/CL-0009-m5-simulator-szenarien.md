@@ -41,12 +41,18 @@ Der KFT bei Enghouse bricht nach drei erfolglosen Versuchen ab. Deshalb müssen 
 - **Abgeleitete Codetabelle:** schränkt Codes nicht mehr auf Geschäftsfälle ein, weil die Testfallliste oft nur `*2` angibt. Gefunden mit dem frischen Klon ohne AK-Tabelle (wie CI); die Prüfung je Geschäftsfall läuft mit der AK-Tabelle.
 - **Anlage 1 vs. XSD bei EST (SA-015):** Anlage 1 verlangt eine Auftragsposition, die `EntstoerungType` nicht hat. Ohne Korrektur hätte open-spri im Modus `enforce` jeden Entstörauftrag abgewiesen, auch die eigenen. Neue Bedingung `not GF EST` in `anlage1-conditions.txt`.
 
+### Teil 3: besondere Auftragsinhalte
+- `OrderTemplates`: Projektkenner, Auftragskenner (eindeutige Auftragsklammer), Besteller (Dritte), VorabstimmungsID (NEU, KUE-AG), HomeID (über `vormieter`), Konnektivitätsauftrag mit und ohne Eigentümerdaten.
+- `ScenarioRunner.prepare()`: legt Projektvereinbarung und Vollmacht über die REST-API an. So prüfen die Szenarien auch R-11 und R-12 aus M4.
+- `OutboundPayloads`: Meldungen übernehmen `auftraggebernummerBesteller` und `vorabstimmungId` aus dem Auftrag, wie schon Vertragsnummer und Auftraggebernummer.
+
 ## Auswirkungen
-- S/PRI-Schnittstelle: TBK-Meldungen werden jetzt XSD-konform gebaut; die ENTM als Leistungserbringer enthält die Vertragsnummer aus der ABM. Entstöraufträge ohne Auftragsposition sind jetzt auch nach Anlage 1 gültig (SA-015), eingehend wie ausgehend.
+- S/PRI-Schnittstelle: Meldungen zu Aufträgen im Namen Dritter tragen jetzt die Auftraggebernummer des Bestellers, Meldungen zu Aufträgen mit VorabstimmungsID die VorabstimmungsID. TBK-Meldungen werden jetzt XSD-konform gebaut; die ENTM als Leistungserbringer enthält die Vertragsnummer aus der ABM. Entstöraufträge ohne Auftragsposition sind jetzt auch nach Anlage 1 gültig (SA-015), eingehend wie ausgehend.
 - REST-API, Datenbank, Konfiguration: keine Änderung
 - Build: neues Modul `simulator`; `:app`-Tests laden die Testfallliste über `:simulator:downloadKftTestCases`
 
 ## Tests
+- Teil 3: `KftScenarioTest` 191 Testfälle grün, 20 offen (Negativ-Testfälle, Providerwechsel als Leistungserbringer); `OrderTemplatesTest`: NEU mit allen Varianten
 - Teil 2: `KftScenarioTest` 151 Testfälle grün, 60 offen mit Grund; `OrderTemplatesTest` (jede Vorlage gültig nach XSD und Anlage 1, richtiger Geschäftsfall, Reklamation)
 - `KftScenarioTest`: 56 Testfälle grün (NEU in beiden Rollen ohne besondere Auftragsinhalte, dazu S.1.1.02/S.8.1.02 neuer Termin, S.1.2.6/S.8.2.6 zwei Codes, S.1.2.5/S.8.2.5 Dublette mit 1010, S.8.2.10 TEQ 0991 mit automatischer Wiederholung), 155 offen mit Grund
 - `KftSequenceParserTest`, `KftSequenceReplayTest`: aus `:domain` nach `:simulator` verschoben, unverändert grün

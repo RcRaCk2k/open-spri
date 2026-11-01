@@ -34,6 +34,18 @@ class OrderTemplatesTest {
     }
 
     @Test
+    fun `NEU with all order variants is valid and carries them`() {
+        val variants = setOf(Variant.PROJECT, Variant.ORDER_MARKER, Variant.THIRD_PARTY, Variant.PRE_AGREEMENT, Variant.HOME_ID, Variant.CONNECTIVITY)
+        val (_, data) = payloads.order(OrderTemplates.order(BusinessCase.NEU, "T-VAR-1234", date, 3, variants = variants, owner = true))
+        assertEquals(OrderTemplates.PROJECT_ID, data.projectId)
+        assertEquals("1234", data.bracketId)
+        assertEquals(OrderTemplates.ORDERER.clientNumber, data.ordererClientNumber)
+        assertTrue(data.preAgreementId!!.length in 16..21)
+        assertTrue(data.homeId!!.startsWith("HID"))
+        assertTrue(data.connectivity)
+    }
+
+    @Test
     fun `complaint is an EST order with reklamation`() {
         val (_, data) = payloads.order(OrderTemplates.complaint("T-REK", date, inventory, "LE-ST-1"))
         assertTrue(data.complaint)

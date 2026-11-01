@@ -31,7 +31,16 @@ enum class Variant(val label: String) {
 object TestCaseVariants {
 
     /** Variants the scenarios implement; the rest keeps the test case open in the coverage gate. */
-    val implemented = setOf(Variant.NEW_DATE, Variant.TWO_CODES, Variant.HINT_CODE, Variant.OVERLOADED)
+    val implemented = setOf(
+        Variant.NEW_DATE, Variant.TWO_CODES, Variant.HINT_CODE, Variant.OVERLOADED,
+        Variant.PROJECT, Variant.ORDER_MARKER, Variant.THIRD_PARTY, Variant.PRE_AGREEMENT, Variant.HOME_ID, Variant.CONNECTIVITY,
+        // "falsche Auftragsart" refers to the Replikat (what the Leistungserbringer offers); the order is a normal
+        // Konnektivitätsauftrag, the Leistungserbringer answers ABBM 1510
+        Variant.WRONG_ORDER_KIND,
+    )
+
+    /** Konnektivitätsauftrag with owner data ("mit Eigentümerdaten" in the description). */
+    fun withOwner(case: KftTestCase) = "mit Eigentümerdaten" in case.description
 
     private val HINT_CODE = Regex("""Meldungscode (\d{4})|z\.B\. (\d{4})""")
 

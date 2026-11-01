@@ -55,6 +55,11 @@ Die Testfallliste (`Testfaelle_SPRIv4X_20250523.xlsx`) lädt der Build von ak-sp
 | KUE-LE | beginnt ohne Auftrag mit der KDLE: als Leistungserbringer über `POST /terminations`, als Auftraggeber legt open-spri den Auftrag beim Eingang der KDLE an |
 | abgebender EKP (Z.6.1.07 ff.) | Der Simulator schickt als Leistungserbringer die AKM-PV zum Bestandsvertrag, wir antworten über `POST /pv-requests/{id}/reply`; bei „neg. RUEM-PV“ mit Zustimmung `N` |
 | Reklamation (Z.7.1.07, Z.14.1.07) | ein neuer Entstörauftrag mit derselben externen Auftragsnummer und `reklamation` (Störungsnummer des Leistungserbringers aus der QEB) |
+| Projektkenner, Dritte | Vor den Szenarien trägt der Runner über die REST-API die Projektvereinbarung `PRJ-KFT-1` (R-12) und die Vollmacht des Bestellers `B4712/BL0816` für `AG4711/LN0815` (R-11) beim Simulator-Partner ein. Ohne sie würde open-spri eigene Aufträge mit Projektkenner abweisen und eingehende beanstanden. **Vor dem echten KFT muss der Betreiber beides für Enghouse genauso pflegen.** Meldungen zu solchen Aufträgen tragen `auftraggebernummerBesteller` und `vorabstimmungId` aus dem Auftrag. |
+| Auftragskenner | `kenner/auftragskenner` mit eindeutiger `auftragsklammer` (Anlage 1 Zeile 166: nur einmal verwendbar) und `anzahlAuftraege` 1 |
+| Vorabstimmung („Alle Anbieterwechsel relevanten Attribute“) | `vorabstimmungId` im Geschäftsfall (NEU, KUE-AG) |
+| HomeID | `vormieter/homeId/homeIdNummer` (Anlage 1 Zeilen 113 bis 118) |
+| Konnektivität | zusätzliche Position mit Produkt „Konnektivität“ (Anlage 1 Zeile 154); „mit Eigentümerdaten“: `standortVersand` mit dem Eigentümer und `montagehinweis` nach Variante 1 (Zeile 129). „Falsche Auftragsart“ (S.1.2.12, S.8.2.12) bezieht sich auf das Replikat; der Auftrag ist ein normaler Konnektivitätsauftrag, der Leistungserbringer antwortet mit ABBM 1510. |
 | Diagnose (Z.15/Z.16) | GET mit den Parametern `BBdown`, `BBup`, SET mit `RESET`; die ERLM enthält je Parameter ein `dignoseergebnis` (SA-010) |
 
 Jede Abweichung von dieser Auslegung beim echten KFT wird als SA-Eintrag nachgetragen.
@@ -71,8 +76,8 @@ Der Test `coverage gate` lässt den Build scheitern, wenn mehr Testfälle offen 
 |---|---|---|
 | 1 | Simulator, Planer, Runner; NEU in beiden Rollen; Meldungsvarianten (neuer Termin, zwei Codes, Code aus dem Hinweis, TEQ 0991) | 155 von 211 |
 | 2 | Auftragsvorlagen für alle Geschäftsfälle, Bestandsaufbau, KUE-LE, abgebender EKP, Reklamation, Diagnose | 60 von 211 |
+| 3 | besondere Auftragsinhalte: Projektkenner, Auftragskenner, Dritte, Vorabstimmung, HomeID, Konnektivität | 20 von 211 |
 
-Offen nach Teil 2:
-- **besondere Auftragsinhalte:** Projektkenner, Auftragskenner, Dritte, Vorabstimmung, HomeID, Konnektivität
+Offen nach Teil 3:
 - **Negativ-Testfälle,** bei denen der Auftraggeber absichtlich einen fehlerhaften Auftrag sendet: Termin mehr als 179 Tage voraus, Storno statt Standard, Diagnose statt Änderung, Produkt „Dummy“, Leistungsmerkmal „TEST“, falsche Auftragsart
 - **Providerwechsel als Leistungserbringer:** Austausch mit dem abgebenden EKP (AKM-PV, RUEM-PV, ABM-PV …), braucht den Bestand des abgebenden EKP

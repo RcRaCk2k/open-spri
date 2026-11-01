@@ -74,7 +74,7 @@ class KftScenarioTest(
         partner.putArray("allowedSourceNetworks").add("127.0.0.1/32").add("::1/128")
         partner.putArray("certificatesPem").add(pem(simulator.credentials))
         val partnerId = us.post("/api/v1/partners", partner).path("id").longValue()
-        runner = ScenarioRunner(us, partnerId, simulator, codes::get)
+        runner = ScenarioRunner(us, partnerId, simulator, codes::get).also { it.prepare() }
     }
 
     @AfterAll
@@ -105,6 +105,6 @@ class KftScenarioTest(
 
     private companion object {
         /** Lowered with every part of M5; must reach 0 (docs/AUFGABE-SPRI.md M5). */
-        const val OPEN_TEST_CASES = 60
+        const val OPEN_TEST_CASES = 20
     }
 }

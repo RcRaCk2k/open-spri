@@ -108,6 +108,11 @@ class OutboundPayloads(
         if ("externeAuftragsnummer" in allowed && !attributeNode.has("externeAuftragsnummer")) attributeNode.put("externeAuftragsnummer", order.data.externalOrderNumber)
         if ("auftraggebernummer" in allowed && !attributeNode.has("auftraggebernummer")) order.data.clientNumber?.let { attributeNode.put("auftraggebernummer", it) }
         if ("vertragsnummer" in allowed && !attributeNode.has("vertragsnummer")) order.data.contractNumber?.let { attributeNode.put("vertragsnummer", it) }
+        // Bestellung im Namen Dritter (4.2) and provider change: the identifiers of the order are repeated in every message
+        if ("auftraggebernummerBesteller" in allowed && !attributeNode.has("auftraggebernummerBesteller")) {
+            order.data.ordererClientNumber?.let { attributeNode.put("auftraggebernummerBesteller", it) }
+        }
+        if ("vorabstimmungId" in allowed && !attributeNode.has("vorabstimmungId")) order.data.preAgreementId?.let { attributeNode.put("vorabstimmungId", it) }
 
         val meldungstyp = json.objectNode().put("@type", typeName)
         meldungstyp.set("meldungsattribute", attributeNode)
