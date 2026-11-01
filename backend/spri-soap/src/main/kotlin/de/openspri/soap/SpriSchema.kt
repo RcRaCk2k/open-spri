@@ -32,18 +32,47 @@ class SpriSchema private constructor(private val schema: Schema) {
 
     companion object {
         private const val MAX_ERRORS = 20
-        private const val ENTRY_POINT = "spri/v4/wsdl/oss-envelope.xsd"
+        private const val BASE = "spri/v4/"
+        private const val ENTRY_POINT = "wsdl/oss-envelope.xsd"
+        private const val SCHEME = "classpath:/"
 
+        /**
+         * Loads the schema exclusively from the classpath. All external access is disabled; the relative
+         * imports between the schema files are resolved by [ClasspathResolver]. This works the same in tests
+         * (directories) and in the Spring Boot jar (nested jar URLs).
+         */
         fun load(): SpriSchema {
-            val url = SpriSchema::class.java.classLoader.getResource(ENTRY_POINT)
-                ?: error("$ENTRY_POINT not found on the classpath - module spri-schema missing?")
             val factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI).apply {
                 setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
-                // The schema files import each other relatively; only local (jar/file) imports are allowed.
-                setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "jar,file")
+                setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "")
                 setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "")
+                resourceResolver = ClasspathResolver
             }
-            return SpriSchema(factory.newSchema(url))
+            val systemId = "$SCHEME$BASE$ENTRY_POINT"
+            return SpriSchema(factory.newSchema(javax.xml.transform.stream.StreamSource(open(systemId), systemId)))
+        }
+
+        private fun open(systemId: String): java.io.InputStream {
+            require(systemId.startsWith("$SCHEME$BASE")) { "schema reference outside the S/PRI schema: $systemId" }
+            val path = systemId.removePrefix(SCHEME)
+            return SpriSchema::class.java.classLoader.getResourceAsStream(path)
+                ?: error("$path not found on the classpath - module spri-schema missing?")
+        }
+
+        /** Resolves `schemaLocation` imports relative to the importing file, within classpath:/spri/v4/ only. */
+        private object ClasspathResolver : org.w3c.dom.ls.LSResourceResolver {
+            private val ls = org.w3c.dom.bootstrap.DOMImplementationRegistry.newInstance()
+                .getDOMImplementation("LS") as org.w3c.dom.ls.DOMImplementationLS
+
+            override fun resolveResource(
+                type: String?, namespaceURI: String?, publicId: String?, systemId: String?, baseURI: String?,
+            ): org.w3c.dom.ls.LSInput {
+                val resolved = java.net.URI(baseURI ?: "$SCHEME$BASE$ENTRY_POINT").resolve(requireNotNull(systemId)).toString()
+                return ls.createLSInput().apply {
+                    this.systemId = resolved
+                    byteStream = open(resolved)
+                }
+            }
         }
     }
 }
