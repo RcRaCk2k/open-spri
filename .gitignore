@@ -11,3 +11,6 @@ dist/
 .idea/
 *.iml
 .env
+frontend/*.tsbuildinfo
+.kotlin/
+build-logic/.kotlin/

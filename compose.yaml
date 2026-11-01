@@ -1,0 +1,99 @@
+# open-spri all-in-one stack. Quick start: cp .env.example .env, adjust, `docker compose up -d`.
+# Containers: api, db, frontend and - with profile "proxy" (default in .env.example) - proxy + certbot.
+# For an external reverse proxy see compose.external-proxy.yaml and docs/betrieb.md.
+name: open-spri
+
+services:
+  db:
+    image: mariadb:11.8
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: openspri
+      MARIADB_USER: openspri
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD in .env setzen}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD in .env setzen}
+      MARIADB_AUTO_UPGRADE: "1"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/api/Dockerfile
+    image: ${OPENSPRI_IMAGE_PREFIX:-ghcr.io/rcrack2k/open-spri}/api:${OPENSPRI_VERSION:-local}
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mariadb://db:3306/openspri
+      SPRING_DATASOURCE_USERNAME: openspri
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      OPENSPRI_BUILD_DIGEST: ${OPENSPRI_BUILD_DIGEST:-}
+      TZ: Europe/Berlin
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # The JRE image has no curl; bash's /dev/tcp is enough for a readiness probe.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/readiness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q ' 200 ' <&3"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 6
+
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/frontend/Dockerfile
+    image: ${OPENSPRI_IMAGE_PREFIX:-ghcr.io/rcrack2k/open-spri}/frontend:${OPENSPRI_VERSION:-local}
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  proxy:
+    profiles: [proxy]
+    build:
+      context: .
+      dockerfile: deploy/proxy/Dockerfile
+    image: ${OPENSPRI_IMAGE_PREFIX:-ghcr.io/rcrack2k/open-spri}/proxy:${OPENSPRI_VERSION:-local}
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-localhost}
+    volumes:
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot-webroot:/var/www/certbot:ro
+      - ./deploy/nginx/snippets/openspri-spri-allowlist.conf:/etc/nginx/snippets/openspri-spri-allowlist.conf:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+
+  certbot:
+    profiles: [proxy]
+    image: certbot/certbot:v5.1.0
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/opt/openspri/run.sh"]
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-localhost}
+      ACME_ENABLED: ${ACME_ENABLED:-true}
+      ACME_STAGING: ${ACME_STAGING:-false}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      ACME_KEY_TYPE: ${ACME_KEY_TYPE:-ecdsa}
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+      - ./deploy/certbot/run.sh:/opt/openspri/run.sh:ro
+    depends_on:
+      - proxy
+
+volumes:
+  db-data:
+  letsencrypt:
+  certbot-webroot:

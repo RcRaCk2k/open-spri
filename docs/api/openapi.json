@@ -1,0 +1,77 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "description" : "Öffentliche REST-API von open-spri. Das Web-Frontend nutzt ausschließlich diese API. Ausführliche Beschreibung mit Beispielen: docs/api/ im Repository.",
+    "license" : {
+      "name" : "MIT",
+      "url" : "https://github.com/RcRaCk2k/open-spri/blob/main/LICENSE"
+    },
+    "title" : "open-spri REST-API",
+    "version" : "v1"
+  },
+  "servers" : [ {
+    "url" : "/",
+    "description" : "diese Instanz"
+  } ],
+  "tags" : [ {
+    "description" : "Version, Build und Zustand der Instanz",
+    "name" : "Betrieb"
+  } ],
+  "paths" : {
+    "/api/v1/about" : {
+      "get" : {
+        "description" : "Liefert Softwareversion, implementierte S/PRI-Version und ob die Instanz in einem zertifizierten Build läuft. Der Aufruf ist ohne Anmeldung möglich.",
+        "operationId" : "about",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AboutResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Version und Build der Instanz",
+        "tags" : [ "Betrieb" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "AboutResponse" : {
+        "type" : "object",
+        "description" : "Version und Build der Instanz",
+        "properties" : {
+          "buildDigest" : {
+            "type" : [ "string", "null" ],
+            "description" : "Digest des laufenden Container-Images, falls bekannt",
+            "example" : "sha256:3f1c…"
+          },
+          "certifiedBuild" : {
+            "type" : "boolean",
+            "description" : "true, wenn buildDigest zu einem Build gehört, der den Konformitätstest bestanden hat"
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "Produktname",
+            "example" : "open-spri"
+          },
+          "spriVersion" : {
+            "type" : "string",
+            "description" : "Implementierte S/PRI-Version (Major.Minor)",
+            "example" : "4.4"
+          },
+          "version" : {
+            "type" : "string",
+            "description" : "Softwareversion (SemVer)",
+            "example" : "1.0.0"
+          }
+        },
+        "required" : [ "certifiedBuild", "name", "spriVersion", "version" ]
+      }
+    }
+  }
+}

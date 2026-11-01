@@ -1,0 +1,36 @@
+# Central version catalog. Versions managed by the Spring Boot BOM are not repeated here.
+[versions]
+kotlin = "2.3.21"            # aligned with spring-boot-dependencies 4.1.1
+spring-boot = "4.1.1"
+cxf = "4.2.4"                # built against Spring Boot 4.1 / Spring 7 (used from M1)
+springdoc = "3.1.1"          # Spring Boot 4.1 line
+archunit = "1.5.1"
+flyway-mysql = "12.4.0"      # keep in sync with flyway.version of the Boot BOM
+
+[libraries]
+spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
+spring-boot-starter-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
+flyway-mysql = { module = "org.flywaydb:flyway-mysql", version.ref = "flyway-mysql" }
+mariadb-jdbc = { module = "org.mariadb.jdbc:mariadb-java-client" }
+jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
+springdoc-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+testcontainers-mariadb = { module = "org.testcontainers:testcontainers-mariadb" }
+testcontainers-junit = { module = "org.testcontainers:testcontainers-junit-jupiter" }
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+# build-logic
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+kotlin-allopen = { module = "org.jetbrains.kotlin:kotlin-allopen", version.ref = "kotlin" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }

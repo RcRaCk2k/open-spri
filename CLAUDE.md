@@ -28,7 +28,8 @@ open-spri ist eine MIT-lizenzierte Implementierung der **S/PRI-Schnittstelle V4.
 
 ## Technik (festgelegt, Änderung nur per ADR)
 
-- Kotlin 2.x auf JDK 21, Spring Boot 3, Spring Security 6, Apache CXF 4 + WSS4J, JAXB-Codegen aus Anlage-3-XSD
+- Kotlin 2.3 auf JDK 25 (LTS), Spring Boot 4.1 (Spring 7, Spring Security 7, Jackson 3), Apache CXF 4.2 + WSS4J, JAXB-Codegen aus Anlage-3-XSD. Gründe stehen in ADR-0004.
+- Paketnamensraum `de.openspri.<modul>`. Backend-Module liegen unter `backend/<modul>`, gemeinsame Build-Regeln in `build-logic/`, Versionen in `gradle/libs.versions.toml`.
 - MariaDB 11 LTS, Flyway (Migrationen nur additiv bzw. rückwärtskompatibel)
 - Gradle Kotlin DSL, Multi-Module (Struktur siehe `docs/AUFGABE-SPRI.md`, Kap. 8.2)
 - Frontend: React + TypeScript (strict), Vite, pnpm. API-Client wird aus OpenAPI generiert, keine handgeschriebenen URLs.
@@ -54,4 +55,18 @@ open-spri ist eine MIT-lizenzierte Implementierung der **S/PRI-Schnittstelle V4.
 
 ## Befehle
 
-Wird in M0 ergänzt (Build, Tests, Simulator-Suite, lokaler Stack).
+```bash
+./gradlew build                          # Backend: kompilieren, alle Tests (Testcontainers braucht Docker)
+./gradlew :app:test -PupdateOpenApi      # docs/api/openapi.json nach API-Änderung neu erzeugen
+./gradlew :app:bootRun                   # API lokal starten (MariaDB auf localhost:3306 nötig)
+
+cd frontend
+pnpm install
+pnpm generate:api                        # TypeScript-Typen aus docs/api/openapi.json erzeugen
+pnpm dev                                 # Frontend auf :5173, Proxy auf die API :8080
+pnpm typecheck && pnpm test && pnpm build
+
+cp .env.example .env && docker compose up -d --build   # kompletter Stack (All-in-One)
+```
+
+Ablauf bei einer API-Änderung: Controller ändern → `-PupdateOpenApi` → `pnpm generate:api` → Frontend anpassen → `docs/api/` ergänzen. Die CI bricht ab, wenn `openapi.json` oder `schema.d.ts` veraltet sind.

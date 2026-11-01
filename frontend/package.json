@@ -1,0 +1,29 @@
+{
+  "name": "open-spri-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@12.13.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "generate:api": "openapi-typescript ../docs/api/openapi.json -o src/api/schema.d.ts",
+    "check:api": "openapi-typescript ../docs/api/openapi.json -o src/api/schema.d.ts --check"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "openapi-typescript": "7.13.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
+  }
+}

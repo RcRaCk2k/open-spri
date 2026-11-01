@@ -1,0 +1,10 @@
+# Variant B: an external reverse proxy (e.g. an existing nginx with Let's Encrypt) terminates TLS.
+# Start with:  COMPOSE_PROFILES= docker compose -f compose.yaml -f compose.external-proxy.yaml up -d
+# Configuration example for nginx: deploy/nginx/external/openspri.conf
+services:
+  api:
+    ports:
+      - "127.0.0.1:8080:8080"
+  frontend:
+    ports:
+      - "127.0.0.1:8081:80"

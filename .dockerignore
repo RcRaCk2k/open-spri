@@ -1,0 +1,9 @@
+.git
+.gradle
+**/build
+**/node_modules
+frontend/dist
+frontend/*.tsbuildinfo
+docs/spec-original
+docs/spec-text
+.env

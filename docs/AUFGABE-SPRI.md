@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Dokumentstatus** | v0.3, Scope vollständig entschieden, Freigabe steht aus (Kap. 16) |
+| **Dokumentstatus** | v1.0, **zur Entwicklung freigegeben am 2026-11-01** |
 | **Projekt** | **open-spri**, `git@github.com:RcRaCk2k/open-spri.git` |
 | **Umsetzung** | Claude Opus, alle Arbeitspakete (Entscheidung vom 2026-11-01) |
 | **Stand** | 2026-11-01 |
@@ -101,7 +101,7 @@ Wichtig sind diese Regeln der Testfallliste:
 | D-06 | WBCI/Vorabstimmung: wird im Setup konfiguriert, als „eigene WBCI-Schnittstelle“ oder „über Dienstleister“ (Kap. 5.8). v1 enthält keine eigene WBCI-Implementierung. | entschieden |
 | D-07 | Das Frontend benutzt ausschließlich die öffentliche REST-API | entschieden |
 | D-08 | ICC, Firmendaten und Rollen werden beim ersten Start im Setup-Assistenten der Web-Oberfläche abgefragt | entschieden |
-| D-09 | Technik: Kotlin, Spring Boot 3, Apache CXF 4 (WSS4J), React + TypeScript, MariaDB | entschieden |
+| D-09 | Technik: Kotlin, Spring Boot 4.1, Apache CXF 4.2 (WSS4J), React + TypeScript, MariaDB. Konkrete Versionen und Gründe stehen in ADR-0004. | entschieden (Versionen angepasst mit ADR-0004) |
 | D-10 | **Alle optionalen Testfälle umsetzen** (VZM, ZWM-LE, Projekt- und Auftragskenner, WITA-MC, neg. TEQ …). Begründung: Als öffentliche Software müssen wir die Wünsche aller künftigen Nutzer abdecken, und ein Nachzertifizieren ist teuer. | entschieden 2026-11-01 |
 | D-11 | Auftragsklammer (bis 20 Aufträge) und Kopplungskenner werden technisch übertragen und gespeichert. Die Koordination der Klammer auf LE-Seite (gemeinsamer Termin) bleibt ein manueller Workflow. | entschieden 2026-11-01 |
 | D-12 | v1 ist **Single-Tenant** (eine Installation = ein ICC). Mandantenfähigkeit für Dienstleister kommt in v2, die Datenbank bekommt aber schon jetzt eine `tenant_id`-Spalte. | entschieden 2026-11-01 |
@@ -504,13 +504,13 @@ Pfad `/api/v1`. JSON, Paginierung per Cursor, `Idempotency-Key`-Header für alle
 
 | Bereich | Vorgabe |
 |---|---|
-| Sprache, Laufzeit | Kotlin 2.x auf JDK 21 (LTS) |
-| Framework | Spring Boot 3.x, Spring Security 6 |
-| SOAP | Apache CXF 4.x (JAX-WS), WSS4J, JAXB-Codegen aus Anlage-3-XSD/WSDL |
+| Sprache, Laufzeit | Kotlin 2.3 auf **JDK 25 (LTS)**, Paketnamensraum `de.openspri` (ADR-0004) |
+| Framework | **Spring Boot 4.1**, Spring Framework 7, Spring Security 7, Jackson 3 |
+| SOAP | Apache CXF 4.2 (JAX-WS), WSS4J, JAXB-Codegen aus Anlage-3-XSD/WSDL |
 | DB | MariaDB 11 LTS, Flyway |
-| Build | Gradle (Kotlin DSL), Version Catalog |
-| Tests | JUnit 5, Kotest (optional), Testcontainers (MariaDB), WireMock, ArchUnit, Playwright (E2E Frontend), Gatling oder k6 (Last) |
-| Frontend | React + TypeScript, Vite, pnpm, Vitest |
+| Build | Gradle 9 (Kotlin DSL, Wrapper), Version Catalog `gradle/libs.versions.toml`, Convention-Plugins in `build-logic/` |
+| Tests | JUnit (Jupiter 6), Kotest (optional), Testcontainers (MariaDB), WireMock, ArchUnit, Playwright (E2E Frontend), Gatling oder k6 (Last) |
+| Frontend | React 19 + TypeScript 6, Vite 8, pnpm, Vitest, `openapi-typescript`/`openapi-fetch` |
 | CI | GitHub Actions: Build, Tests, Simulator-Suite, Images (multi-arch), Cosign, SBOM, Trivy/Dependabot |
 | Lizenz | MIT, `LICENSE`, `NOTICE` (Hinweis auf AK-Dokumente, Kap. 14) |
 
@@ -632,8 +632,8 @@ Die Entwicklung beginnt, wenn folgende Punkte erfüllt sind:
 - [x] Scope D-01 bis D-09 bestätigt (2026-11-01), D-03 um DIAG erweitert
 - [x] Vorschläge D-10 bis D-14 bestätigt (2026-11-01)
 - [x] OP-07 (Name, Repo) entschieden: open-spri
-- [ ] OP-01, OP-02 und OP-03 sind **angefragt**. Antworten sind für M0 bis M7 nicht nötig.
+- [x] OP-01, OP-02 und OP-03: Der Auftraggeber stellt die Anfragen (zugesagt am 2026-11-01). Antworten sind für M0 bis M7 nicht nötig.
 - [x] Festgelegt, wer die Umsetzung übernimmt: **Claude Opus, alle Arbeitspakete**
 - [x] Sprachregel aus Kap. 12.3 bestätigt (2026-11-01)
 
-**Freigegeben durch:** ______________________  **Datum:** ____________
+**Freigegeben durch:** Auftraggeber (Projektinhaber open-spri)  **Datum:** 2026-11-01

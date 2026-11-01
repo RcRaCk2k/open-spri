@@ -2,7 +2,7 @@
 
 Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requisition Interface, V4.4) des [Arbeitskreises Schnittstellen & Prozesse](https://ak-spri.de/spri/). Mit ihr bestellen Telekommunikationsanbieter Vorleistungsprodukte (FTTH, FTTB, FTTC) bei anderen Netzbetreibern und bieten ihre eigenen Anschlüsse über einen Standard an.
 
-> **Status: Spezifikationsphase.** Es gibt noch keine lauffähige Software. Den Umfang beschreibt die Aufgabenbeschreibung [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md). Installation und Betrieb werden ab Meilenstein M0 hier dokumentiert.
+> **Status: in Entwicklung (Meilenstein M0 abgeschlossen).** Grundgerüst, Container-Stack und CI stehen. Die S/PRI-Funktionen folgen ab M1. Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
 
 ## Funktionsumfang (Ziel v1.0)
 
@@ -29,6 +29,28 @@ Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requ
 - Setup-Assistent beim ersten Start (Firmendaten, ITU Carrier Code, Rollen, Zertifikate)
 - Eingebauter Simulator, der die Testfälle des Konformitätstests nachbildet
 
+## Schnellstart
+
+Voraussetzung: Docker mit Compose v2.
+
+```bash
+git clone https://github.com/RcRaCk2k/open-spri.git && cd open-spri
+cp .env.example .env        # Passwörter setzen, PUBLIC_HOSTNAME und ACME_EMAIL eintragen
+docker compose up -d --build
+curl -k https://localhost/health
+```
+
+Der Stack besteht aus `api` (Kotlin/Spring Boot), `db` (MariaDB 11.8), `frontend` (React/nginx), `proxy` (nginx) und `certbot` (Let's Encrypt). Mit einem öffentlichen `PUBLIC_HOSTNAME` holt certbot automatisch ein Zertifikat, zuerst im Staging-Modus. Für den Betrieb hinter einem vorhandenen Reverse-Proxy und für alle Einstellungen siehe [`docs/betrieb.md`](docs/betrieb.md).
+
+## Entwicklung
+
+```bash
+./gradlew build                 # Backend inkl. Tests (JDK 25 wird bei Bedarf automatisch geladen)
+cd frontend && pnpm install && pnpm dev
+```
+
+Alle Befehle und Arbeitsregeln stehen in [`CLAUDE.md`](CLAUDE.md).
+
 ## Zertifizierung
 
 Die Software soll in beiden Rollen den Konformitätstest (KFT) bestehen und ein **Softwarezertifikat** des AK S&P erhalten. Betreiber einer zertifizierten Version können dann beim AK ein Schnittstellenzertifikat beantragen, das auf diese Software verweist. Details und offene Fragen stehen in [`docs/AUFGABE-SPRI.md`, Kap. 3](docs/AUFGABE-SPRI.md#3-zertifizierungsstrategie).
@@ -38,7 +60,9 @@ Die Software soll in beiden Rollen den Konformitätstest (KFT) bestehen und ein 
 | Dokument | Inhalt |
 |---|---|
 | [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md) | Anforderungen, Architektur, Teststrategie, Meilensteine |
-| `docs/api/` | REST-API mit Beispielen (ab M4) |
+| [`docs/api/`](docs/api/) | REST-API mit Beispielen, [`openapi.json`](docs/api/openapi.json) |
+| [`docs/betrieb.md`](docs/betrieb.md) | Installation und Betrieb |
+| [`docs/spec-abweichungen.md`](docs/spec-abweichungen.md) | Auslegungen der Spezifikation |
 | `docs/grundlagen/` | Einführung in S/PRI für Entwickler (ab M2) |
 | `docs/adr/` | Architekturentscheidungen |
 | [`CHANGELOG/`](CHANGELOG/) | Beschreibungen größerer Änderungen |

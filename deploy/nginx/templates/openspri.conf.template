@@ -1,0 +1,35 @@
+# Generated at container start from /etc/nginx/templates/openspri.conf.template
+# (environment: PUBLIC_HOSTNAME). Do not edit the generated file.
+
+upstream openspri_api      { server api:8080; }
+upstream openspri_frontend { server frontend:80; }
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${PUBLIC_HOSTNAME};
+
+    # Let's Encrypt HTTP-01 challenge (container "certbot", shared webroot)
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${PUBLIC_HOSTNAME};
+
+    # Symlinks maintained by /docker-entrypoint.d/40-openspri-tls.sh:
+    # Let's Encrypt certificate if present, otherwise a temporary self-signed certificate.
+    ssl_certificate     /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/privkey.pem;
+
+    include /etc/nginx/snippets/openspri-tls.conf;
+    include /etc/nginx/snippets/openspri-locations.conf;
+}
