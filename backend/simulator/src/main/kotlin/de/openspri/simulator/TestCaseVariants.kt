@@ -15,6 +15,11 @@ enum class Variant(val label: String) {
     CONNECTIVITY("Konnektivitätsauftrag"),
     INVALID_FEATURE("Leistungsmerkmal TEST"),
     WRONG_ORDER_KIND("falsche Auftragsart"),
+    WRONG_CHANGE_INDICATOR("Änderungskennzeichen Storno statt Standard"),
+    WRONG_BUSINESS_CASE("Geschäftsfall Diagnose statt Änderung"),
+    INVALID_PRODUCT("Produkt Dummy"),
+    FAR_DATE("Wunschtermin mehr als 179 Tage voraus"),
+    PROVIDER_CHANGE_LE("Providerwechsel als Leistungserbringer mit dem abgebenden EKP"),
 
     // message content and transport
     NEW_DATE("ABM mit neuem Termin"),
@@ -40,6 +45,11 @@ object TestCaseVariants {
         if (case.connectivity) add(Variant.CONNECTIVITY)
         if ("Leistungsmerkmal" in text) add(Variant.INVALID_FEATURE)
         if ("falsche Auftragsart" in text) add(Variant.WRONG_ORDER_KIND)
+        if ("Änderungskennzeichen" in case.hint) add(Variant.WRONG_CHANGE_INDICATOR)
+        if ("Geschäftsfall \"Diagnose\"" in case.hint) add(Variant.WRONG_BUSINESS_CASE)
+        if ("Produkt \"Dummy\"" in case.hint) add(Variant.INVALID_PRODUCT)
+        if ("179" in case.description) add(Variant.FAR_DATE)
+        if (!case.partnerSheet && "<AKM-PV" in case.sequence) add(Variant.PROVIDER_CHANGE_LE)
         if ("neuer Termin" in case.sequence) add(Variant.NEW_DATE)
         if ("2 zutreffende MC" in case.sequence) add(Variant.TWO_CODES)
         if (hintCode(case) != null) add(Variant.HINT_CODE)

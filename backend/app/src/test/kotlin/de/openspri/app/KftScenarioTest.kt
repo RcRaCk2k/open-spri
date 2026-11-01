@@ -105,6 +105,6 @@ class KftScenarioTest(
 
     private companion object {
         /** Lowered with every part of M5; must reach 0 (docs/AUFGABE-SPRI.md M5). */
-        const val OPEN_TEST_CASES = 155
+        const val OPEN_TEST_CASES = 60
     }
 }

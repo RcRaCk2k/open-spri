@@ -27,11 +27,26 @@ Der KFT bei Enghouse bricht nach drei erfolglosen Versuchen ab. Deshalb müssen 
   - `InMemoryPartners` dient wie `JdbcPartnerDirectory` auch als `PartnerDirectory`.
 - Doku: `docs/kft-szenarien.md` (Ablauf, Ausführen, Auslegung der Testfallliste, Gate, Stand), SA-014.
 
+### Teil 2: alle Geschäftsfälle, Bestandsaufbau
+- `OrderTemplates`: Vorlagen für KUE-AG, AEN-LMAE, LAE, PV, EST (auch Reklamation), DIAG-GET und DIAG-SET. `OrderTemplatesTest` prüft jede gegen XSD und Anlage 1.
+- `ScenarioRunner`:
+  - **Bestandsaufbau (BA = X):** ein vorgeschalteter NEU-Auftrag mit Standardkette, dessen Vertragsnummer und LineID der Testfall verwendet.
+  - **KUE-LE:** KDLE über `/terminations` bzw. vom Simulator.
+  - **abgebender EKP:** AKM-PV vom Simulator, RUEM-PV über `/pv-requests/{id}/reply`, auch negativ.
+  - **Reklamation** in beiden Rollen.
+  - **Diagnose** mit Diagnoseergebnis.
+- `MessageDefaults`: Störungsnummer in der QEB (EST), Entstörergebnis und Diagnoseergebnis in der ERLM, Zeitfenster in der TBK, Pflichtfelder von AKM-PV und ABM-PV.
+- `TestCaseVariants`: Negativ-Testfälle (Storno statt Standard, Diagnose statt Änderung, Produkt „Dummy“, Termin mehr als 179 Tage) und der Providerwechsel als Leistungserbringer gelten als offen, bis sie umgesetzt sind. Ohne die Besonderheit würden sie mit einem Standardauftrag grün.
+- **`MessageCodeCatalog`:** Eine lokale Erweiterung (SA-008) schränkte bisher einen Code, der für alle Geschäftsfälle gilt (leere Liste), auf die ergänzten Geschäftsfälle ein. Jetzt bleibt er uneingeschränkt.
+- **Abgeleitete Codetabelle:** schränkt Codes nicht mehr auf Geschäftsfälle ein, weil die Testfallliste oft nur `*2` angibt. Gefunden mit dem frischen Klon ohne AK-Tabelle (wie CI); die Prüfung je Geschäftsfall läuft mit der AK-Tabelle.
+- **Anlage 1 vs. XSD bei EST (SA-015):** Anlage 1 verlangt eine Auftragsposition, die `EntstoerungType` nicht hat. Ohne Korrektur hätte open-spri im Modus `enforce` jeden Entstörauftrag abgewiesen, auch die eigenen. Neue Bedingung `not GF EST` in `anlage1-conditions.txt`.
+
 ## Auswirkungen
-- S/PRI-Schnittstelle: TBK-Meldungen werden jetzt XSD-konform gebaut; die ENTM als Leistungserbringer enthält die Vertragsnummer aus der ABM.
+- S/PRI-Schnittstelle: TBK-Meldungen werden jetzt XSD-konform gebaut; die ENTM als Leistungserbringer enthält die Vertragsnummer aus der ABM. Entstöraufträge ohne Auftragsposition sind jetzt auch nach Anlage 1 gültig (SA-015), eingehend wie ausgehend.
 - REST-API, Datenbank, Konfiguration: keine Änderung
 - Build: neues Modul `simulator`; `:app`-Tests laden die Testfallliste über `:simulator:downloadKftTestCases`
 
 ## Tests
+- Teil 2: `KftScenarioTest` 151 Testfälle grün, 60 offen mit Grund; `OrderTemplatesTest` (jede Vorlage gültig nach XSD und Anlage 1, richtiger Geschäftsfall, Reklamation)
 - `KftScenarioTest`: 56 Testfälle grün (NEU in beiden Rollen ohne besondere Auftragsinhalte, dazu S.1.1.02/S.8.1.02 neuer Termin, S.1.2.6/S.8.2.6 zwei Codes, S.1.2.5/S.8.2.5 Dublette mit 1010, S.8.2.10 TEQ 0991 mit automatischer Wiederholung), 155 offen mit Grund
 - `KftSequenceParserTest`, `KftSequenceReplayTest`: aus `:domain` nach `:simulator` verschoben, unverändert grün

@@ -1,5 +1,6 @@
 package de.openspri.simulator
 
+import de.openspri.domain.BusinessCase
 import de.openspri.domain.ChangeIndicator
 import de.openspri.domain.exchange.SoapOperation
 import de.openspri.domain.exchange.TeqCode
@@ -15,7 +16,7 @@ import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicInteger
 
 /** Result of one test case: [transcript] lists every step as it happened, [failure] is null if it passed. */
-data class ScenarioResult(val scenario: Scenario, val transcript: List<String>, val failure: String?, val millis: Long) {
+data class ScenarioResult(val scenario: Scenario, val transcript: List<String>, val failure: String?, val millis: Long, val orderId: Long? = null) {
     val passed: Boolean get() = failure == null
 }
 
@@ -43,8 +44,7 @@ class ScenarioRunner(
 
     /** Why a test case cannot run yet; null = supported. Shrinks to nothing during M5 (coverage gate). */
     fun unsupported(case: KftTestCase): String? = when {
-        case.businessCase !in OrderTemplates.supported -> "Auftragsvorlage für ${case.businessCase.code} fehlt"
-        case.inventory -> "Bestandsaufbau (BA = X) fehlt"
+        case.businessCase !in OrderTemplates.supported && case.businessCase != BusinessCase.KUE_LE -> "Auftragsvorlage für ${case.businessCase.code} fehlt"
         TestCaseVariants.missing(case).isNotEmpty() -> TestCaseVariants.missing(case).joinToString { it.label } + " fehlt"
         else -> null
     }
@@ -54,6 +54,7 @@ class ScenarioRunner(
         val run = Run(scenario)
         val failure = try {
             unsupported(scenario.case)?.let { throw ScenarioFailure("nicht unterstützt: $it") }
+            if (needsInventory(scenario)) run.inventory = buildInventory(run)
             scenario.steps.forEach(run::execute)
             run.finish()
             null
@@ -61,7 +62,33 @@ class ScenarioRunner(
             run.log("FEHLER: ${e.message}")
             e.message ?: e.javaClass.simpleName
         }
-        return ScenarioResult(scenario, run.transcript, failure, System.currentTimeMillis() - started)
+        return ScenarioResult(scenario, run.transcript, failure, System.currentTimeMillis() - started, run.ourOrderId)
+    }
+
+    /** BA = X, and every business case on an existing line (KUE, AEN-LMAE, LAE, EST, DIAG, KUE-LE, AKM-PV). */
+    private fun needsInventory(scenario: Scenario): Boolean {
+        val first = (scenario.steps.firstOrNull()?.action as? Action.Message)?.type
+        return scenario.case.inventory || scenario.case.businessCase in OrderTemplates.needsInventory ||
+            first == MessageType.KDLE || first == MessageType.AKM_PV
+    }
+
+    /**
+     * Bestandsaufbau (test case list, BA = X): a NEU order with the standard chain between the same parties, in the
+     * same roles. Its contract number and LineID are the inventory the test case works on.
+     */
+    private fun buildInventory(run: Run): OrderTemplates.Inventory {
+        val case = run.case
+        val ba = KftTestCase(case.id, case.sheet, BusinessCase.NEU, case.obligation, "Bestandsaufbau", STANDARD_CHAIN, "")
+        val result = run(ScenarioPlanner.plan(ba))
+        run.log("Bestandsaufbau: " + result.transcript.joinToString(" | "))
+        if (!result.passed) throw ScenarioFailure("Bestandsaufbau fehlgeschlagen: ${result.failure}")
+        val order = us.order(requireNotNull(result.orderId))
+        val inventory = OrderTemplates.Inventory(
+            order.path("contractNumber").stringValue(null) ?: throw ScenarioFailure("Bestandsaufbau ohne Vertragsnummer"),
+            order.path("lineId").stringValue(null) ?: throw ScenarioFailure("Bestandsaufbau ohne LineID"),
+        )
+        run.log("Bestand: Vertrag ${inventory.contractNumber}, LineID ${inventory.lineId}")
+        return inventory
     }
 
     /** State of one run. */
@@ -70,7 +97,10 @@ class ScenarioRunner(
         val case = scenario.case
         val number = "KFT" + case.id.filter { it.isDigit() }.take(8) + "-" + counter.incrementAndGet() + "-" + (System.nanoTime() % 1000)
         val desiredDate: LocalDate = LocalDate.now().plusDays(30)
-        val lineId = "DEU.SIMLE." + number.filter { it.isDigit() }.takeLast(10)
+        private val newLineId = "DEU.SIMLE." + number.filter { it.isDigit() }.takeLast(10)
+        var inventory: OrderTemplates.Inventory? = null
+        val lineId get() = inventory?.lineId ?: newLineId
+        val faultNumber = "LE-ST-" + number.takeLast(10)
         var ourOrderId: Long? = null
         /** the order as the simulator knows it */
         var simOrder: OrderData? = null
@@ -105,7 +135,7 @@ class ScenarioRunner(
         // --- orders and requests --------------------------------------------------------------
 
         fun ourOrder() {
-            val auftrag = OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber)
+            val auftrag = OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory)
             val body = us.objectNode().put("partnerId", partnerId)
             body.set("auftrag", auftrag)
             ourOrderId = us.post("/api/v1/orders?send=true", body).path("order").path("id").longValue()
@@ -115,12 +145,15 @@ class ScenarioRunner(
         }
 
         fun simulatorOrder() {
-            val (teq, payload) = simulator.sendOrder(OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber))
+            val (teq, payload) = simulator.sendOrder(OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory))
             expectOk(teq, "Auftrag")
             simOriginal = payload
             log("Simulator → Auftrag ${case.businessCase.code} $number (TEQ OK)")
             ourOrderId = await("Auftrag $number bei open-spri") { us.findOrders("LEISTUNGSERBRINGER", number).firstOrNull()?.path("id")?.longValue() }
-            simOrder = OrderData(number, case.businessCase, clientNumber = OrderTemplates.Parties().clientNumber, serviceNumber = OrderTemplates.Parties().serviceNumber)
+            simOrder = OrderData(
+                number, case.businessCase, clientNumber = OrderTemplates.Parties().clientNumber, serviceNumber = OrderTemplates.Parties().serviceNumber,
+                contractNumber = inventory?.contractNumber, lineId = inventory?.lineId,
+            )
             awaitHistory("ORDER", null)
         }
 
@@ -129,16 +162,23 @@ class ScenarioRunner(
             when (kind) {
                 RequestKind.STORNO -> us.post("/api/v1/orders/$id/cancel")
                 RequestKind.TERMINVERSCHIEBUNG -> us.post("/api/v1/orders/$id/reschedule", us.objectNode().put("newDate", nextDate().toString()))
-                RequestKind.REKLAMATION -> throw ScenarioFailure("Reklamation noch nicht unterstützt")
+                RequestKind.REKLAMATION -> {
+                    val body = us.objectNode()
+                    body.set("auftrag", OrderTemplates.complaint(number, desiredDate, requireNotNull(inventory), faultNumber))
+                    us.post("/api/v1/orders/$id/complaint", body)
+                }
             }
             log("open-spri → ${kind.changeIndicator.code}")
-            awaitReceived(SoapOperation.ANNEHMEN_AUFTRAG) { it.order?.changeIndicator == kind.changeIndicator }
+            awaitReceived(SoapOperation.ANNEHMEN_AUFTRAG) {
+                if (kind == RequestKind.REKLAMATION) it.order?.complaint == true else it.order?.changeIndicator == kind.changeIndicator
+            }
             historySeen = us.history(id).size
         }
 
         fun simulatorRequest(kind: RequestKind) {
             val original = requireNotNull(simOriginal) { "kein ursprünglicher Auftrag des Simulators" }
-            expectOk(simulator.sendChange(original, kind, if (kind == RequestKind.TERMINVERSCHIEBUNG) nextDate() else null), kind.changeIndicator.code)
+            val complaint = if (kind == RequestKind.REKLAMATION) OrderTemplates.complaint(number, desiredDate, requireNotNull(inventory), faultNumber) else null
+            expectOk(simulator.sendChange(original, kind, if (kind == RequestKind.TERMINVERSCHIEBUNG) nextDate() else null, complaint), kind.changeIndicator.code)
             log("Simulator → ${kind.changeIndicator.code} (TEQ OK)")
             awaitHistory("REQUEST", null)
         }
@@ -146,9 +186,15 @@ class ScenarioRunner(
         // --- messages --------------------------------------------------------------------------
 
         fun simulatorMessage(message: Action.Message) {
-            val data = requireNotNull(simOrder) { "Simulator kennt den Auftrag nicht" }
+            // KUE-LE starts with the KDLE, the view of the abgebender EKP with the AKM-PV: about the inventory contract
+            val data = simOrder ?: OrderData(
+                number, if (message.type == MessageType.KDLE) BusinessCase.KUE_LE else case.businessCase,
+                clientNumber = OrderTemplates.Parties().clientNumber, serviceNumber = OrderTemplates.Parties().serviceNumber,
+                contractNumber = inventory?.contractNumber, lineId = inventory?.lineId,
+            ).also { simOrder = it }
             val codes = codesFor(message)
-            val attributes = MessageDefaults.attributes(message.type, MessageDefaults.Context(lineId, dateFor(message)))
+            val attributes = MessageDefaults.attributes(message.type, context(message))
+            if (message.type == MessageType.KDLE) attributes.put("abschaltungstermin", desiredDate.toString()).put("abschaltungsgrund", "Testkündigung")
             if (simRole == OrderRole.LEISTUNGSERBRINGER && data.contractNumber == null && carriesContract(message.type)) {
                 attributes.put("vertragsnummer", contract)
                 simOrder = data.copy(contractNumber = contract)
@@ -159,8 +205,10 @@ class ScenarioRunner(
         }
 
         fun ourMessage(message: Action.Message) {
-            val id = requireNotNull(ourOrderId)
             val codes = codesFor(message)
+            if (message.type == MessageType.KDLE) return ourTermination(codes)
+            val id = requireNotNull(ourOrderId)
+            if (message.type == MessageType.RUEM_PV) return ourProviderChangeReply(id, codes)
             if (message.repeated) {
                 // nothing to do for us: the outbox repeats the message after TEQ 0991 (specification 11.2.3.2)
                 val again = awaitReceived(SoapOperation.ANNEHMEN_MELDUNG) { it.message?.type == message.type }.message!!
@@ -170,7 +218,7 @@ class ScenarioRunner(
             }
             if (message.overloaded) simulator.nextTeq = TeqCode.OVERLOADED
             val order = us.order(id)
-            val attributes = MessageDefaults.attributes(message.type, MessageDefaults.Context(lineId, dateFor(message)))
+            val attributes = MessageDefaults.attributes(message.type, context(message))
             if (order.path("contractNumber").isNull && scenario.role == OrderRole.LEISTUNGSERBRINGER && carriesContract(message.type)) {
                 attributes.put("vertragsnummer", contract)
             }
@@ -184,19 +232,47 @@ class ScenarioRunner(
                 log("Simulator → TEQ 0991 (Schnittstelle überlastet)")
                 return
             }
-            val received = awaitReceived(SoapOperation.ANNEHMEN_MELDUNG) { it.message?.type == message.type }.message!!
+            checkReceived(message.type, message.changeIndicator, codes)
+            historySeen = us.history(id).size
+        }
+
+        /** KUE-LE: our KDLE without a prior order (POST /terminations). */
+        fun ourTermination(codes: List<String>) {
+            val inventory = requireNotNull(inventory)
+            val body = us.objectNode().put("partnerId", partnerId).put("externalOrderNumber", number)
+                .put("contractNumber", inventory.contractNumber).put("clientNumber", OrderTemplates.Parties().clientNumber)
+                .put("shutdownDate", desiredDate.toString()).put("reason", "Testkündigung").put("lineId", inventory.lineId)
+            body.set("codes", us.codes(codes))
+            ourOrderId = us.post("/api/v1/terminations", body).path("order").path("id").longValue()
+            log("open-spri → KDLE (${codes.joinToString()})")
+            simOrder = OrderData(number, BusinessCase.KUE_LE, clientNumber = OrderTemplates.Parties().clientNumber, contractNumber = inventory.contractNumber, lineId = inventory.lineId)
+            checkReceived(MessageType.KDLE, ChangeIndicator.STANDARD, codes)
+            historySeen = us.history(ourOrderId!!).size
+        }
+
+        /** RUEM-PV as abgebender EKP (POST /pv-requests/{id}/reply); negative for "neg. RUEM-PV". */
+        fun ourProviderChangeReply(id: Long, codes: List<String>) {
+            val consent = "neg. RUEM-PV" !in case.description
+            val body = us.objectNode().put("consent", consent).put("providerName", "open-spri")
+            if (!consent) body.put("answerCode", "N01").put("answerText", "Kunde hat nicht gekündigt (Testfall)")
+            body.set("codes", us.codes(codes))
+            us.post("/api/v1/pv-requests/$id/reply", body)
+            log("open-spri → RUEM-PV (${codes.joinToString()}, Zustimmung ${if (consent) "J" else "N"})")
+            checkReceived(MessageType.RUEM_PV, ChangeIndicator.STANDARD, codes)
+            historySeen = us.history(id).size
+        }
+
+        /** Our message arrived at the simulator with type, change indicator and codes. */
+        fun checkReceived(type: MessageType, changeIndicator: ChangeIndicator, codes: List<String>) {
+            val received = awaitReceived(SoapOperation.ANNEHMEN_MELDUNG) { it.message?.type == type }.message!!
             // the simulator as Auftraggeber learns contract number and LineID from our messages (ABM)
             simOrder = simOrder?.let { known ->
                 known.copy(contractNumber = known.contractNumber ?: received.contractNumber, lineId = known.lineId ?: received.lineId)
             }
-            if (received.codes != codes) throw ScenarioFailure("${message.type.code}: Simulator erhielt Codes ${received.codes}, erwartet $codes")
-            if (received.changeIndicator != message.changeIndicator && message.changeIndicator != ChangeIndicator.REKLAMATION) {
-                throw ScenarioFailure(
-                    "${message.type.code}: Änderungskennzeichen ${received.changeIndicator.code}, erwartet ${message.changeIndicator.code}; beim Simulator: " +
-                        simulator.received().filter { it.externalOrderNumber == number }.joinToString { "${it.message?.type?.code ?: "Auftrag"}/${(it.message?.changeIndicator ?: it.order?.changeIndicator)?.code}" },
-                )
+            if (received.codes != codes) throw ScenarioFailure("${type.code}: Simulator erhielt Codes ${received.codes}, erwartet $codes")
+            if (received.changeIndicator != changeIndicator && changeIndicator != ChangeIndicator.REKLAMATION) {
+                throw ScenarioFailure("${type.code}: Änderungskennzeichen ${received.changeIndicator.code}, erwartet ${changeIndicator.code}")
             }
-            historySeen = us.history(id).size
         }
 
         fun finish() {
@@ -218,6 +294,8 @@ class ScenarioRunner(
             message.type == MessageType.ABBM && TestCaseVariants.hintCode(case) != null -> listOf(TestCaseVariants.hintCode(case)!!)
             else -> listOf(anyCode(message.type))
         }
+
+        fun context(message: Action.Message) = MessageDefaults.Context(case.businessCase, lineId, dateFor(message), faultNumber)
 
         /** Date of an ABM: the desired date, or a later one for "->neuer Termin" (hint: at least one day later). */
         fun dateFor(message: Action.Message): LocalDate = if (message.newDate) desiredDate.plusDays(3) else desiredDate
@@ -273,5 +351,8 @@ class ScenarioRunner(
     private companion object {
         /** Meldungscode Freitext (TF S.1.2.6: one of the two positions of the ABBM). */
         const val FREE_TEXT = "1312"
+
+        /** Bestandsaufbau: "NEU-Auftrag mit Standardkette (QEB, ABM, ERLM, ENTM)", codes as in S.1.1.01. */
+        const val STANDARD_CHAIN = "QEB (0000), ABM (*2), ERLM (0010), ENTM (0010)"
     }
 }

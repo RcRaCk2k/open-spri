@@ -48,7 +48,9 @@ class MessageCodeCatalog(
     val codes: Map<String, MessageCode> = (codes + LocalMessageCodes.ADDITIONS.filter { add -> codes.none { it.code == add.code } })
         .map { code ->
             LocalMessageCodes.EXTENSIONS[code.code]?.let { extra ->
-                code.copy(messageTypes = code.messageTypes + extra.messageTypes, businessCases = code.businessCases + extra.businessCases)
+                // an empty list means "all business cases" and must stay unrestricted
+                val businessCases = if (code.businessCases.isEmpty()) emptySet() else code.businessCases + extra.businessCases
+                code.copy(messageTypes = code.messageTypes + extra.messageTypes, businessCases = businessCases)
             } ?: code
         }
         .associateBy { it.code }

@@ -14,26 +14,139 @@ object OrderTemplates {
 
     data class Parties(val clientNumber: String = "AG4711", val serviceNumber: String = "LN0815")
 
-    /** Business cases with a template; the others follow with the scenarios of their test cases. */
-    val supported = setOf(BusinessCase.NEU)
+    /** The existing contract an order refers to (inventory build-up, BA = X). */
+    data class Inventory(val contractNumber: String, val lineId: String)
 
-    /** [houseNumber] makes the address unique, so that test orders do not collide with R-10 (open order at the same site). */
-    fun order(case: BusinessCase, externalOrderNumber: String, desiredDate: LocalDate, houseNumber: Int = 1, parties: Parties = Parties()): ObjectNode {
+    /** Business cases with a template. KUE-LE has no order (it starts with KDLE). */
+    val supported = BusinessCase.entries.toSet() - BusinessCase.KUE_LE
+
+    /** Business cases that need an existing contract (Vertragsnummer and LineID in the order). */
+    val needsInventory = setOf(BusinessCase.KUE_AG, BusinessCase.AEN_LMAE, BusinessCase.LAE, BusinessCase.EST, BusinessCase.DIAG_GET, BusinessCase.DIAG_SET)
+
+    /**
+     * @param houseNumber makes the address unique, so that test orders do not collide with R-10 (open order at the same site)
+     * @param inventory contract and LineID for business cases on an existing line
+     */
+    fun order(
+        case: BusinessCase,
+        externalOrderNumber: String,
+        desiredDate: LocalDate,
+        houseNumber: Int = 1,
+        inventory: Inventory? = null,
+        parties: Parties = Parties(),
+    ): ObjectNode {
         require(case in supported) { "keine Auftragsvorlage für ${case.code}" }
+        if (case in needsInventory) requireNotNull(inventory) { "${case.code} braucht einen Bestandsvertrag" }
         val auftrag = json.objectNode()
         auftrag.put("externeAuftragsnummer", externalOrderNumber)
         auftrag.putObject("auftraggeber").put("auftraggebernummer", parties.clientNumber).put("leistungsnummer", parties.serviceNumber)
-        val geschaeftsfall = auftrag.putObject("geschaeftsfall").put("@type", "BereitstellungType")
-        geschaeftsfall.putObject("ansprechpartner").putObject("auftragsmanagement")
-            .put("anrede", "9").put("nachname", "Auftragsmanagement").put("telefonnummer", "0123 456789")
-        geschaeftsfall.putObject("termine").putObject("auftraggeberWunschtermin").put("datum", desiredDate.toString())
-        val position = geschaeftsfall.putObject("auftragsposition")
-        position.putObject("produkt").put("@type", "ProduktFTTXType").put("bezeichner", "FTTH 100")
-        val product = position.putObject("geschaeftsfallProdukt").put("@type", "FTTXBereitstellungType")
-        product.set("standortA", address(houseNumber))
-        auftrag.put("geschaeftsfallArt", "Bereitstellung")
+        val geschaeftsfall = auftrag.putObject("geschaeftsfall")
+        when (case) {
+            BusinessCase.NEU -> {
+                geschaeftsfall.put("@type", "BereitstellungType")
+                contact(geschaeftsfall)
+                desired(geschaeftsfall, desiredDate)
+                val position = geschaeftsfall.putObject("auftragsposition")
+                product(position, "FTTH 100")
+                position.putObject("geschaeftsfallProdukt").put("@type", "FTTXBereitstellungType").set("standortA", address(houseNumber))
+            }
+            BusinessCase.KUE_AG -> {
+                geschaeftsfall.put("@type", "KuendigungType")
+                line(geschaeftsfall, inventory!!)
+                contact(geschaeftsfall)
+                desired(geschaeftsfall, desiredDate)
+                // no Auftragsposition: Anlage 1 row 65 does not allow it for KUE-AG (optional in the XSD)
+            }
+            BusinessCase.AEN_LMAE -> {
+                geschaeftsfall.put("@type", "LeistungsmerkmalAenderungType")
+                line(geschaeftsfall, inventory!!)
+                contact(geschaeftsfall)
+                desired(geschaeftsfall, desiredDate)
+                val position = geschaeftsfall.putObject("auftragsposition")
+                product(position, "FTTH 100")
+                // a feature is an additional position with action code A (add)
+                val feature = position.putObject("position")
+                product(feature, "Feste IP-Adresse")
+                feature.put("aktionscode", "A")
+            }
+            BusinessCase.LAE -> {
+                geschaeftsfall.put("@type", "LeistungsaenderungType")
+                line(geschaeftsfall, inventory!!)
+                contact(geschaeftsfall)
+                desired(geschaeftsfall, desiredDate)
+                product(geschaeftsfall.putObject("auftragsposition"), "FTTH 250")
+            }
+            BusinessCase.PV -> {
+                geschaeftsfall.put("@type", "ProviderwechselType")
+                geschaeftsfall.put("lineId", inventory?.lineId ?: "DEU.SIMPV.${houseNumber.toString().padStart(6, '0')}")
+                geschaeftsfall.put("vorabstimmungId", preAgreementId(externalOrderNumber))
+                contact(geschaeftsfall)
+                desired(geschaeftsfall, desiredDate)
+                val position = geschaeftsfall.putObject("auftragsposition")
+                product(position, "FTTH 100")
+                position.putObject("geschaeftsfallProdukt").put("@type", "FTTXProviderwechselType").set("standortA", address(houseNumber))
+            }
+            BusinessCase.EST -> {
+                geschaeftsfall.put("@type", "EntstoerungType")
+                line(geschaeftsfall, inventory!!)
+                contact(geschaeftsfall)
+                geschaeftsfall.putObject("kontaktEndkunde")
+                    .put("anrede", "1").put("vorname", "Erika").put("nachname", "Musterfrau").put("telefonnummer", "0123 987654")
+                    .put("kontaktaufnahmeErwuenscht", true)
+                desired(geschaeftsfall, desiredDate)
+                geschaeftsfall.put("stoerungsNrAuftraggeber", "ST-$externalOrderNumber".take(30))
+                geschaeftsfall.put("vorpruefungErfolgt", true)
+                geschaeftsfall.put("stoerungsbeschreibung", "Kein Sync am ONT (Testfall)")
+            }
+            BusinessCase.DIAG_GET, BusinessCase.DIAG_SET -> {
+                geschaeftsfall.put("@type", if (case == BusinessCase.DIAG_GET) "DiagnoseGetType" else "DiagnoseSetType")
+                line(geschaeftsfall, inventory!!)
+                val operations = geschaeftsfall.putObject("auftragsposition").putObject("parameter").putArray("operation")
+                // test cases Z.15.1.01/Z.15.1.02: GET with "BBdown", "BBup", SET with "RESET"
+                if (case == BusinessCase.DIAG_GET) operations.add("BBdown").add("BBup") else operations.add("RESET")
+            }
+            BusinessCase.KUE_LE -> error("KUE-LE starts with KDLE")
+        }
+        auftrag.put("geschaeftsfallArt", art(case))
         auftrag.put("aenderungskennzeichen", "Standard")
         return auftrag
+    }
+
+    /** Reklamation of a completed fault repair (6.1.5): a new EST order with `reklamation`. */
+    fun complaint(externalOrderNumber: String, desiredDate: LocalDate, inventory: Inventory, faultNumber: String): ObjectNode {
+        val auftrag = order(BusinessCase.EST, externalOrderNumber, desiredDate, inventory = inventory)
+        (auftrag.get("geschaeftsfall") as ObjectNode).putObject("reklamation")
+            .put("stoerungsNrLeistungserbringer", faultNumber).put("reklamationsgrund", "Störung besteht weiter (Testfall)")
+        return auftrag
+    }
+
+    /** VorabstimmungsID in the format of the WBCI (16-21 characters), derived from the order number. */
+    fun preAgreementId(externalOrderNumber: String) = ("DEU.SIM.V" + externalOrderNumber.filter { it.isLetterOrDigit() }).take(21).padEnd(16, '0')
+
+    private fun art(case: BusinessCase) = when (case) {
+        BusinessCase.NEU -> "Bereitstellung"
+        BusinessCase.KUE_AG, BusinessCase.KUE_LE -> "Kuendigung"
+        BusinessCase.AEN_LMAE, BusinessCase.LAE -> "Aenderung"
+        BusinessCase.EST -> "Entstoerung"
+        BusinessCase.PV -> "Endkundenanbieterwechsel"
+        BusinessCase.DIAG_GET, BusinessCase.DIAG_SET -> "Diagnose"
+    }
+
+    private fun line(geschaeftsfall: ObjectNode, inventory: Inventory) {
+        geschaeftsfall.put("vertragsnummer", inventory.contractNumber).put("lineId", inventory.lineId)
+    }
+
+    private fun contact(geschaeftsfall: ObjectNode) {
+        geschaeftsfall.putObject("ansprechpartner").putObject("auftragsmanagement")
+            .put("anrede", "9").put("nachname", "Auftragsmanagement").put("telefonnummer", "0123 456789")
+    }
+
+    private fun desired(geschaeftsfall: ObjectNode, date: LocalDate) {
+        geschaeftsfall.putObject("termine").putObject("auftraggeberWunschtermin").put("datum", date.toString())
+    }
+
+    private fun product(position: ObjectNode, identifier: String) {
+        position.putObject("produkt").put("@type", "ProduktFTTXType").put("bezeichner", identifier)
     }
 
     private fun address(houseNumber: Int): ObjectNode {

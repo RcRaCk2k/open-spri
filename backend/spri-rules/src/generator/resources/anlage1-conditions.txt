@@ -13,6 +13,10 @@
 # Zeile 160: "Nur zulässig (dann jedoch Pflicht) bei Änderungskennzeichen Terminverschiebung"
 Auftragsstruktur:Auftrag/Termin Neu = only AKZ Terminverschiebung
 
+# Zeile 65: Anlage 1 marks "Auftragsposition" as mandatory for EST, but the XSD type EntstoerungType has no such
+# element (Anlage 3 is normative on the wire), SA-015.
+Auftragsstruktur:Auftrag/Geschaeftsfall/Auftragsposition = not GF EST
+
 # Zeile 76/100: "Es müssen entweder die Angaben zur Person ODER aber die Angaben zur Firma getätigt werden."
 Auftragsstruktur:Auftrag/Geschaeftsfall/Auftragsposition/Geschäftsfall-Produkt/StandortA/Firma = choice
 Auftragsstruktur:Auftrag/Geschaeftsfall/Auftragsposition/Geschäftsfall-Produkt/StandortVersand/Firma = choice

@@ -55,6 +55,16 @@ class MessageCodeCatalogTest {
         assertEquals(CodeCheck.Allowed, catalog.check("7501", MessageType.ABBM, BusinessCase.DIAG_GET))
     }
 
+    @Test
+    fun `a local extension does not restrict a code that applies to all business cases (SA-008)`() {
+        val unrestricted = MessageCodeCatalog("test", "x", listOf(MessageCode("6050", "Termin", setOf("TAM"), emptySet(), emptySet(), setOf("S/PRI"))))
+        assertEquals(CodeCheck.Allowed, unrestricted.check("6050", MessageType.TAM, BusinessCase.EST))
+        assertEquals(CodeCheck.Allowed, unrestricted.check("6050", MessageType.MTAM, BusinessCase.NEU))
+        val restricted = MessageCodeCatalog("test", "x", listOf(MessageCode("6050", "Termin", setOf("TAM"), setOf("EST"), emptySet(), setOf("S/PRI"))))
+        assertEquals(CodeCheck.Allowed, restricted.check("6050", MessageType.MTAM, BusinessCase.NEU))
+        assertIs<CodeCheck.Rejected>(restricted.check("6050", MessageType.TAM, BusinessCase.KUE_AG))
+    }
+
     /** Runs only where the real export exists locally (docs/spec-original, not part of the repository). */
     @Test
     fun `real AK table can be imported`() {
