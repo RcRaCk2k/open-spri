@@ -1,6 +1,10 @@
 .git
 .gradle
-**/build
+# Build output only - "build" is also a source package name (de.openspri.build)
+/build
+backend/*/build
+build-logic/build
+build-logic/.kotlin
 **/node_modules
 frontend/dist
 frontend/*.tsbuildinfo
