@@ -41,17 +41,16 @@ import java.time.Instant
 import java.time.LocalDate
 import java.util.concurrent.CopyOnWriteArrayList
 
-/** Something the simulator received from us: an order (with [order]) or a message (with [message]). */
+/** Something the counterpart received from us: an order (with [order]) or a message (with [message]). */
 class Received(
     val operation: SoapOperation,
     val externalOrderNumber: String?,
-    val payload: ByteArray,
+    /** the SOAP payload; null at an [InstanceCounterpart], which only shows its processing */
+    val payload: ByteArray?,
     val order: OrderData?,
     val message: MessageInfo?,
     val at: Instant,
-) {
-    val element: Element get() = SecureXml.parse(payload).documentElement
-}
+)
 
 /**
  * The counterpart of our instance in a test case (AUFGABE 10.3): a S/PRI participant with its own signing key
@@ -62,16 +61,21 @@ class Received(
  * @param us our instance as seen by the simulator: its signing certificate and S/PRI endpoint
  */
 class SimulatedPartner(
-    val name: String,
+    override val name: String,
     val credentials: SigningCredentials,
     private val schema: SpriSchema,
     private val us: () -> Pair<X509Certificate, URI>,
     private val catalog: () -> MessageCodeCatalog,
-) : AutoCloseable {
+) : Counterpart, AutoCloseable {
     private val received = CopyOnWriteArrayList<Received>()
 
     /** One-off TEQ for the next request instead of the checks, e.g. 0991 "überlastet" (TF S.8.2.10). */
     @Volatile var nextTeq: TeqCode? = null
+
+    override val canOverload = true
+    override val canAnnounceProviderChange = true
+    override fun overloadNext() { nextTeq = TeqCode.OVERLOADED }
+    override val overloadPending: Boolean get() = nextTeq != null
 
     private val directory = object : PartnerDirectory {
         override fun findBySourceAddress(address: InetAddress) = listOf(ourPartner())
@@ -97,6 +101,9 @@ class SimulatedPartner(
 
     /** Requests of our instance the simulator rejected with a negative TEQ (should stay empty). */
     val rejections = CopyOnWriteArrayList<String>()
+
+    /** A rejected request cannot always be assigned to an order (e.g. invalid XML): all of them count. */
+    override fun rejections(externalOrderNumber: String): List<String> = rejections.toList()
 
     private val verifier = WsSecurityVerifier()
     private val responder = TeqResponder(credentials)
@@ -150,24 +157,26 @@ class SimulatedPartner(
 
     fun received(): List<Received> = received.toList()
 
+    override fun received(externalOrderNumber: String): List<Received> = received.filter { it.externalOrderNumber == externalOrderNumber }
+
     // --- as Auftraggeber -------------------------------------------------------------------------
 
     /** Sends an order (XSD element `auftrag` as JSON). Returns the TEQ and the sent payload for later changes. */
-    fun sendOrder(auftrag: JsonNode): Pair<TeqCode?, ByteArray> {
+    override fun sendOrder(auftrag: JsonNode): Pair<TeqCode?, ByteArray> {
         val (built, data) = payloads.order(auftrag)
         return send(SoapOperation.ANNEHMEN_AUFTRAG, built.element, data.externalOrderNumber) to built.bytes
     }
 
     /** Storno or Terminverschiebung of an order sent before ([original] = its payload). */
-    fun sendChange(original: ByteArray, kind: RequestKind, newDate: LocalDate?, auftrag: JsonNode? = null): TeqCode? {
-        val (built, data) = payloads.change(original, kind, newDate, auftrag)
+    override fun sendChange(original: ByteArray, kind: RequestKind, newDate: LocalDate?, complaint: JsonNode?): TeqCode? {
+        val (built, data) = payloads.change(original, kind, newDate, complaint)
         return send(SoapOperation.ANNEHMEN_AUFTRAG, built.element, data.externalOrderNumber)
     }
 
     // --- messages (as Leistungserbringer, as Auftraggeber or as abgebender EKP) ---------------------
 
     /** A message about [data] (the order as the simulator knows it). [role] is the simulator's role. */
-    fun sendMessage(
+    override fun sendMessage(
         data: OrderData,
         role: OrderRole,
         type: MessageType,

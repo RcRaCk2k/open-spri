@@ -36,7 +36,7 @@ class ScenarioFailure(message: String) : AssertionError(message)
 class ScenarioRunner(
     private val us: OpenSpriClient,
     private val partnerId: Long,
-    private val simulator: SimulatedPartner,
+    private val simulator: Counterpart,
     private val catalog: () -> MessageCodeCatalog,
     private val timeout: Duration = Duration.ofSeconds(20),
 ) {
@@ -46,6 +46,10 @@ class ScenarioRunner(
     fun unsupported(case: KftTestCase): String? = when {
         case.businessCase !in OrderTemplates.supported && case.businessCase != BusinessCase.KUE_LE -> "Auftragsvorlage für ${case.businessCase.code} fehlt"
         TestCaseVariants.missing(case).isNotEmpty() -> TestCaseVariants.missing(case).joinToString { it.label } + " fehlt"
+        Variant.OVERLOADED in TestCaseVariants.of(case) && !case.partnerSheet && !simulator.canOverload ->
+            "${simulator.name} kann keine TEQ 0991 erzwingen (nur gegen den Simulator)"
+        ScenarioPlanner.plan(case).role == OrderRole.ABGEBENDER_EKP && !simulator.canAnnounceProviderChange ->
+            "${simulator.name} braucht für die AKM-PV den PV-Auftrag eines dritten Teilnehmers (nur gegen den Simulator)"
         else -> null
     }
 
@@ -54,21 +58,8 @@ class ScenarioRunner(
      * for the Projektkenner (R-12) and the power of attorney for orders in the name of a third party (R-11).
      */
     fun prepare() {
-        val path = "/api/v1/partners/$partnerId"
-        if (us.get("$path/projects").items().none { it.path("projectId").stringValue() == OrderTemplates.PROJECT_ID }) {
-            us.post("$path/projects", us.objectNode().put("projectId", OrderTemplates.PROJECT_ID).put("description", "KFT-Szenarien"))
-        }
-        // product catalog of our products: without it, "Dummy" and "TEST" (negative test cases) would not be found
-        val catalog = us.get("/api/v1/products?role=LEISTUNGSERBRINGER").items().map { it.path("identifier").stringValue() }.toSet()
-        OrderTemplates.PRODUCTS.filter { it !in catalog }.forEach { product ->
-            us.post("/api/v1/products", us.objectNode().put("role", "LEISTUNGSERBRINGER").put("identifier", product).put("description", "KFT-Szenarien"))
-        }
-        val parties = OrderTemplates.Parties()
-        us.post(
-            "$path/powers-of-attorney",
-            us.objectNode().put("ordererClientNumber", OrderTemplates.ORDERER.clientNumber).put("ordererServiceNumber", OrderTemplates.ORDERER.serviceNumber)
-                .put("clientNumber", parties.clientNumber).put("serviceNumber", parties.serviceNumber).put("description", "KFT-Szenarien"),
-        )
+        simulator.prepare()
+        prepareInstance(us, partnerId)
     }
 
     fun run(scenario: Scenario): ScenarioResult {
@@ -131,7 +122,7 @@ class ScenarioRunner(
         /** the order as the simulator knows it */
         var simOrder: OrderData? = null
         var simOriginal: ByteArray? = null
-        var receivedSeen = simulator.received().size
+        var receivedSeen = 0
         var historySeen = 0
         val houseNumber = counter.get()
         var reschedules = 0
@@ -263,7 +254,7 @@ class ScenarioRunner(
                 historySeen = us.history(id).size
                 return
             }
-            if (message.overloaded) simulator.nextTeq = TeqCode.OVERLOADED
+            if (message.overloaded) simulator.overloadNext()
             val order = us.order(id)
             val attributes = MessageDefaults.attributes(message.type, context(message))
             if (!thirdParty && order.path("contractNumber").isNull && scenario.role == OrderRole.LEISTUNGSERBRINGER && carriesContract(message.type)) {
@@ -275,7 +266,7 @@ class ScenarioRunner(
             us.post("/api/v1/orders/$id/messages", body)
             log("open-spri → ${message.type.code} (${codes.joinToString()})${indicator(message)}")
             if (message.overloaded) {
-                await("TEQ 0991 an open-spri") { if (simulator.nextTeq == null) true else null }
+                await("TEQ 0991 an open-spri") { if (!simulator.overloadPending) true else null }
                 log("Simulator → TEQ 0991 (Schnittstelle überlastet)")
                 return
             }
@@ -322,7 +313,7 @@ class ScenarioRunner(
             simOrder = simOrder?.let { known ->
                 known.copy(contractNumber = known.contractNumber ?: received.contractNumber, lineId = known.lineId ?: received.lineId)
             }
-            if (received.codes != codes) throw ScenarioFailure("${type.code}: Simulator erhielt Codes ${received.codes}, erwartet $codes")
+            if (received.codes != codes) throw ScenarioFailure("${type.code}: ${simulator.name} erhielt Codes ${received.codes}, erwartet $codes")
             if (received.changeIndicator != changeIndicator && changeIndicator != ChangeIndicator.REKLAMATION) {
                 throw ScenarioFailure("${type.code}: Änderungskennzeichen ${received.changeIndicator.code}, erwartet ${changeIndicator.code}")
             }
@@ -333,7 +324,7 @@ class ScenarioRunner(
             val id = requireNotNull(ourOrderId) { "kein Auftrag" }
             val order = us.order(id)
             if (!order.path("finished").booleanValue()) throw ScenarioFailure("Auftrag nicht abgeschlossen: Phase ${order.path("phase").stringValue()}")
-            if (simulator.rejections.isNotEmpty()) throw ScenarioFailure("Simulator wies ab: ${simulator.rejections}")
+            checkRejections()
             log("Auftrag abgeschlossen (${order.path("phase").stringValue()})")
         }
 
@@ -365,11 +356,13 @@ class ScenarioRunner(
 
         /** Waits for the next request of ours at the simulator that matches [match]. */
         fun awaitReceived(operation: SoapOperation, match: (Received) -> Boolean): Received {
-            val found = await("${operation.wsdlName} beim Simulator") {
-                simulator.received().drop(receivedSeen).firstOrNull { it.operation == operation && it.externalOrderNumber == number && match(it) }
+            var index = -1
+            val found = await("${operation.wsdlName} bei ${simulator.name}") {
+                val received = simulator.received(number)
+                received.withIndex().drop(receivedSeen).firstOrNull { (_, it) -> it.operation == operation && match(it) }?.also { index = it.index }?.value
             }
-            receivedSeen = simulator.received().indexOf(found) + 1
-            if (simulator.rejections.isNotEmpty()) throw ScenarioFailure("Simulator wies ab: ${simulator.rejections}")
+            receivedSeen = index + 1
+            checkRejections()
             return found
         }
 
@@ -396,6 +389,15 @@ class ScenarioRunner(
 
         fun ourRoleName() = scenario.role.name
 
+        /**
+         * The counterpart accepted our requests. A finding it reports for a faulty order of ours (negative test cases,
+         * self-test: open-spri as Leistungserbringer) is expected.
+         */
+        fun checkRejections() {
+            val unexpected = simulator.rejections(number).filter { finding -> expectedFindings.none { it in finding } }
+            if (unexpected.isNotEmpty()) throw ScenarioFailure("${simulator.name} wies ab: $unexpected")
+        }
+
         fun <T : Any> await(what: String, probe: () -> T?): T {
             val deadline = System.nanoTime() + timeout.toNanos()
             while (true) {
@@ -413,5 +415,29 @@ class ScenarioRunner(
 
         /** Bestandsaufbau: "NEU-Auftrag mit Standardkette (QEB, ABM, ERLM, ENTM)", codes as in S.1.1.01. */
         const val STANDARD_CHAIN = "QEB (0000), ABM (*2), ERLM (0010), ENTM (0010)"
+    }
+}
+
+/**
+ * Agreements an instance needs for the scenarios with the counterpart [partnerId] (the operator maintains them
+ * before a KFT): the Projektvereinbarung for the Projektkenner (R-12), the power of attorney for orders in the name
+ * of a third party (R-11) and the catalog of our products (without it "Dummy" and "TEST" would not be found).
+ */
+fun prepareInstance(client: OpenSpriClient, partnerId: Long) {
+    val path = "/api/v1/partners/$partnerId"
+    if (client.get("$path/projects").items().none { it.path("projectId").stringValue() == OrderTemplates.PROJECT_ID }) {
+        client.post("$path/projects", client.objectNode().put("projectId", OrderTemplates.PROJECT_ID).put("description", "KFT-Szenarien"))
+    }
+    val catalog = client.get("/api/v1/products?role=LEISTUNGSERBRINGER").items().map { it.path("identifier").stringValue() }.toSet()
+    OrderTemplates.PRODUCTS.filter { it !in catalog }.forEach { product ->
+        client.post("/api/v1/products", client.objectNode().put("role", "LEISTUNGSERBRINGER").put("identifier", product).put("description", "KFT-Szenarien"))
+    }
+    val parties = OrderTemplates.Parties()
+    if (client.get("$path/powers-of-attorney").items().none { it.path("ordererClientNumber").stringValue() == OrderTemplates.ORDERER.clientNumber }) {
+        client.post(
+            "$path/powers-of-attorney",
+            client.objectNode().put("ordererClientNumber", OrderTemplates.ORDERER.clientNumber).put("ordererServiceNumber", OrderTemplates.ORDERER.serviceNumber)
+                .put("clientNumber", parties.clientNumber).put("serviceNumber", parties.serviceNumber).put("description", "KFT-Szenarien"),
+        )
     }
 }

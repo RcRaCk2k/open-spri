@@ -39,6 +39,10 @@ tasks.jar {
 }
 
 tasks.test {
+    // Self-test AG ↔ LE (two instances, all KFT test cases): nightly with -Pselftest, not in every build
+    useJUnitPlatform {
+        if (providers.gradleProperty("selftest").isPresent) includeTags("selftest") else excludeTags("selftest")
+    }
     // ./gradlew :app:test -PupdateOpenApi rewrites docs/api/openapi.json instead of comparing it.
     systemProperty("openspri.updateOpenApi", providers.gradleProperty("updateOpenApi").isPresent)
     systemProperty("openspri.repoRoot", rootDir.absolutePath)

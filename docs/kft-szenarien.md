@@ -40,6 +40,25 @@ Die Testfallliste (`Testfaelle_SPRIv4X_20250523.xlsx`) lädt der Build von ak-sp
 
 **Meldungscodetabelle:** Liegt die AK-Tabelle lokal unter `docs/spec-original/SPRI_Meldungscodetabelle.csv`, laufen die Szenarien gegen sie und prüfen damit strenger. Sonst, etwa in der CI, verwenden sie eine Tabelle, die aus der Testfallliste abgeleitet ist (`TestCaseCodes`): alle Codes, die die Liste ausdrücklich nennt, mit den Meldungstypen, bei denen sie vorkommen. Diese Tabelle schränkt die Codes nicht auf Geschäftsfälle ein, weil die Liste oft nur `*2` angibt (etwa bei der ERLM einer Diagnose). Die Prüfung je Geschäftsfall (R-13) läuft deshalb nur mit der AK-Tabelle. Vor dem KFT müssen die Szenarien also lokal mit der AK-Tabelle grün sein.
 
+## Selbsttest AG ↔ LE
+
+Zwei open-spri-Instanzen spielen alle Testfälle gegeneinander (AUFGABE 10.1 Punkt 6). Beide werden nur über ihre REST-API gesteuert. Der Runner ist derselbe; statt des Simulators ist die Gegenseite die zweite Instanz (`InstanceCounterpart`).
+
+- **Was die Gegenseite empfangen hat,** liest der Runner aus ihrem Auftragsverlauf.
+- **Ihre Befunde** zählen als Abweisung, außer den erwarteten Befunden bei den Negativ-Testfällen.
+- **Ihre Sendungen:** Sie schickt sie über ihren Postausgang; der Runner wartet dort auf unsere TEQ.
+- **Fehlerhafte Aufträge der Negativ-Testfälle** sendet sie mit Übersteuerung (ADR-0008).
+
+```bash
+./gradlew :app:test -Pselftest    # nur der Selbsttest; läuft jede Nacht (.github/workflows/nightly.yml)
+```
+
+| Ergebnis | |
+|---|---|
+| 205 Testfälle | grün zwischen zwei Instanzen |
+| S.8.2.10 | nur gegen den Simulator: eine echte Instanz erzwingt keine TEQ 0991 |
+| Z.6.1.07 bis Z.6.1.10, Z.6.2.02 | nur gegen den Simulator: Die AKM-PV an uns als abgebenden EKP setzt beim Leistungserbringer den PV-Auftrag eines dritten Teilnehmers (aufnehmender EKP) voraus |
+
 ## Simulator als Container
 
 Derselbe Simulator läuft auch als eigener Dienst `spri-simulator` (AUFGABE 10.3). Es ist das `api`-Image mit `OPENSPRI_MODE=SIMULATOR`, gedacht nur für Test und Entwicklung. So lässt sich eine echte Installation mit Datenbank und Proxy gegen alle Testfälle prüfen, etwa vor dem KFT-Termin.
@@ -108,5 +127,6 @@ Der Test `coverage gate` lässt den Build scheitern, wenn mehr Testfälle offen 
 | 5 | Negativ-Testfälle als Leistungserbringer; als Auftraggeber Produkt „Dummy“ und Leistungsmerkmal „TEST“ (S.1.2.7, Z.4.2.02, Z.5.2.02) | 4 von 211 |
 | 6 | Negativ-Testfälle als Auftraggeber mit Übersteuerung (ADR-0008) | **0 von 211** |
 | 7 | Simulator als Container (`POST /sim/run`, JUnit-XML und HTML) | – |
+| 8 | Selbsttest AG ↔ LE zwischen zwei Instanzen, jede Nacht | – |
 
 Alle 211 Testfälle beider Blätter laufen automatisiert. Das Coverage-Gate lässt keinen offenen Testfall mehr zu.

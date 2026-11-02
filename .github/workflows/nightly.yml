@@ -1,0 +1,36 @@
+name: Nightly
+
+# Self-test AG ↔ LE (AUFGABE 10.1 item 6): two open-spri instances play every KFT test case against each other.
+# Not part of every build because it takes several minutes; docs/kft-szenarien.md.
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    name: Selbsttest AG ↔ LE
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v6
+      # AK S&P files (XSD, Anlage 1, test case list), downloaded and checksum-verified by the build
+      - uses: actions/cache@v6
+        with:
+          path: ~/.gradle/caches/open-spri
+          key: ak-spri-${{ hashFiles('backend/spri-schema/build.gradle.kts', 'backend/simulator/build.gradle.kts', 'backend/spri-rules/build.gradle.kts') }}
+          restore-keys: ak-spri-
+      - name: Self-test
+        run: ./gradlew :app:test -Pselftest --console=plain
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: selftest-report
+          path: backend/app/build/reports/tests/test/

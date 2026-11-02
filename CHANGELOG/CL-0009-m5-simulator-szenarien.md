@@ -75,6 +75,12 @@ Der KFT bei Enghouse bricht nach drei erfolglosen Versuchen ab. Deshalb müssen 
   - Steuerung über `POST /sim/run` (TF-IDs oder alle), Berichte unter `GET /sim/report.xml` (JUnit) und `/sim/report.html` (`ScenarioReport`).
 - Compose-Dienst `spri-simulator` (Profil `simulator`), Variablen in `.env.example`, Doku in `docs/kft-szenarien.md` und `docs/betrieb.md`.
 
+### Teil 8: Selbsttest AG ↔ LE
+- `Counterpart`: Schnittstelle der Gegenseite, die der `ScenarioRunner` verwendet. Umsetzungen sind `SimulatedPartner` (SOAP) und `InstanceCounterpart` (zweite open-spri-Instanz über REST: Empfangenes aus dem Verlauf, Befunde je Auftragsnummer, eigene TEQ aus dem Zustellmonitor, Übersteuerung bei Negativ-Testfällen).
+- `prepareInstance`: Projektvereinbarung, Vollmacht und Produktkatalog in beiden Instanzen.
+- `KftSelfTest` (Tag `selftest`, `./gradlew :app:test -Pselftest`): zwei Instanzen in einem Test, 205 Testfälle grün. S.8.2.10 und die Sicht des abgebenden EKP laufen begründet nur gegen den Simulator.
+- `.github/workflows/nightly.yml`: Selbsttest jede Nacht, Bericht als Artefakt.
+
 ## Auswirkungen
 - S/PRI-Schnittstelle: Meldungen zu Aufträgen im Namen Dritter tragen jetzt die Auftraggebernummer des Bestellers, Meldungen zu Aufträgen mit VorabstimmungsID die VorabstimmungsID. TBK-Meldungen werden jetzt XSD-konform gebaut; die ENTM als Leistungserbringer enthält die Vertragsnummer aus der ABM. Entstöraufträge ohne Auftragsposition sind jetzt auch nach Anlage 1 gültig (SA-015), eingehend wie ausgehend.
 - S/PRI-Schnittstelle (Teil 4): Meldungen an den abgebenden EKP gehen jetzt an ihn statt an den Auftraggeber.
@@ -87,6 +93,7 @@ Der KFT bei Enghouse bricht nach drei erfolglosen Versuchen ab. Deshalb müssen 
 - Build: neues Modul `simulator`; `:app`-Tests laden die Testfallliste über `:simulator:downloadKftTestCases`
 
 ## Tests
+- Teil 8: `KftSelfTest` 205 grün, 6 nur gegen den Simulator; `KftScenarioTest` unverändert 211 von 211
 - Teil 7: `SimulatorModeTest` (Simulator als eigener Prozess gegen eine Instanz: Selbsteintragung, drei Testfälle per TF-ID, 400 bei unbekannter TF-ID, JUnit-XML und HTML)
 - Teil 6: `KftScenarioTest` **211 von 211 grün**, Gate 0; `OutboundOrderServiceTest` (Übersteuerung einzeln wirksam, Befund im Verlauf, Storno als neuer Auftrag); `OrderApiTest` (409 ohne, 403 ohne Scope, 400 bei unbekanntem Wert und beim Entwurf, 202 mit Scope, Befund im Verlauf); `SecurityTest` (Scope in keiner Rolle, nur ausdrücklich im Admin-Token)
 - Teil 5: `KftScenarioTest` 207 Testfälle grün, 4 offen (Z.2.2.01, Z.2.2.02, Z.4.2.01, Z.5.2.01: eigene Prüfungen verhindern den fehlerhaften Auftrag); `InboundOrderServiceTest` (Storno zu unbekanntem Auftrag, Geschäftsfallart)

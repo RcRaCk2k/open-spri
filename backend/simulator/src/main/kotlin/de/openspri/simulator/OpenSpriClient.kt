@@ -49,9 +49,10 @@ class OpenSpriClient(private val baseUrl: URI, private val token: String) {
 
     fun history(id: Long): List<JsonNode> = get("/api/v1/orders/$id/history").items()
 
-    /** Our orders with this external order number in [role]; newest first. */
-    fun findOrders(role: String, externalOrderNumber: String): List<JsonNode> =
-        get("/api/v1/orders?role=$role&q=${encode(externalOrderNumber)}&limit=10").items().filter { it.path("externalOrderNumber").stringValue() == externalOrderNumber }
+    /** Our orders with this external order number (in [role], null = all roles); newest first. */
+    fun findOrders(role: String?, externalOrderNumber: String): List<JsonNode> =
+        get("/api/v1/orders?" + (role?.let { "role=$it&" } ?: "") + "q=${encode(externalOrderNumber)}&limit=10").items()
+            .filter { it.path("externalOrderNumber").stringValue() == externalOrderNumber }
 
     fun codes(codes: List<String>): JsonNode = nodes.arrayNode().apply { codes.forEach { addObject().put("code", it) } }
 
