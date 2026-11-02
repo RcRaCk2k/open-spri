@@ -110,7 +110,7 @@ export function SetupPage() {
                     <Stack gap="xs">
                       <CheckboxField control={control} name="company.roleAuftraggeber" label="Auftraggeber: wir bestellen bei Partnern" />
                       <CheckboxField control={control} name="company.roleLeistungserbringer" label="Leistungserbringer: wir bieten eigene Leitungen an" />
-                      {errors.company?.roleAuftraggeber?.message && <Text size="sm" c="red" role="alert">{errors.company.roleAuftraggeber.message}</Text>}
+                      {errors.company?.roleAuftraggeber?.message && <Text size="sm" c="var(--mantine-color-error)" role="alert">{errors.company.roleAuftraggeber.message}</Text>}
                     </Stack>
                   </Fieldset>
                   <Fieldset legend="Optionen" variant="unstyled">

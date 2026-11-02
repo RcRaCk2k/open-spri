@@ -19,9 +19,19 @@ export const NAVIGATION: readonly NavEntry[] = [
   { path: "/partners", label: "Partner", group: "Stammdaten", scope: Scope.partnersRead },
   { path: "/products", label: "Produkte", group: "Stammdaten", scope: Scope.partnersRead },
   { path: "/message-codes", label: "Meldungscodes", group: "Stammdaten", scope: Scope.ordersRead },
-  { path: "/audit", label: "Audit-Log", group: "Verwaltung", scope: Scope.auditRead },
+  { path: "/availability/manage", label: "Verfügbarkeit verwalten", group: "Stammdaten", scope: Scope.availabilityRead },
+  { path: "/deliveries", label: "Zustellmonitor", group: "Betrieb", scope: Scope.deliveriesRead },
+  { path: "/audit", label: "Audit-Log", group: "Betrieb", scope: Scope.auditRead },
   { path: "/users", label: "Benutzer und Tokens", group: "Verwaltung", scope: Scope.usersAdmin },
+  { path: "/webhooks", label: "Webhooks", group: "Verwaltung", scope: Scope.webhooksAdmin },
+  { path: "/settings", label: "Einstellungen", group: "Verwaltung", scope: Scope.settingsAdmin },
 ];
+
+/** The entry a path belongs to: the longest matching path, so `/availability/manage` is not also `/availability`. */
+export function activeEntry(pathname: string): NavEntry | undefined {
+  return NAVIGATION.filter((e) => (e.path === "/" ? pathname === "/" : pathname === e.path || pathname.startsWith(`${e.path}/`)))
+    .sort((a, b) => b.path.length - a.path.length)[0];
+}
 
 /** The entries the user may see, grouped in the order of [NAVIGATION]. */
 export function visibleNavigation(scopes: readonly string[]): Map<NavEntry["group"], NavEntry[]> {

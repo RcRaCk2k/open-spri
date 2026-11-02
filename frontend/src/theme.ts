@@ -37,9 +37,11 @@ export const cssVariablesResolver: CSSVariablesResolver = (t) => {
     light[`--mantine-color-${name}-outline`] = onLight(shades[9]!);
     light[`--mantine-color-${name}-text`] = onLight(shades[9]!);
     light[`--mantine-color-${name}-light`] = shades[0]!;
-    // filled buttons use shade 9 (primaryShade); Mantine's hover would be the lighter shade 8 (3.9:1 with white)
-    light[`--mantine-color-${name}-filled-hover`] = onLight(shades[9]!);
-    dark[`--mantine-color-${name}-filled-hover`] = onLight(shades[9]!);
+    // white text on filled buttons: shade 9 of orange stays at 4.3:1, Mantine's hover (shade 8) at 3.9:1
+    for (const scheme of [light, dark]) {
+      scheme[`--mantine-color-${name}-filled`] = onLight(shades[9]!);
+      scheme[`--mantine-color-${name}-filled-hover`] = `color-mix(in srgb, ${shades[9]!} 65%, black)`;
+    }
     dark[`--mantine-color-${name}-light-color`] = shades[2]!;
     dark[`--mantine-color-${name}-outline`] = shades[2]!;
     dark[`--mantine-color-${name}-text`] = shades[2]!;

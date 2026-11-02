@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Datum | 2026-11-02 |
-| Meilenstein | M7 |
+| Meilenstein | M7 (abgeschlossen) |
 | Bezug | AUFGABE 8.6, 10.1 Punkt 9, NF-10; Grundsatz 4; ADR-0009 |
 
 ## Motivation
@@ -114,6 +114,32 @@ Bisher zeigte die Oberfläche nur eine Statusseite (M0). M7 bringt alle Seiten a
   - Import der Datei aus dem AK-Confluence (`message-codes:admin`)
 - Binäre Uploads und Downloads (Vollmacht, Tabelle, WSDL) laufen über den generierten Client (`rawBody`, `parseAs`), ohne handgeschriebene URLs.
 
+### Teil 5: Betrieb und Verwaltung, Abschluss M7
+- **Zustellmonitor** (`/deliveries`):
+  - Postausgang nach Status mit TEQ-Code und letztem Fehler
+  - erneut senden, als per Mail gesendet markieren, abbrechen (`deliveries:write`)
+  - gesendeter Inhalt als XML
+  - Eingang mit Verarbeitungsstatus, Roh-XML, erneut verarbeiten bei FAILED
+  - Wartung ankündigen (an alle oder ausgewählte Partner), mit den Warnungen der API (z. B. weniger als 5 Werktage Vorlauf)
+- **Verfügbarkeit verwalten** (`/availability/manage`):
+  - eigene Standorte als Replikat-Datensatz (JSON, XSD-geprüft), Import von XML, ZIP oder CSV (hinzufügen oder Bestand ersetzen)
+  - Replikat-Freigaben je Partner (Delta, weggelassene Felder, Kontingente), sofort erzeugen, Dateien der letzten 31 Tage
+  - Quellen der Partner (Replikat oder online, Zugangsdaten, Delta), sofort importieren, Importläufe mit Warnungen
+- **Webhooks** (`/webhooks`):
+  - anlegen, ändern, (de)aktivieren, löschen
+  - Das HMAC-Geheimnis erscheint nur einmal.
+  - Zustellstand und Fehlversuche je Webhook
+- **Einstellungen** (`/settings`):
+  - Firmendaten, Rollen, Optionen, WBCI-Modus, S/PRI-Endpunkt, Outbound-IPs
+  - Signaturschlüssel mit Zertifikat zum Kopieren und Wechsel (erzeugen oder PKCS#12) mit Warnhinweis
+- **Dashboard:** Die Panels verweisen auf die passenden Listen, Auftragsnummern auf den Auftrag.
+- **Navigation:** Bei verschachtelten Pfaden ist der genaueste Eintrag aktiv (`activeEntry`), z. B. `/availability/manage`.
+- **Barrierefreiheit:**
+  - Gefüllte Buttons verwenden in allen Farben einen abgedunkelten Ton (orange lag bei 4,3:1).
+  - Fehlertexte nutzen die Theme-Farbe `--mantine-color-error` statt fester Schattierungen.
+  - `src/theme.test.ts` verbietet feste Schattierungen in Textfarben.
+- **Abnahme M7:** Alle Seiten aus AUFGABE 8.6 sind vorhanden (Übersicht in `docs/frontend.md`) und nutzen nur `/api/v1`. Die Playwright-Suite ist grün.
+
 ## Auswirkungen
 - S/PRI-Schnittstelle: keine Änderung
 - REST-API: neu `GET /api/v1/audit` und `POST /api/v1/orders/compose`; Schema `InventoryContractDto` statt des falsch zugeordneten `ContractDto` bei `/inventory` (die Felder der Antwort sind unverändert)
@@ -122,6 +148,15 @@ Bisher zeigte die Oberfläche nur eine Statusseite (M0). M7 bringt alle Seiten a
 - Betrieb: Die Ersteinrichtung geht jetzt vollständig in der Oberfläche.
 
 ## Tests
+- Teil 5:
+  - Playwright `operations.spec.ts`:
+    - Einstellungen speichern, Signaturschlüssel ansehen
+    - Webhook mit einmaligem Geheimnis, deaktivieren, löschen
+    - wartende Nachricht im Postausgang abbrechen, Eingang, Wartung ankündigen
+    - Standort mit XSD-Fehler und gültig anlegen, Partner freigeben, Replikat sofort erzeugen
+    - axe auf Schlüssel, Zustellmonitor und Replikat-Dateien
+  - Vitest: `activeEntry`, `theme.test.ts`
+  - Gesamt: 15 Playwright-Tests gegen MariaDB, API und Oberfläche. `api-only.spec.ts` prüft 18 Seiten hell und dunkel auf `/api/v1` und WCAG 2.1 AA. Dazu 29 Vitest-Tests.
 - Teil 4:
   - Playwright `master-data.spec.ts`:
     - Partner mit falschem Carrier Code, Zertifikat (erfundenes, selbstsigniertes RSA-3072-Zertifikat ohne privaten Schlüssel in `e2e/fixtures`), ungültige und gültige IP-Freigaben, Rahmenvertrag, Projekt, Onboarding-Blatt

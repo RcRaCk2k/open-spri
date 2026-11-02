@@ -84,7 +84,7 @@ function History({ orderId, onRaw }: { orderId: number; onRaw: (s: RawSource) =>
               <List size="sm" mt={4}>{h.codes.map((c) => <List.Item key={c}><span className="mono">{c}</span>{text.get(c) ? ` – ${text.get(c)}` : ""}</List.Item>)}</List>
             )}
             {h.findings.length > 0 && (
-              <List size="sm" mt={4} c="orange.9">{h.findings.map((f) => <List.Item key={f}>{f}</List.Item>)}</List>
+              <List size="sm" mt={4} c="var(--mantine-color-orange-light-color)">{h.findings.map((f) => <List.Item key={f}>{f}</List.Item>)}</List>
             )}
             {h.archiveId != null && hasScope(scopes, Scope.ordersRead) && (
               <Button size="compact-xs" variant="subtle" mt={4} onClick={() => onRaw({ kind: "archive", id: h.archiveId!, title: `${what} – Rohnachricht` })}>Roh-XML</Button>
@@ -110,7 +110,7 @@ function Deliveries({ orderId, onRaw }: { orderId: number; onRaw: (s: RawSource)
             <Table.Tr key={d.id}>
               <Table.Td style={{ whiteSpace: "nowrap" }}>{formatDateTime(d.createdAt)}</Table.Td>
               <Table.Td>{d.operation}</Table.Td>
-              <Table.Td><Badge variant="light" color={d.status === "DELIVERED" ? "teal" : d.status === "PENDING" ? "blue" : "red"}>{d.status}</Badge>{d.lastError && <Text size="xs" c="red.8">{d.lastError}</Text>}</Table.Td>
+              <Table.Td><Badge variant="light" color={d.status === "DELIVERED" ? "teal" : d.status === "PENDING" ? "blue" : "red"}>{d.status}</Badge>{d.lastError && <Text size="xs" c="var(--mantine-color-error)">{d.lastError}</Text>}</Table.Td>
               <Table.Td>{d.attempts}</Table.Td>
               <Table.Td><Button size="compact-xs" variant="subtle" onClick={() => onRaw({ kind: "delivery", id: d.id, title: `${d.operation} – gesendeter Inhalt` })}>XML</Button></Table.Td>
             </Table.Tr>

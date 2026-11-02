@@ -2,7 +2,7 @@ import { AppShell, Anchor, Burger, Button, Group, NavLink, ScrollArea, Stack, Te
 import { useDisclosure } from "@mantine/hooks";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { useLogout, type Me } from "../auth/session";
-import { visibleNavigation } from "../navigation";
+import { activeEntry, visibleNavigation } from "../navigation";
 
 export function Layout({ me }: { me: Me }) {
   const [opened, { toggle, close }] = useDisclosure();
@@ -10,6 +10,7 @@ export function Layout({ me }: { me: Me }) {
   const navigate = useNavigate();
   const logout = useLogout();
   const groups = visibleNavigation(me.scopes);
+  const current = activeEntry(location.pathname);
 
   return (
     <AppShell header={{ height: 56 }} navbar={{ width: 250, breakpoint: "sm", collapsed: { mobile: !opened } }} padding="md">
@@ -37,7 +38,7 @@ export function Layout({ me }: { me: Me }) {
               <nav key={group} aria-label={group}>
                 <Text size="xs" fw={700} c="dimmed" tt="uppercase" px="sm" mb={4}>{group}</Text>
                 {entries.map((entry) => {
-                  const active = entry.path === "/" ? location.pathname === "/" : location.pathname.startsWith(entry.path);
+                  const active = entry === current;
                   return (
                     <NavLink
                       key={entry.path}

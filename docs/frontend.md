@@ -15,6 +15,31 @@ Die Web-Oberfläche ist eine React-Anwendung in `frontend/`. Sie nutzt **ausschl
 | `src/theme.ts` | Mantine-Theme mit Farben, die WCAG 2.1 AA erfüllen |
 | `e2e/` | Playwright-Tests |
 
+## Seiten (AUFGABE 8.6)
+
+| Seite | Pfad | Scope | API |
+|---|---|---|---|
+| Setup-Assistent | `/setup` | Setup-Token | `GET/POST /setup` |
+| Anmeldung | `/login` | – | `POST /auth/login`, `GET /auth/me` |
+| Dashboard: offene Aufträge, Fristen TAM/MTAM und AKM-PV, Zustellfehler | `/` | `orders:read`, `deliveries:read` | `/orders`, `/pv-requests`, `/deliveries` |
+| Auftragsliste | `/orders` | `orders:read` | `GET /orders` |
+| Auftrag mit Verlauf, Aktionen laut `allowedActions`, Roh-XML, Entwurf | `/orders/{id}` | `orders:read`, Aktionen `orders:write` bzw. `le:messages:write` | `/orders/{id}…`, `/messages/{id}/raw`, `/deliveries/{id}/payload` |
+| Auftrag anlegen (Assistent je Geschäftsfall) | `/orders/new` | `orders:write` | `POST /orders/compose`, `POST /orders` |
+| LE-Arbeitsvorrat | `/work-queue` | `orders:read` | `GET /orders?role=LEISTUNGSERBRINGER&open=true` |
+| Providerwechsel-Anfragen (AKM-PV, RUEM-PV) | `/pv-requests` | `orders:read`, Antwort `orders:write` | `/pv-requests` |
+| Kündigung durch uns (KDLE) | `/terminations/new` | `le:messages:write` | `POST /terminations` |
+| Verfügbarkeitssuche | `/availability` | `availability:read` | `/availability/search`, `/availability/order-template` |
+| Bestand | `/inventory` | `orders:read` | `GET /inventory` |
+| Partner | `/partners`, `/partners/{id}` | `partners:read`, Ändern `partners:admin` | `/partners…` |
+| Produkte und Wechselmatrix | `/products` | `partners:read`, Ändern `partners:admin` | `/products`, `/product-change-matrix` |
+| Meldungscodes | `/message-codes` | `orders:read`, Import `message-codes:admin` | `/message-codes` |
+| Verfügbarkeit verwalten: eigene Standorte, Replikat-Freigaben, Quellen | `/availability/manage` | `availability:read`, Ändern `availability:admin` | `/availability/sites`, `/replikat/releases`, `/replikat/sources` |
+| Zustellmonitor: Postausgang, Eingang, Wartung | `/deliveries` | `deliveries:read`, Eingreifen `deliveries:write` | `/deliveries`, `/inbox`, `/maintenance-announcements` |
+| Audit-Log | `/audit` | `audit:read` | `GET /audit` |
+| Benutzer und Tokens | `/users` | `users:admin` | `/users`, `/tokens` |
+| Webhooks | `/webhooks` | `webhooks:admin` | `/webhooks` |
+| Einstellungen und Signaturschlüssel | `/settings` | `settings:admin` | `/settings`, `/settings/signing-key` |
+
 ## Regeln für neue Seiten
 
 1. Zuerst muss die Funktion in der API vorhanden und in `docs/api/` beschrieben sein. Danach `pnpm generate:api` ausführen.
@@ -23,7 +48,8 @@ Die Web-Oberfläche ist eine React-Anwendung in `frontend/`. Sie nutzt **ausschl
 4. Die Seite kommt mit ihrem Scope in `src/navigation.ts`. Der E2E-Test `api-only.spec.ts` prüft dann jede Seite der Navigation automatisch: Er ruft sie auf, erlaubt nur Aufrufe an `/api/v1` und prüft mit axe WCAG 2.1 AA im hellen und im dunklen Farbschema.
 5. Aktionen, die eine S/PRI-Nachricht auslösen, senden je Dialog einen eigenen `Idempotency-Key` (`newIdempotencyKey()` in `src/hooks.ts`). Angeboten werden nur Aktionen aus `allowedActions`.
 6. Die Route wird in `src/App.tsx` mit `page(() => import(…))` eingetragen, damit die Seite erst bei Bedarf geladen wird.
-7. Texte sind deutsch, Bezeichner im Code englisch, S/PRI-Begriffe bleiben wie im Standard.
+7. Farben kommen aus dem Theme (`color="red"`, `c="dimmed"`). Feste Schattierungen wie `c="red.8"` sind verboten, weil sie in einem der Farbschemata unter 4,5:1 fallen können. `src/theme.test.ts` prüft das.
+8. Texte sind deutsch, Bezeichner im Code englisch, S/PRI-Begriffe bleiben wie im Standard.
 
 ## Tests
 
