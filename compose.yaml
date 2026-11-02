@@ -131,7 +131,7 @@ services:
 
   certbot:
     profiles: [proxy]
-    image: certbot/certbot:v5.1.0
+    image: certbot/certbot:v5.9.0
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/opt/openspri/run.sh"]
     environment:
