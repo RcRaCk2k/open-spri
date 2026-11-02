@@ -25,7 +25,7 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: ~/.gradle/caches/open-spri
-          key: ak-spri-${{ hashFiles('backend/spri-schema/build.gradle.kts', 'backend/simulator/build.gradle.kts', 'backend/spri-rules/build.gradle.kts') }}
+          key: ak-spri-${{ hashFiles('backend/spri-schema/build.gradle.kts', 'backend/simulator/build.gradle.kts', 'backend/replikat/build.gradle.kts', 'backend/spri-rules/build.gradle.kts') }}
           restore-keys: ak-spri-
       - name: Self-test
         run: ./gradlew :app:test -Pselftest --console=plain
