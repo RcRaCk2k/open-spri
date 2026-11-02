@@ -118,4 +118,21 @@ class SecurityTest(@Autowired private val tokens: ApiTokens, @Autowired private 
         assertEquals(201, created.statusCode(), created.body())
         assertContains(created.body(), "\"token\":\"spri_")
     }
+
+    @Test
+    fun `audit log can be searched with audit read, filtered and paged`() {
+        val admin = issue(Role.ADMIN)
+        repeat(3) { post("/api/v1/tokens", """{"name":"audit-$it","role":"VIEWER"}""", token = admin) }
+        val page = get("/api/v1/audit?action=token.&limit=2", token = admin)
+        assertEquals(200, page.statusCode(), page.body())
+        val ids = Regex("\"id\":(\\d+)").findAll(page.body()).map { it.groupValues[1].toLong() }.toList()
+        assertEquals(2, ids.size)
+        assertTrue(ids[0] > ids[1], "newest first")
+        val next = get("/api/v1/audit?action=token.&limit=2&cursor=${ids[1]}", token = admin).body()
+        assertTrue(Regex("\"id\":(\\d+)").findAll(next).all { it.groupValues[1].toLong() < ids[1] })
+        assertContains(get("/api/v1/audit?target=token:&actor=token:", token = admin).body(), "\"action\":\"token.create\"")
+        assertEquals(200, get("/api/v1/audit", token = issue(Role.VIEWER)).statusCode())
+        assertEquals(403, get("/api/v1/audit", token = issue(Role.OPERATOR_AG)).statusCode())
+        assertEquals(400, get("/api/v1/audit?limit=0", token = admin).statusCode())
+    }
 }

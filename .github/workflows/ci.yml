@@ -75,7 +75,7 @@ jobs:
       - run: pnpm build
 
   compose:
-    name: Compose smoke test (all-in-one)
+    name: Compose stack, smoke and E2E tests (all-in-one)
     runs-on: ubuntu-latest
     needs: [backend, frontend]
     steps:
@@ -85,6 +85,8 @@ jobs:
           cp .env.example .env
           sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-secret/; s/^DB_ROOT_PASSWORD=.*/DB_ROOT_PASSWORD=ci-root-secret/' .env
           sed -i 's/^ACME_ENABLED=.*/ACME_ENABLED=false/' .env
+          # the setup wizard stores the generated signing key encrypted with the master key
+          sed -i "s|^OPENSPRI_MASTER_KEY=.*|OPENSPRI_MASTER_KEY=$(openssl rand -base64 32)|" .env
       - name: Build images
         run: |
           set -o pipefail
@@ -104,6 +106,32 @@ jobs:
         run: |
           echo | openssl s_client -connect localhost:443 -tls1_2 >/dev/null 2>&1
           ! echo | openssl s_client -connect localhost:443 -tls1_1 >/dev/null 2>&1
+      # Playwright E2E against the complete stack behind the proxy (AUFGABE 10.1 item 9, M7):
+      # setup wizard with the token from the API log, login, all pages, only /api/v1, axe WCAG 2.1 AA
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install Playwright
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile && pnpm exec playwright install --with-deps chromium
+      - name: E2E tests (Playwright)
+        working-directory: frontend
+        run: |
+          export E2E_SETUP_TOKEN=$(docker compose logs api --no-color | grep -A3 "setup token" | sed -n 3p | awk '{print $NF}')
+          test -n "$E2E_SETUP_TOKEN"
+          E2E_BASE_URL=https://localhost pnpm e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
       - name: Logs
         if: always()
         run: docker compose ps -a; docker compose logs --no-color | tee compose.log

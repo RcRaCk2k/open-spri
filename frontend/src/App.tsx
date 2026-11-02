@@ -1,29 +1,58 @@
-import { useEffect, useState } from "react";
-import { api, type About } from "./api/client";
-import { describeBuild } from "./format";
+import { Navigate, Outlet, createBrowserRouter, useLocation, type RouteObject } from "react-router";
+import { Center, Text } from "@mantine/core";
+import { useMe, useSetupStatus } from "./auth/session";
+import { ErrorAlert, Loading } from "./components/Feedback";
+import { Layout } from "./layout/Layout";
+import { AuditPage } from "./pages/AuditPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { ErrorPage } from "./pages/ErrorPage";
+import { LoginPage } from "./pages/LoginPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
+import { SetupPage } from "./pages/SetupPage";
+import { UsersPage } from "./pages/UsersPage";
 
-/** M0 placeholder: shows that frontend, proxy and API are connected. Real pages follow in M7. */
-export function App() {
-  const [about, setAbout] = useState<About | null>(null);
-  const [error, setError] = useState<string | null>(null);
+/** Until the first setup is completed, every page leads to the setup wizard. */
+function SetupGate() {
+  const setup = useSetupStatus();
+  const location = useLocation();
+  if (setup.isPending) return <Loading />;
+  if (setup.isError) return <Center p="xl"><ErrorAlert error={setup.error} title="Die API ist nicht erreichbar" /></Center>;
+  // after the setup the wizard itself leads to the login (SetupPage)
+  if (!setup.data.completed && location.pathname !== "/setup") return <Navigate to="/setup" replace />;
+  return <Outlet />;
+}
 
-  useEffect(() => {
-    api.GET("/api/v1/about").then(({ data, error: apiError }) => {
-      if (data) setAbout(data);
-      else setError(apiError ? "Die API hat einen Fehler gemeldet." : "Die API ist nicht erreichbar.");
-    }, () => setError("Die API ist nicht erreichbar."));
-  }, []);
+/** Pages behind the login; the target is kept in `?next=`. */
+function SessionGate() {
+  const me = useMe();
+  const location = useLocation();
+  if (me.isPending) return <Loading />;
+  if (me.isError) return <Center p="xl"><ErrorAlert error={me.error} /></Center>;
+  if (!me.data) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  if (me.data.kind === "SETUP") return <Center p="xl"><Text>Die Ersteinrichtung ist noch nicht abgeschlossen.</Text></Center>;
+  return <Layout me={me.data} />;
+}
 
-  return (
-    <main className="shell">
-      <h1>open-spri</h1>
-      <p>S/PRI-Schnittstelle für Auftraggeber und Leistungserbringer.</p>
-      {about && <p className="status ok">{describeBuild(about)}</p>}
-      {error && <p className="status error">{error} Läuft der Container „api“?</p>}
-      {!about && !error && <p className="status">Verbindung zur API wird geprüft …</p>}
-      <p>
-        <a href="/api/docs">REST-API-Dokumentation (Swagger UI)</a>
-      </p>
-    </main>
-  );
+export const routes: RouteObject[] = [
+  {
+    element: <SetupGate />,
+    errorElement: <ErrorPage />,
+    children: [
+      { path: "/setup", element: <SetupPage /> },
+      { path: "/login", element: <LoginPage /> },
+      {
+        element: <SessionGate />,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          { path: "/audit", element: <AuditPage /> },
+          { path: "/users", element: <UsersPage /> },
+          { path: "*", element: <NotFoundPage /> },
+        ],
+      },
+    ],
+  },
+];
+
+export function createRouter() {
+  return createBrowserRouter(routes);
 }

@@ -38,6 +38,9 @@
     "description" : "Verträge aus abgeschlossenen Aufträgen, Grundlage für KUE-AG, AEN-LMAE, LAE, EST und den Providerwechsel",
     "name" : "Bestand"
   }, {
+    "description" : "Wer hat was geändert oder Rohnachrichten gelesen",
+    "name" : "Audit-Log"
+  }, {
     "description" : "Gegenstellen: Endpunkt, Signaturzertifikate, freigeschaltete IPs (AUFGABE 5.9)",
     "name" : "Partner"
   }, {
@@ -81,6 +84,88 @@
         },
         "summary" : "Version und Build der Instanz",
         "tags" : [ "Betrieb" ]
+      }
+    },
+    "/api/v1/audit" : {
+      "get" : {
+        "description" : "Neueste zuerst. `actor` und `target` als Teilzeichenfolge, `action` als Präfix (z. B. `order.`). Blättern mit `cursor` = `id` des letzten Eintrags.",
+        "operationId" : "search_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "actor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Präfix, z. B. `order.`",
+          "in" : "query",
+          "name" : "action",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "target",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "ab (einschließlich)",
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "description" : "bis (ausschließlich)",
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "description" : "1 bis 500",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AuditEntryDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Audit-Log durchsuchen",
+        "tags" : [ "Audit-Log" ]
       }
     },
     "/api/v1/auth/login" : {
@@ -4007,6 +4092,38 @@
           }
         },
         "required" : [ "direction", "durationMillis", "id", "remoteAddress", "startedAt" ]
+      },
+      "AuditEntryDto" : {
+        "type" : "object",
+        "description" : "Ein Eintrag im Audit-Log",
+        "properties" : {
+          "action" : {
+            "type" : "string",
+            "description" : "z. B. order.send, partner.create, message.raw",
+            "example" : "user.create"
+          },
+          "actor" : {
+            "type" : "string",
+            "description" : "user:<name>, token:<prefix> oder setup",
+            "example" : "user:admin"
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "details" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "target" : {
+            "type" : "string",
+            "example" : "user:m.muster"
+          }
+        },
+        "required" : [ "action", "actor", "at", "id", "target" ]
       },
       "CertificateDto" : {
         "type" : "object",

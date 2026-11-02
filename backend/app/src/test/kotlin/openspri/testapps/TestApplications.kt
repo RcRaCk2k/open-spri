@@ -48,9 +48,20 @@ class InMemoryApiTokenStore : de.openspri.auth.ApiTokenStore {
     override fun touch(id: Long, at: java.time.Instant, ip: String?) = Unit
 }
 
-class InMemoryAuditLog : de.openspri.auth.AuditLog {
-    val entries = mutableListOf<String>()
-    override fun record(actor: de.openspri.auth.Actor, action: String, target: String, details: String?) { entries += "${actor.label} $action $target" }
+class InMemoryAuditLog : de.openspri.auth.AuditLog, de.openspri.auth.AuditTrail {
+    val entries = java.util.concurrent.CopyOnWriteArrayList<String>()
+    private val log = java.util.concurrent.CopyOnWriteArrayList<de.openspri.auth.AuditEntry>()
+    override fun record(actor: de.openspri.auth.Actor, action: String, target: String, details: String?) {
+        entries += "${actor.label} $action $target"
+        synchronized(log) { log += de.openspri.auth.AuditEntry(log.size + 1L, java.time.Instant.now(), actor.label, action, target, details) }
+    }
+    override fun search(filter: de.openspri.auth.AuditFilter) = log.reversed().asSequence()
+        .filter { e -> filter.actor.isNullOrBlank() || e.actor.contains(filter.actor!!, ignoreCase = true) }
+        .filter { e -> filter.action.isNullOrBlank() || e.action.startsWith(filter.action!!, ignoreCase = true) }
+        .filter { e -> filter.target.isNullOrBlank() || e.target.contains(filter.target!!, ignoreCase = true) }
+        .filter { e -> (filter.from == null || !e.at.isBefore(filter.from)) && (filter.to == null || e.at.isBefore(filter.to)) }
+        .filter { e -> filter.cursor == null || e.id < filter.cursor!! }
+        .take(filter.limit).toList()
 }
 
 /**

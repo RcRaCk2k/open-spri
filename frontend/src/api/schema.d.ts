@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit-Log durchsuchen
+         * @description Neueste zuerst. `actor` und `target` als Teilzeichenfolge, `action` als Präfix (z. B. `order.`). Blättern mit `cursor` = `id` des letzten Eintrags.
+         */
+        get: operations["search_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -1686,6 +1706,26 @@ export interface components {
             startedAt: string;
             teqCode?: string | null;
         };
+        /** @description Ein Eintrag im Audit-Log */
+        AuditEntryDto: {
+            /**
+             * @description z. B. order.send, partner.create, message.raw
+             * @example user.create
+             */
+            action: string;
+            /**
+             * @description user:<name>, token:<prefix> oder setup
+             * @example user:admin
+             */
+            actor: string;
+            /** Format: date-time */
+            at: string;
+            details?: string | null;
+            /** Format: int64 */
+            id: number;
+            /** @example user:m.muster */
+            target: string;
+        };
         /** @description Ein Signaturzertifikat des Partners */
         CertificateDto: {
             expired: boolean;
@@ -2621,6 +2661,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AboutResponse"];
+                };
+            };
+        };
+    };
+    search_1: {
+        parameters: {
+            query?: {
+                actor?: string;
+                /** @description Präfix, z. B. `order.` */
+                action?: string;
+                target?: string;
+                /** @description ab (einschließlich) */
+                from?: string;
+                /** @description bis (ausschließlich) */
+                to?: string;
+                cursor?: number;
+                /** @description 1 bis 500 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEntryDto"][];
                 };
             };
         };

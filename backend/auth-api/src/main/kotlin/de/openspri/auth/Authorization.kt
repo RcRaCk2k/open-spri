@@ -85,4 +85,23 @@ interface AuditLog {
     fun record(actor: Actor, action: String, target: String, details: String? = null)
 }
 
-data class AuditEntry(val at: Instant, val actor: String, val action: String, val target: String, val details: String?)
+data class AuditEntry(val id: Long, val at: Instant, val actor: String, val action: String, val target: String, val details: String?)
+
+/**
+ * Search in the audit log, newest first. `actor` and `target` match as substring, `action` as prefix (e.g. `order.`);
+ * `cursor` is the id of the last entry of the previous page.
+ */
+data class AuditFilter(
+    val actor: String? = null,
+    val action: String? = null,
+    val target: String? = null,
+    val from: Instant? = null,
+    val to: Instant? = null,
+    val cursor: Long? = null,
+    val limit: Int = 50,
+)
+
+/** Reading the audit log (scope `audit:read`). */
+interface AuditTrail {
+    fun search(filter: AuditFilter): List<AuditEntry>
+}

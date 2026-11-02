@@ -11,3 +11,6 @@ frontend/*.tsbuildinfo
 docs/spec-original
 docs/spec-text
 .env
+frontend/test-results
+frontend/playwright-report
+frontend/e2e/.auth

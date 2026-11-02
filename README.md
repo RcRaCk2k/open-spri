@@ -10,7 +10,7 @@ Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requ
 > - Verfügbarkeit nach Replikat 1.7 ([`docs/api/verfuegbarkeit.md`](docs/api/verfuegbarkeit.md)):
 >   - Als Leistungserbringer: eigene Standorte pflegen, tägliches Voll- und Deltareplikat je Partner, Download und Online-Abfrage mit Partner-Token.
 >   - Als Auftraggeber: Replikate der Partner importieren oder ihre Instanz online abfragen, nach Adresse, HomeID oder Umkreis suchen und einen Treffer in einen Auftrag übernehmen.
-> - Als Nächstes folgt das Frontend (M7). Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
+> - Web-Oberfläche (M7, in Arbeit): Setup-Assistent, Anmeldung, Dashboard mit Fristen und Zustellfehlern, Audit-Log, Benutzer und Tokens. Die weiteren Seiten folgen. Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
 
 ## Funktionsumfang (Ziel v1.0)
 
@@ -57,6 +57,8 @@ Der Stack besteht aus `api` (Kotlin/Spring Boot), `db` (MariaDB 11.8), `frontend
 cd frontend && pnpm install && pnpm dev
 ```
 
+Die Web-Oberfläche, ihre Regeln und die E2E-Tests beschreibt [`docs/frontend.md`](docs/frontend.md).
+
 Alle Befehle und Arbeitsregeln stehen in [`CLAUDE.md`](CLAUDE.md).
 
 ## Zertifizierung
@@ -70,6 +72,7 @@ Die Software soll in beiden Rollen den Konformitätstest (KFT) bestehen und ein 
 | [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md) | Anforderungen, Architektur, Teststrategie, Meilensteine |
 | [`docs/api/`](docs/api/) | REST-API mit Beispielen, [`openapi.json`](docs/api/openapi.json) |
 | [`docs/betrieb.md`](docs/betrieb.md) | Installation und Betrieb |
+| [`docs/frontend.md`](docs/frontend.md) | Web-Oberfläche: Aufbau, Regeln, E2E-Tests |
 | [`docs/spec-abweichungen.md`](docs/spec-abweichungen.md) | Auslegungen der Spezifikation |
 | [`docs/grundlagen/`](docs/grundlagen/) | Einführung in S/PRI für Entwickler, Glossar |
 | `docs/adr/` | Architekturentscheidungen |

@@ -1,18 +1,18 @@
-:root {
-  --bg: #f5f7f6;
-  --fg: #15211f;
-  --accent: #0a6f6a;
-  --error: #a8321c;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: var(--fg);
-  background: var(--bg);
+/* Mantine provides the components; only what Mantine has no prop for is here. */
+.skip-link {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  z-index: 1000;
 }
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #0f1615; --fg: #e4ecea; --accent: #5cc4bc; --error: #f08a72; }
+.skip-link:focus {
+  left: 1rem;
+  top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--mantine-color-body);
+  outline: 2px solid var(--mantine-primary-color-filled);
 }
-body { margin: 0; }
-.shell { max-width: 46rem; margin: 0 auto; padding: 3rem 1rem; }
-a { color: var(--accent); }
-.status { font-family: ui-monospace, monospace; }
-.status.ok { color: var(--accent); }
-.status.error { color: var(--error); }
+.mono {
+  font-family: var(--mantine-font-family-monospace);
+  overflow-wrap: anywhere;
+}

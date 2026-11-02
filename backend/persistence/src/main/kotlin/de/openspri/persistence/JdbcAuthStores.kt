@@ -3,6 +3,8 @@ package de.openspri.persistence
 import de.openspri.auth.ApiToken
 import de.openspri.auth.ApiTokenStore
 import de.openspri.auth.AuditEntry
+import de.openspri.auth.AuditFilter
+import de.openspri.auth.AuditTrail
 import de.openspri.auth.AuditLog
 import de.openspri.auth.Actor
 import de.openspri.auth.Role
@@ -113,7 +115,7 @@ class JdbcApiTokenStore(private val jdbc: JdbcClient) : ApiTokenStore {
 }
 
 @Repository
-class JdbcAuditLog(private val jdbc: JdbcClient) : AuditLog {
+class JdbcAuditLog(private val jdbc: JdbcClient) : AuditLog, AuditTrail {
 
     override fun record(actor: Actor, action: String, target: String, details: String?) {
         jdbc.sql("INSERT INTO audit_log (tenant_id, at, actor, action, target, details) VALUES (:t, :at, :a, :ac, :tg, :d)")
@@ -121,9 +123,20 @@ class JdbcAuditLog(private val jdbc: JdbcClient) : AuditLog {
             .param("ac", action.take(100)).param("tg", target.take(300)).param("d", details?.take(2000)).update()
     }
 
-    fun recent(limit: Int): List<AuditEntry> =
-        jdbc.sql("SELECT at, actor, action, target, details FROM audit_log WHERE tenant_id = :t ORDER BY id DESC LIMIT :l")
-            .param("t", Tenant.DEFAULT).param("l", limit)
-            .query { rs, _ -> AuditEntry(rs.getTimestamp("at").toInstant(), rs.getString("actor"), rs.getString("action"), rs.getString("target"), rs.getString("details")) }
+    override fun search(filter: AuditFilter): List<AuditEntry> {
+        val where = mutableListOf("tenant_id = :t")
+        val params = mutableMapOf<String, Any>("t" to Tenant.DEFAULT, "l" to filter.limit.coerceIn(1, 500))
+        filter.actor?.takeIf { it.isNotBlank() }?.let { where += "actor LIKE :actor ESCAPE '!'"; params["actor"] = "%" + like(it) + "%" }
+        filter.action?.takeIf { it.isNotBlank() }?.let { where += "action LIKE :action ESCAPE '!'"; params["action"] = like(it) + "%" }
+        filter.target?.takeIf { it.isNotBlank() }?.let { where += "target LIKE :target ESCAPE '!'"; params["target"] = "%" + like(it) + "%" }
+        filter.from?.let { where += "at >= :from"; params["from"] = Timestamp.from(it) }
+        filter.to?.let { where += "at < :to"; params["to"] = Timestamp.from(it) }
+        filter.cursor?.let { where += "id < :cursor"; params["cursor"] = it }
+        return jdbc.sql("SELECT id, at, actor, action, target, details FROM audit_log WHERE ${where.joinToString(" AND ")} ORDER BY id DESC LIMIT :l")
+            .params(params)
+            .query { rs, _ -> AuditEntry(rs.getLong("id"), rs.getTimestamp("at").toInstant(), rs.getString("actor"), rs.getString("action"), rs.getString("target"), rs.getString("details")) }
             .list()
+    }
+
+    private fun like(value: String) = value.replace("!", "!!").replace("%", "!%").replace("_", "!_")
 }

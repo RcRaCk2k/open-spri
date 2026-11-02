@@ -56,6 +56,7 @@ class ApplicationIntegrationTest(
     @Autowired private val availabilitySources: de.openspri.persistence.JdbcAvailabilitySources,
     @Autowired private val replikatImports: de.openspri.persistence.JdbcReplikatImports,
     @Autowired private val partnerLocations: de.openspri.persistence.JdbcPartnerLocations,
+    @Autowired private val auditLog: de.openspri.persistence.JdbcAuditLog,
 ) {
     @LocalServerPort
     private var port = 0
@@ -341,6 +342,18 @@ class ApplicationIntegrationTest(
         assertEquals(listOf("1", "3", "4"), search(de.openspri.domain.availability.AvailabilityQuery(de.openspri.domain.availability.AddressFilter(postalCode = "54321"))))
         assertEquals("FTTH 250", partnerLocations.search(partner, de.openspri.domain.availability.AvailabilityQuery(de.openspri.domain.availability.AddressFilter(homeId = "Q1"))).single().products.single().product)
         assertEquals(true, availabilitySources.delete(source.id!!))
+    }
+
+    @Test
+    fun `audit log search with filters, LIKE escaping and cursor on MariaDB`() {
+        val actor = de.openspri.auth.Actor(de.openspri.auth.Actor.Kind.USER, 1, "audit_%x", emptySet())
+        repeat(3) { auditLog.record(actor, "audittest.step", "target:$it", "n=$it") }
+        auditLog.record(de.openspri.auth.Actor(de.openspri.auth.Actor.Kind.USER, 2, "auditXYx", emptySet()), "audittest.other", "target:9")
+        val mine = auditLog.search(de.openspri.auth.AuditFilter(actor = "audit_%", action = "audittest."))
+        assertEquals(listOf("target:2", "target:1", "target:0"), mine.map { it.target }, "% and _ are literal, newest first")
+        val page = auditLog.search(de.openspri.auth.AuditFilter(action = "audittest.step", limit = 2))
+        assertEquals(listOf("target:0"), auditLog.search(de.openspri.auth.AuditFilter(action = "audittest.step", cursor = page.last().id)).map { it.target })
+        assertEquals(emptyList(), auditLog.search(de.openspri.auth.AuditFilter(action = "audittest.", from = java.time.Instant.now().plusSeconds(60))))
     }
 
     @Test

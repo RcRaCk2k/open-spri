@@ -102,3 +102,16 @@ curl -s -b jar -X POST $SPRI/api/v1/auth/logout -H "X-XSRF-TOKEN: $(awk '/XSRF-T
 | `INTEGRATION` | für Fremdsysteme: `orders:read/write`, `le:messages:write`, `deliveries:read`, `partners:read`, `availability:read`, `events:read` |
 
 Jede ändernde Aktion steht mit Akteur (`user:…` bzw. `token:…`) im Audit-Log, ebenso jeder Zugriff auf Rohnachrichten.
+
+## Audit-Log lesen (`audit:read`)
+
+Neueste Einträge zuerst. `actor` und `target` sind Teilzeichenfolgen, `action` ist ein Präfix. `from` und `to` begrenzen die Zeit (ISO-8601, `to` ausschließlich). Weitere Seiten holt man mit `cursor` = `id` des letzten Eintrags. `limit` liegt zwischen 1 und 500 (Standard 50).
+
+```bash
+curl -s "$SPRI/api/v1/audit?action=token.&limit=20" -H "Authorization: Bearer $TOKEN"
+curl -s "$SPRI/api/v1/audit?actor=user:admin&from=2026-11-01T00:00:00Z&cursor=1234" -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+[{"id": 1235, "at": "2026-11-02T10:15:00Z", "actor": "user:admin", "action": "token.create", "target": "token:Ab3dE7fG", "details": "role=INTEGRATION"}]
+```
