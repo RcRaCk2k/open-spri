@@ -53,6 +53,9 @@ class ApplicationIntegrationTest(
     @Autowired private val snapshots: de.openspri.persistence.JdbcReplikatSnapshots,
     @Autowired private val exportState: de.openspri.persistence.JdbcReplikatExportState,
     @Autowired private val apiTokens: de.openspri.auth.ApiTokens,
+    @Autowired private val availabilitySources: de.openspri.persistence.JdbcAvailabilitySources,
+    @Autowired private val replikatImports: de.openspri.persistence.JdbcReplikatImports,
+    @Autowired private val partnerLocations: de.openspri.persistence.JdbcPartnerLocations,
 ) {
     @LocalServerPort
     private var port = 0
@@ -294,6 +297,50 @@ class ApplicationIntegrationTest(
 
         val token = apiTokens.issue("Partner", de.openspri.auth.Role.PARTNER, null, null, null, "test", now, partnerId = partner.value)
         assertEquals(partner.value, apiTokens.verify(token.plainText, now)!!.partnerId)
+    }
+
+    @Test
+    fun `availability sources, imports and partner locations with geo search on MariaDB`() {
+        val partner = partners.create(name = "Quelle", carrierCode = "DEU.QUELLE", certificates = listOf(credentials.certificate), networks = emptyList())
+        val now = java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
+        val source = availabilitySources.save(de.openspri.domain.availability.AvailabilitySource(
+            null, partner, de.openspri.domain.availability.SourceKind.REPLIKAT, "https://spri.quelle.example/replikat/", "ag", "enc:geheim", delta = true,
+        ))
+        assertEquals(source, availabilitySources.get(source.id!!))
+        assertEquals(false, availabilitySources.save(source.copy(enabled = false)).enabled)
+        assertEquals(1, availabilitySources.list().count { it.partnerId == partner })
+
+        replikatImports.record(de.openspri.domain.availability.ReplikatImport(null, source.id!!, partner, now, now, de.openspri.domain.availability.ImportStatus.FAILED, error = "HTTP 503"))
+        val ok = replikatImports.record(de.openspri.domain.availability.ReplikatImport(
+            null, source.id!!, partner, now.plusSeconds(1), now.plusSeconds(2), de.openspri.domain.availability.ImportStatus.OK, "QUELLE_20261102.zip",
+            java.time.LocalDate.of(2026, 11, 2), false, 3, 3, 0, 0, listOf("1 Datensätze mit Koordinaten außerhalb Deutschlands"),
+        ))
+        assertEquals(ok, replikatImports.last(source.id!!))
+        assertEquals(2, replikatImports.list(source.id!!, 10).size)
+
+        fun location(house: String, lat: String?, long: String?, homeIds: List<String> = emptyList(), product: String = "FTTH 100", change: de.openspri.domain.availability.ChangeMark? = null) =
+            de.openspri.domain.availability.Location(
+                change = change, latitude = lat, longitude = long, postalCode = "54321", city = "Teststadt", street = "Quellweg", houseNumber = house,
+                products = listOf(de.openspri.domain.availability.ProductAvailability(product)),
+                technologies = listOf(de.openspri.domain.availability.TechnologyAvailability("FTTH", homeIds = homeIds)),
+            )
+        partnerLocations.replaceAll(partner, listOf(location("1", "52.5000", "13.3000", listOf("Q1")), location("2", "52.5010", "13.3000"), location("3", null, null)))
+        assertEquals(3, partnerLocations.count(partner))
+        fun search(query: de.openspri.domain.availability.AvailabilityQuery) = partnerLocations.search(partner, query).map { it.houseNumber }.sorted()
+        assertEquals(listOf("1"), search(de.openspri.domain.availability.AvailabilityQuery(latitude = 52.5, longitude = 13.3, radiusMeters = 50)))
+        assertEquals(listOf("1", "2"), search(de.openspri.domain.availability.AvailabilityQuery(latitude = 52.5, longitude = 13.3, radiusMeters = 200)))
+        assertEquals(listOf("1"), search(de.openspri.domain.availability.AvailabilityQuery(de.openspri.domain.availability.AddressFilter(homeId = "Q1"))))
+        assertEquals(listOf("1", "2", "3"), search(de.openspri.domain.availability.AvailabilityQuery(de.openspri.domain.availability.AddressFilter(postalCode = "54321", street = "Quell"))))
+
+        val delta = partnerLocations.applyDelta(partner, listOf(
+            location("1", "52.5000", "13.3000", listOf("Q1"), "FTTH 250", de.openspri.domain.availability.ChangeMark.MOD),
+            location("2", "52.5010", "13.3000", change = de.openspri.domain.availability.ChangeMark.DEL),
+            location("4", null, null, change = de.openspri.domain.availability.ChangeMark.ADD),
+        ))
+        assertEquals(Triple(1, 1, 1), delta)
+        assertEquals(listOf("1", "3", "4"), search(de.openspri.domain.availability.AvailabilityQuery(de.openspri.domain.availability.AddressFilter(postalCode = "54321"))))
+        assertEquals("FTTH 250", partnerLocations.search(partner, de.openspri.domain.availability.AvailabilityQuery(de.openspri.domain.availability.AddressFilter(homeId = "Q1"))).single().products.single().product)
+        assertEquals(true, availabilitySources.delete(source.id!!))
     }
 
     @Test

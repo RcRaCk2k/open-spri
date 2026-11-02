@@ -124,6 +124,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/availability/order-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Treffer in einen NEU-Auftrag übernehmen
+         * @description Vorbefüllt nach Replikat 1.7 Kap. 4: Adresse (StandortA), HomeID (Vormieter), Produkt und weitere Produkte als Positionen, Zeitfenster, bei Konnektivitätsauftrag die Position „Konnektivität“. `missing` nennt, was vor POST /orders zu ergänzen ist.
+         */
+        post: operations["orderTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/availability/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Verfügbarkeit bei den Partnern suchen
+         * @description Über alle Partner mit aktiver Quelle (Replikat lokal oder Online-Abfrage). Adresse (`s`, `o` als Präfix), HomeID, Adress-ID oder Koordinaten (`lat`, `long`, `radius` in Metern, nur Replikat).
+         */
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/availability/sites": {
         parameters: {
             query?: never;
@@ -141,7 +181,7 @@ export interface paths {
          * Eigenen Standort anlegen
          * @description Body: Datensatz in Replikat-Feldnamen; geprüft gegen Replikat.xsd 1.7. 409 bei gleichem Standort.
          */
-        post: operations["create_6"];
+        post: operations["create_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -178,13 +218,13 @@ export interface paths {
         /** Eigenen Standort lesen */
         get: operations["site"];
         /** Eigenen Standort ändern */
-        put: operations["update_2"];
+        put: operations["update_3"];
         post?: never;
         /**
          * Eigenen Standort löschen
          * @description Im nächsten Deltareplikat erscheint er mit DEL.
          */
-        delete: operations["delete_2"];
+        delete: operations["delete_3"];
         options?: never;
         head?: never;
         patch?: never;
@@ -542,7 +582,7 @@ export interface paths {
          * Auftrag anlegen (Entwurf) oder sofort senden
          * @description Prüft gegen XSD und Anlage 1. Ohne `send` entsteht ein Entwurf (201, Phase DRAFT), der mit POST /orders/{id}/send gesendet wird. Mit `send=true` prüft open-spri zusätzlich die Auftragsregeln und legt den Auftrag sofort in den Postausgang (202). Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.
          */
-        post: operations["create_5"];
+        post: operations["create_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -745,7 +785,7 @@ export interface paths {
         get: operations["list_4"];
         put?: never;
         /** Partner anlegen */
-        post: operations["create_4"];
+        post: operations["create_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -807,7 +847,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Partner ändern */
-        patch: operations["update_4"];
+        patch: operations["update_5"];
         trace?: never;
     };
     "/api/v1/partners/{id}/certificates": {
@@ -1092,7 +1132,7 @@ export interface paths {
          * Produkt anlegen
          * @description Sobald ein aktives Produkt (Rolle LEISTUNGSERBRINGER) für einen Partner gilt, prüft open-spri dessen Aufträge gegen den Katalog.
          */
-        post: operations["create_3"];
+        post: operations["create_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1109,13 +1149,13 @@ export interface paths {
         /** Produkt lesen */
         get: operations["get_2"];
         /** Produkt ändern */
-        put: operations["update_1"];
+        put: operations["update_2"];
         post?: never;
         /**
          * Produkt löschen
          * @description Bestehende Aufträge bleiben unverändert; zum Auslaufen lassen besser `active=false`.
          */
-        delete: operations["delete_1"];
+        delete: operations["delete_2"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1231,6 +1271,88 @@ export interface paths {
         /**
          * Replikat für einen Partner jetzt erzeugen
          * @description Ersetzt die Dateien des heutigen Tages.
+         */
+        post: operations["run_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/replikat/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quellen für die Verfügbarkeit der Partner */
+        get: operations["sources"];
+        put?: never;
+        /**
+         * Quelle anlegen
+         * @description REPLIKAT: täglicher Import um 07:00 (`OPENSPRI_REPLIKAT_IMPORT_CRON`) mit MD5- und XSD-Prüfung. ONLINE: Suche fragt die Instanz des Partners. Das Geheimnis wird mit OPENSPRI_MASTER_KEY verschlüsselt gespeichert.
+         */
+        post: operations["create_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/replikat/sources/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Quelle ändern
+         * @description Ohne `secret` bleibt das hinterlegte Geheimnis.
+         */
+        put: operations["update_1"];
+        post?: never;
+        /** Quelle löschen */
+        delete: operations["delete_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/replikat/sources/{id}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Importläufe einer Quelle
+         * @description Neueste zuerst.
+         */
+        get: operations["imports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/replikat/sources/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replikat jetzt importieren
+         * @description Metadatei von heute, sonst von gestern; Fehler stehen im Ergebnis (status FAILED).
          */
         post: operations["run"];
         delete?: never;
@@ -1401,7 +1523,7 @@ export interface paths {
          * Benutzer ändern
          * @description Name, Rolle, Sperre oder Passwort.
          */
-        patch: operations["update_3"];
+        patch: operations["update_4"];
         trace?: never;
     };
     "/api/v1/webhooks": {
@@ -1837,6 +1959,16 @@ export interface components {
             kind: string;
             messageType?: string | null;
         };
+        /** @description Ein Treffer der Verfügbarkeitssuche */
+        HitDto: {
+            /** @description Datensatz in Replikat-Feldnamen: Produkte (pl), Ausbaustatus, Bereitstellungszeit, Eigentümerdaten … */
+            ds: components["schemas"]["JsonNode"];
+            /** Format: int64 */
+            partnerId: number;
+            partnerName: string;
+            /** @description REPLIKAT oder ONLINE */
+            source: string;
+        };
         /** @description Ergebnis eines Imports eigener Standorte */
         ImportDto: {
             /** Format: int32 */
@@ -1850,6 +1982,31 @@ export interface components {
              * @description Standorte danach
              */
             total: number;
+        };
+        /** @description Ein Importlauf eines Replikats */
+        ImportRunDto: {
+            /** Format: int32 */
+            added: number;
+            /** Format: int32 */
+            changed: number;
+            /** Format: int32 */
+            deleted: number;
+            delta: boolean;
+            error?: string | null;
+            fileName?: string | null;
+            /** Format: date-time */
+            finishedAt: string;
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            records: number;
+            /** Format: date */
+            replikatDate?: string | null;
+            /** Format: date-time */
+            startedAt: string;
+            /** @description OK oder FAILED */
+            status: string;
+            warnings: string[];
         };
         /** @description Eine eingegangene Nachricht in der Verarbeitung */
         InboxDto: {
@@ -2030,6 +2187,28 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        /** @description Vorbefüllter NEU-Auftrag (Replikat 1.7 Kap. 4); vor `POST /orders` zu ergänzen */
+        OrderTemplateDto: {
+            /** @description `auftrag` wie bei POST /orders, unvollständig */
+            auftrag: components["schemas"]["JsonNode"];
+            /** @description Hinweise aus dem Replikat, z. B. Konnektivitätsauftrag oder Eigentümerdaten */
+            hints: string[];
+            /** @description Felder, die der Auftraggeber ergänzen muss */
+            missing: string[];
+            /** Format: int64 */
+            partnerId: number;
+        };
+        /** @description Treffer, aus dem ein NEU-Auftrag werden soll */
+        OrderTemplateRequest: {
+            /** @description der Datensatz aus der Suche (`ds`) */
+            ds: components["schemas"]["JsonNode"];
+            /** @description HomeID, falls der Standort mehrere bedient */
+            hid?: string | null;
+            /** Format: int64 */
+            partnerId: number;
+            /** @description gewünschte Produkte; das erste wird Produkt der Auftragsposition, weitere werden Positionen. Leer = erstes Produkt */
+            products?: string[];
+        };
         /** @description Ein Partner */
         PartnerDto: {
             /** @description Outbound-IPs des Partners, die unseren Endpunkt aufrufen dürfen (CIDR) */
@@ -2188,6 +2367,14 @@ export interface components {
              */
             newDate: string;
         };
+        /** @description Ergebnis der Suche; Partner, die nicht antworteten, stehen in `errors` */
+        SearchResultDto: {
+            /** @description Partner-ID → Fehler */
+            errors: {
+                [key: string]: string;
+            };
+            hits: components["schemas"]["HitDto"][];
+        };
         /** @description Eine Meldung zu einem Auftrag. Kopf, externe Auftragsnummer und Auftraggebernummer übernimmt open-spri aus dem Auftrag. */
         SendMessageRequest: {
             /** @description weitere `meldungsattribute` des XSD-Typs `Meldungsattribute<Typ>Type`, z. B. `{"verbindlicherLiefertermin": "2026-12-01"}` bei ABM */
@@ -2256,6 +2443,31 @@ export interface components {
             id: number;
             /** Format: date-time */
             updatedAt: string;
+        };
+        /** @description Quelle für die Verfügbarkeit eines Partners (Auftraggeber) */
+        SourceDto: {
+            /** @description REPLIKAT: Deltareplikat anwenden, wenn der Vortag importiert ist */
+            delta?: boolean;
+            enabled?: boolean;
+            /** @description ist ein Geheimnis hinterlegt */
+            readonly hasSecret?: boolean;
+            /** Format: int64 */
+            readonly id?: number | null;
+            /** @description REPLIKAT (täglicher Download) oder ONLINE (Online-Abfrage an eine open-spri-Instanz) */
+            kind: string;
+            /**
+             * Format: int32
+             * @description importierte Standorte (REPLIKAT)
+             */
+            readonly locations?: number | null;
+            /** Format: int64 */
+            partnerId: number;
+            /** @description Passwort bzw. Token; nur schreiben, wird nie zurückgegeben */
+            secret?: string | null;
+            /** @description REPLIKAT: Download-Verzeichnis, z. B. https://spri.partner.example/replikat/; ONLINE: Basis-URL der Instanz */
+            url: string;
+            /** @description Benutzer für Basic-Auth; leer = das Geheimnis wird als Bearer-Token gesendet */
+            username?: string | null;
         };
         /** @description Kündigung durch den Leistungserbringer (KUE-LE): Inhalt der KDLE (MeldungsattributeKDLEType) */
         TerminationRequest: {
@@ -2523,6 +2735,64 @@ export interface operations {
             };
         };
     };
+    orderTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderTemplateDto"];
+                };
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query?: {
+                plz?: string;
+                o?: string;
+                s?: string;
+                h?: string;
+                hz?: string;
+                aid?: string;
+                hid?: string;
+                lat?: number;
+                long?: number;
+                /** @description Umkreis in Metern (Standard 50) */
+                radius?: number;
+                /** @description nur bei diesem Partner */
+                partnerId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResultDto"];
+                };
+            };
+        };
+    };
     sites: {
         parameters: {
             query?: {
@@ -2553,7 +2823,7 @@ export interface operations {
             };
         };
     };
-    create_6: {
+    create_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -2629,7 +2899,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -2655,7 +2925,7 @@ export interface operations {
             };
         };
     };
-    delete_2: {
+    delete_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -3131,7 +3401,7 @@ export interface operations {
             };
         };
     };
-    create_5: {
+    create_6: {
         parameters: {
             query?: {
                 /** @description true: sofort senden statt Entwurf */
@@ -3439,7 +3709,7 @@ export interface operations {
             };
         };
     };
-    create_4: {
+    create_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -3525,7 +3795,7 @@ export interface operations {
             };
         };
     };
-    update_4: {
+    update_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -4089,7 +4359,7 @@ export interface operations {
             };
         };
     };
-    create_3: {
+    create_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -4135,7 +4405,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -4161,7 +4431,7 @@ export interface operations {
             };
         };
     };
-    delete_1: {
+    delete_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -4322,7 +4592,7 @@ export interface operations {
             };
         };
     };
-    run: {
+    run_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -4340,6 +4610,142 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReplikatFileDto"][];
+                };
+            };
+        };
+    };
+    sources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceDto"][];
+                };
+            };
+        };
+    };
+    create_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceDto"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceDto"];
+                };
+            };
+        };
+    };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceDto"];
+                };
+            };
+        };
+    };
+    delete_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    imports: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRunDto"][];
+                };
+            };
+        };
+    };
+    run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRunDto"];
                 };
             };
         };
@@ -4611,7 +5017,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;

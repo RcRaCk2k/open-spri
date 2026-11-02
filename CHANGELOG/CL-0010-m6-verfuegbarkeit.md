@@ -29,14 +29,35 @@ Als Leistungserbringer müssen wir unsere Verfügbarkeiten täglich als Replikat
 - Migration V13: `availability_site`, `replikat_release`, `replikat_snapshot`, `replikat_export_state`, `api_token.partner_id`.
 - SA-018 (Client-Zertifikat beim Download); SA-003 als umgesetzt markiert. Doku: `docs/api/verfuegbarkeit.md`, `auth.md`, `betrieb.md`.
 
+### Teil 3: Auftraggeber – Quellen, Import, Suche, Auftragsvorlage
+- **Quellen (`AvailabilitySources`):** je Partner `REPLIKAT` (Download-Verzeichnis) oder `ONLINE` (andere open-spri-Instanz). Zugangsdaten mit Basic-Auth oder als Bearer-Token, verschlüsselt mit `OPENSPRI_MASTER_KEY`. REST `GET/POST /replikat/sources`, `PUT/DELETE /replikat/sources/{id}`.
+- **Import (`ReplikatImporter`):** täglich (`openspri.replikat.import-cron`, Standard 07:00) und per `POST /replikat/sources/{id}/run`.
+  - Metadatei von heute, sonst von gestern; ist der Tag schon importiert, passiert nichts
+  - Delta nur auf dem Import des Vortags
+  - MD5- und XSD-Prüfung, Grenze 1 GiB entpackt
+  - Warnungen für einen abweichenden Carrier Code und für unplausible Koordinaten (SA-017)
+  - jeder Lauf steht in `replikat_import` (`GET …/imports`)
+- **Suche (`AvailabilitySearch`, SPI `AvailabilityProvider`):**
+  - `ReplikatProvider` sucht im importierten Bestand nach Adresse, HomeID, Adress-ID oder Koordinaten mit Umkreis
+  - `OnlineProvider` fragt die Instanz des Partners
+  - Ein Partner, der nicht antwortet, steht in `errors`
+  - REST `GET /availability/search`
+- **Auftragsvorlage (`ReplikatOrderTemplate`):** `POST /availability/order-template` übernimmt einen Treffer nach Replikat 1.7 Kap. 4 in einen NEU-Auftrag: StandortA, HomeID, Produkt und Positionen, Konnektivität, Zeitfenster. Die Antwort nennt, was noch fehlt.
+- Migration V14: `availability_source`, `replikat_import`, `partner_location` (mit Koordinaten für die Umkreissuche)
+
 ## Auswirkungen
 - S/PRI-Schnittstelle: keine Änderung
 - Build: neues Modul `replikat`, Download der Replikat-Anlagen
-- REST-API: `/availability`, `/availability/sites…`, `/replikat/releases…`; Partnerzugriff `/replikat/…`
+- REST-API: `/availability`, `/availability/sites…`, `/replikat/releases…`; Partnerzugriff `/replikat/…`; Auftraggeber `/replikat/sources…`, `/availability/search`, `/availability/order-template`
 - Sicherheit: Rolle `PARTNER`, Scopes `partner:availability` und `availability:admin`; Basic-Auth mit API-Token
-- Datenbank: V13
-- Konfiguration: `OPENSPRI_REPLIKAT_EXPORT_CRON`
+- Datenbank: V13, V14
+- Konfiguration: `OPENSPRI_REPLIKAT_EXPORT_CRON`, `OPENSPRI_REPLIKAT_IMPORT_CRON`
 
 ## Tests
+- Teil 3:
+  - `ReplikatImporterTest`: Vollimport, Delta am Folgetag, kein zweites Anwenden, Replikat von gestern, MD5-Fehler ohne Änderung am Bestand, Plausibilitätswarnung
+  - `ReplikatOrderTemplateTest`: Abbildung nach Kap. 4, fremde Produkte und HomeIDs
+  - `AvailabilityApiTest`: Die Instanz importiert ihr eigenes Replikat über `/replikat/` mit Partner-Token und fragt sich selbst online ab. Geprüft werden Suche nach Adresse, HomeID und Umkreis sowie die Auftragsvorlage.
+  - `ApplicationIntegrationTest`: V14 auf MariaDB, Umkreissuche, Delta
 - Teil 2: `ReplikatExporterTest` (Voll- und Deltareplikat über drei Tage mit ADD, MOD, DEL, UCH; Felder und Kontingente der Freigabe; 31 Tage); `ReplikatXmlTest` (250 Datensätze ohne Leerraum); `AvailabilityApiTest` (Standorte per REST, CSV und Replikat-Import mit XSD-Prüfung und Zeilennummern; Freigabe, Export, Download mit Bearer und Basic-Auth, MD5 aus der Metadatei, XSD des gelieferten Replikats, 401/403/404, fremde IP, Online-Abfrage mit vereinbarten Feldern); `ApplicationIntegrationTest` (alle neuen Tabellen auf MariaDB)
 - Teil 1: `ReplikatXmlTest` (die drei Beispiel-XMLs der Anlage 3 sind gültig, lesbar und überstehen Lesen → Schreiben → Prüfen → Lesen unverändert; Felder des Konnektivitätsbeispiels; ungültiges Replikat mit Zeilennummer; Paket mit ZIP, Metadatei und MD5)

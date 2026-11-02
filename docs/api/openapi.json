@@ -243,6 +243,141 @@
         "tags" : [ "Verfügbarkeit" ]
       }
     },
+    "/api/v1/availability/order-template" : {
+      "post" : {
+        "description" : "Vorbefüllt nach Replikat 1.7 Kap. 4: Adresse (StandortA), HomeID (Vormieter), Produkt und weitere Produkte als Positionen, Zeitfenster, bei Konnektivitätsauftrag die Position „Konnektivität“. `missing` nennt, was vor POST /orders zu ergänzen ist.",
+        "operationId" : "orderTemplate",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OrderTemplateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderTemplateDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Treffer in einen NEU-Auftrag übernehmen",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/availability/search" : {
+      "get" : {
+        "description" : "Über alle Partner mit aktiver Quelle (Replikat lokal oder Online-Abfrage). Adresse (`s`, `o` als Präfix), HomeID, Adress-ID oder Koordinaten (`lat`, `long`, `radius` in Metern, nur Replikat).",
+        "operationId" : "search",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "plz",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "o",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "s",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "h",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "hz",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "aid",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "hid",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lat",
+          "required" : false,
+          "schema" : {
+            "type" : "number",
+            "format" : "double"
+          }
+        }, {
+          "in" : "query",
+          "name" : "long",
+          "required" : false,
+          "schema" : {
+            "type" : "number",
+            "format" : "double"
+          }
+        }, {
+          "description" : "Umkreis in Metern (Standard 50)",
+          "in" : "query",
+          "name" : "radius",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        }, {
+          "description" : "nur bei diesem Partner",
+          "in" : "query",
+          "name" : "partnerId",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SearchResultDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Verfügbarkeit bei den Partnern suchen",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
     "/api/v1/availability/sites" : {
       "get" : {
         "description" : "Neueste zuerst; `s` und `o` als Präfix. Blättern mit `cursor`.",
@@ -334,7 +469,7 @@
       },
       "post" : {
         "description" : "Body: Datensatz in Replikat-Feldnamen; geprüft gegen Replikat.xsd 1.7. 409 bei gleichem Standort.",
-        "operationId" : "create_6",
+        "operationId" : "create_7",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -423,7 +558,7 @@
     "/api/v1/availability/sites/{id}" : {
       "delete" : {
         "description" : "Im nächsten Deltareplikat erscheint er mit DEL.",
-        "operationId" : "delete_2",
+        "operationId" : "delete_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -468,7 +603,7 @@
         "tags" : [ "Verfügbarkeit" ]
       },
       "put" : {
-        "operationId" : "update_2",
+        "operationId" : "update_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -1254,7 +1389,7 @@
       },
       "post" : {
         "description" : "Prüft gegen XSD und Anlage 1. Ohne `send` entsteht ein Entwurf (201, Phase DRAFT), der mit POST /orders/{id}/send gesendet wird. Mit `send=true` prüft open-spri zusätzlich die Auftragsregeln und legt den Auftrag sofort in den Postausgang (202). Die Zustellung läuft asynchron (GET /deliveries?orderId=…). 400: Inhalt ungültig, 409: fachlich nicht zulässig.",
-        "operationId" : "create_5",
+        "operationId" : "create_6",
         "parameters" : [ {
           "description" : "true: sofort senden statt Entwurf",
           "in" : "query",
@@ -1688,7 +1823,7 @@
         "tags" : [ "Partner" ]
       },
       "post" : {
-        "operationId" : "create_4",
+        "operationId" : "create_5",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -1783,7 +1918,7 @@
         "tags" : [ "Partner" ]
       },
       "patch" : {
-        "operationId" : "update_4",
+        "operationId" : "update_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2655,7 +2790,7 @@
       },
       "post" : {
         "description" : "Sobald ein aktives Produkt (Rolle LEISTUNGSERBRINGER) für einen Partner gilt, prüft open-spri dessen Aufträge gegen den Katalog.",
-        "operationId" : "create_3",
+        "operationId" : "create_4",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -2685,7 +2820,7 @@
     "/api/v1/products/{id}" : {
       "delete" : {
         "description" : "Bestehende Aufträge bleiben unverändert; zum Auslaufen lassen besser `active=false`.",
-        "operationId" : "delete_1",
+        "operationId" : "delete_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2730,7 +2865,7 @@
         "tags" : [ "Produkte" ]
       },
       "put" : {
-        "operationId" : "update_1",
+        "operationId" : "update_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2979,7 +3114,7 @@
     "/api/v1/replikat/releases/{partnerId}/run" : {
       "post" : {
         "description" : "Ersetzt die Dateien des heutigen Tages.",
-        "operationId" : "run",
+        "operationId" : "run_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "partnerId",
@@ -3005,6 +3140,184 @@
           }
         },
         "summary" : "Replikat für einen Partner jetzt erzeugen",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/replikat/sources" : {
+      "get" : {
+        "operationId" : "sources",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SourceDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Quellen für die Verfügbarkeit der Partner",
+        "tags" : [ "Verfügbarkeit" ]
+      },
+      "post" : {
+        "description" : "REPLIKAT: täglicher Import um 07:00 (`OPENSPRI_REPLIKAT_IMPORT_CRON`) mit MD5- und XSD-Prüfung. ONLINE: Suche fragt die Instanz des Partners. Das Geheimnis wird mit OPENSPRI_MASTER_KEY verschlüsselt gespeichert.",
+        "operationId" : "create_3",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SourceDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SourceDto"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Quelle anlegen",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/replikat/sources/{id}" : {
+      "delete" : {
+        "operationId" : "delete_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Quelle löschen",
+        "tags" : [ "Verfügbarkeit" ]
+      },
+      "put" : {
+        "description" : "Ohne `secret` bleibt das hinterlegte Geheimnis.",
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SourceDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SourceDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Quelle ändern",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/replikat/sources/{id}/imports" : {
+      "get" : {
+        "description" : "Neueste zuerst.",
+        "operationId" : "imports",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 30
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ImportRunDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Importläufe einer Quelle",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/replikat/sources/{id}/run" : {
+      "post" : {
+        "description" : "Metadatei von heute, sonst von gestern; Fehler stehen im Ergebnis (status FAILED).",
+        "operationId" : "run",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ImportRunDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Replikat jetzt importieren",
         "tags" : [ "Verfügbarkeit" ]
       }
     },
@@ -3313,7 +3626,7 @@
     "/api/v1/users/{id}" : {
       "patch" : {
         "description" : "Name, Rolle, Sperre oder Passwort.",
-        "operationId" : "update_3",
+        "operationId" : "update_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -4199,6 +4512,28 @@
         },
         "required" : [ "at", "changeIndicator", "codes", "direction", "findings", "kind" ]
       },
+      "HitDto" : {
+        "type" : "object",
+        "description" : "Ein Treffer der Verfügbarkeitssuche",
+        "properties" : {
+          "ds" : {
+            "$ref" : "#/components/schemas/JsonNode",
+            "description" : "Datensatz in Replikat-Feldnamen: Produkte (pl), Ausbaustatus, Bereitstellungszeit, Eigentümerdaten …"
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "partnerName" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string",
+            "description" : "REPLIKAT oder ONLINE"
+          }
+        },
+        "required" : [ "ds", "partnerId", "partnerName", "source" ]
+      },
       "ImportDto" : {
         "type" : "object",
         "description" : "Ergebnis eines Imports eigener Standorte",
@@ -4222,6 +4557,64 @@
           }
         },
         "required" : [ "added", "changed", "deleted", "total" ]
+      },
+      "ImportRunDto" : {
+        "type" : "object",
+        "description" : "Ein Importlauf eines Replikats",
+        "properties" : {
+          "added" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "changed" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "deleted" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "delta" : {
+            "type" : "boolean"
+          },
+          "error" : {
+            "type" : [ "string", "null" ]
+          },
+          "fileName" : {
+            "type" : [ "string", "null" ]
+          },
+          "finishedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "records" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "replikatDate" : {
+            "type" : [ "string", "null" ],
+            "format" : "date"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string",
+            "description" : "OK oder FAILED"
+          },
+          "warnings" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "added", "changed", "deleted", "delta", "finishedAt", "id", "records", "startedAt", "status", "warnings" ]
       },
       "InboxDto" : {
         "type" : "object",
@@ -4647,6 +5040,61 @@
         },
         "required" : [ "businessCase", "cancelled", "createdAt", "externalOrderNumber", "finished", "id", "openRequests", "partnerId", "phase", "products", "role", "updatedAt" ]
       },
+      "OrderTemplateDto" : {
+        "type" : "object",
+        "description" : "Vorbefüllter NEU-Auftrag (Replikat 1.7 Kap. 4); vor `POST /orders` zu ergänzen",
+        "properties" : {
+          "auftrag" : {
+            "$ref" : "#/components/schemas/JsonNode",
+            "description" : "`auftrag` wie bei POST /orders, unvollständig"
+          },
+          "hints" : {
+            "type" : "array",
+            "description" : "Hinweise aus dem Replikat, z. B. Konnektivitätsauftrag oder Eigentümerdaten",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "missing" : {
+            "type" : "array",
+            "description" : "Felder, die der Auftraggeber ergänzen muss",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "auftrag", "hints", "missing", "partnerId" ]
+      },
+      "OrderTemplateRequest" : {
+        "type" : "object",
+        "description" : "Treffer, aus dem ein NEU-Auftrag werden soll",
+        "properties" : {
+          "ds" : {
+            "$ref" : "#/components/schemas/JsonNode",
+            "description" : "der Datensatz aus der Suche (`ds`)"
+          },
+          "hid" : {
+            "type" : [ "string", "null" ],
+            "description" : "HomeID, falls der Standort mehrere bedient"
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "products" : {
+            "type" : "array",
+            "description" : "gewünschte Produkte; das erste wird Produkt der Auftragsposition, weitere werden Positionen. Leer = erstes Produkt",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "ds", "partnerId" ]
+      },
       "PartnerDto" : {
         "type" : "object",
         "description" : "Ein Partner",
@@ -4950,6 +5398,26 @@
         },
         "required" : [ "newDate" ]
       },
+      "SearchResultDto" : {
+        "type" : "object",
+        "description" : "Ergebnis der Suche; Partner, die nicht antworteten, stehen in `errors`",
+        "properties" : {
+          "errors" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "description" : "Partner-ID → Fehler"
+          },
+          "hits" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HitDto"
+            }
+          }
+        },
+        "required" : [ "errors", "hits" ]
+      },
       "SendMessageRequest" : {
         "type" : "object",
         "description" : "Eine Meldung zu einem Auftrag. Kopf, externe Auftragsnummer und Auftraggebernummer übernimmt open-spri aus dem Auftrag.",
@@ -5086,6 +5554,57 @@
           }
         },
         "required" : [ "ds", "id", "updatedAt" ]
+      },
+      "SourceDto" : {
+        "type" : "object",
+        "description" : "Quelle für die Verfügbarkeit eines Partners (Auftraggeber)",
+        "properties" : {
+          "delta" : {
+            "type" : "boolean",
+            "description" : "REPLIKAT: Deltareplikat anwenden, wenn der Vortag importiert ist"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "hasSecret" : {
+            "type" : "boolean",
+            "description" : "ist ein Geheimnis hinterlegt",
+            "readOnly" : true
+          },
+          "id" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "readOnly" : true
+          },
+          "kind" : {
+            "type" : "string",
+            "description" : "REPLIKAT (täglicher Download) oder ONLINE (Online-Abfrage an eine open-spri-Instanz)"
+          },
+          "locations" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "description" : "importierte Standorte (REPLIKAT)",
+            "readOnly" : true
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "secret" : {
+            "type" : [ "string", "null" ],
+            "description" : "Passwort bzw. Token; nur schreiben, wird nie zurückgegeben",
+            "writeOnly" : true
+          },
+          "url" : {
+            "type" : "string",
+            "description" : "REPLIKAT: Download-Verzeichnis, z. B. https://spri.partner.example/replikat/; ONLINE: Basis-URL der Instanz"
+          },
+          "username" : {
+            "type" : [ "string", "null" ],
+            "description" : "Benutzer für Basic-Auth; leer = das Geheimnis wird als Bearer-Token gesendet"
+          }
+        },
+        "required" : [ "kind", "partnerId", "url" ]
       },
       "TerminationRequest" : {
         "type" : "object",

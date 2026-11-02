@@ -46,6 +46,8 @@ services:
       OPENSPRI_EVENTS_RETENTION: ${OPENSPRI_EVENTS_RETENTION:-90d}
       # daily Replikat of our availabilities (Leistungserbringer), ready before 06:00 (docs/api/verfuegbarkeit.md)
       OPENSPRI_REPLIKAT_EXPORT_CRON: ${OPENSPRI_REPLIKAT_EXPORT_CRON:-0 0 3 * * *}
+      # daily import of the partners' Replikate (Auftraggeber), after they are due at 06:00
+      OPENSPRI_REPLIKAT_IMPORT_CRON: ${OPENSPRI_REPLIKAT_IMPORT_CRON:-0 0 7 * * *}
       # e-mail notifications (optional; without SPRING_MAIL_HOST they are only logged)
       SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
       SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}

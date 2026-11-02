@@ -398,3 +398,65 @@ class InMemoryAvailability :
     override fun load(partnerId: PartnerId) = states[partnerId].orEmpty()
     override fun replace(partnerId: PartnerId, state: Map<de.openspri.domain.availability.LocationKey, de.openspri.domain.availability.Location>) { states[partnerId] = state }
 }
+
+/** Sources, imports and imported locations of the partners (Auftraggeber, M6). */
+class InMemoryPartnerAvailability :
+    de.openspri.domain.availability.AvailabilitySources,
+    de.openspri.domain.availability.ReplikatImports,
+    de.openspri.domain.availability.PartnerLocations {
+    val sources: MutableList<de.openspri.domain.availability.AvailabilitySource> = java.util.concurrent.CopyOnWriteArrayList()
+    val imports: MutableList<de.openspri.domain.availability.ReplikatImport> = java.util.concurrent.CopyOnWriteArrayList()
+    val locations = java.util.concurrent.ConcurrentHashMap<PartnerId, MutableMap<de.openspri.domain.availability.LocationKey, de.openspri.domain.availability.Location>>()
+    private var nextId = 1L
+
+    override fun list() = sources.sortedBy { it.id }
+    override fun get(id: Long) = sources.firstOrNull { it.id == id }
+
+    @Synchronized
+    override fun save(source: de.openspri.domain.availability.AvailabilitySource): de.openspri.domain.availability.AvailabilitySource {
+        if (source.id != null && sources.none { it.id == source.id }) throw NoSuchElementException("Quelle ${source.id} existiert nicht")
+        val stored = if (source.id == null) source.copy(id = nextId++) else source
+        sources.removeIf { it.id == stored.id }
+        sources += stored
+        return stored
+    }
+
+    override fun delete(id: Long) = sources.removeIf { it.id == id }
+
+    @Synchronized
+    override fun record(entry: de.openspri.domain.availability.ReplikatImport) = entry.copy(id = nextId++).also { imports += it }
+    override fun list(sourceId: Long, limit: Int) = imports.filter { it.sourceId == sourceId }.sortedByDescending { it.id }.take(limit)
+    override fun last(sourceId: Long) = list(sourceId, 1).firstOrNull()
+
+    override fun replaceAll(partnerId: PartnerId, locations: List<de.openspri.domain.availability.Location>) {
+        this.locations[partnerId] = locations.associateBy { it.key }.toMutableMap()
+    }
+
+    override fun applyDelta(partnerId: PartnerId, records: List<de.openspri.domain.availability.Location>): Triple<Int, Int, Int> {
+        val map = locations.getOrPut(partnerId) { java.util.concurrent.ConcurrentHashMap() }
+        var added = 0; var changed = 0; var deleted = 0
+        records.forEach { r ->
+            when (r.change) {
+                de.openspri.domain.availability.ChangeMark.DEL -> if (map.remove(r.key) != null) deleted++
+                de.openspri.domain.availability.ChangeMark.UCH -> Unit
+                else -> { if (map.put(r.key, r.copy(change = null)) == null) added++ else changed++ }
+            }
+        }
+        return Triple(added, changed, deleted)
+    }
+
+    override fun search(partnerId: PartnerId, query: de.openspri.domain.availability.AvailabilityQuery) = locations[partnerId].orEmpty().values.filter { l ->
+        val a = query.address
+        fun prefix(value: String?, f: String?) = f.isNullOrBlank() || value.orEmpty().lowercase().startsWith(f.lowercase())
+        fun equal(value: String?, f: String?) = f.isNullOrBlank() || value.orEmpty().equals(f, ignoreCase = true)
+        val geo = !query.geo || run {
+            val lat = l.latitude?.toDoubleOrNull(); val long = l.longitude?.toDoubleOrNull()
+            lat != null && long != null && Math.abs(lat - query.latitude!!) <= query.radiusMeters / 111_320.0 &&
+                Math.abs(long - query.longitude!!) <= query.radiusMeters / (111_320.0 * Math.cos(Math.toRadians(query.latitude)))
+        }
+        geo && equal(l.postalCode, a.postalCode) && prefix(l.city, a.city) && prefix(l.street, a.street) && equal(l.houseNumber, a.houseNumber) &&
+            equal(l.houseNumberSuffix, a.houseNumberSuffix) && equal(l.addressId, a.addressId) && (a.homeId.isNullOrBlank() || a.homeId in l.homeIds)
+    }.take(query.address.limit)
+
+    override fun count(partnerId: PartnerId) = locations[partnerId]?.size ?: 0
+}

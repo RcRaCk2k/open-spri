@@ -33,7 +33,7 @@ import kotlin.test.assertTrue
 @SpringBootTest(
     classes = [SoapInMemoryTestApplication::class],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["openspri.inbox.initial-delay=1h", "openspri.outbox.initial-delay=1h"],
+    properties = ["openspri.inbox.initial-delay=1h", "openspri.outbox.initial-delay=1h", "openspri.master-key=AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI="],
 )
 class AvailabilityApiTest(@Autowired private val tokens: ApiTokens, @Autowired private val settings: InMemorySettings) {
     @LocalServerPort
@@ -133,9 +133,55 @@ class AvailabilityApiTest(@Autowired private val tokens: ApiTokens, @Autowired p
         assertEquals(403, call("GET", "/api/v1/availability?plz=12345&s=Muster", token = admin).statusCode())
     }
 
-    private fun location(house: String) = Location(
+    @Test
+    fun `as Auftraggeber - Replikat import and online query against an instance, search and order template`() {
+        call("POST", "/api/v1/availability/sites/import", ByteArrayOutputStream().also {
+            ReplikatXml.write(it, ReplikatHeader(LocalDate.now(), "TSTNZ", false), sequenceOf(location("30"), location("31", homeIds = listOf("HID-31"))))
+        }.toByteArray(), type = "application/xml")
+        // the instance is its own partner: it releases its Replikat to "Tstnz" and imports it from there
+        val self = partner("Tstnz", "127.0.0.1/32")
+        call("PUT", "/api/v1/replikat/releases/$self", """{"partnerId":$self}""".toByteArray())
+        call("POST", "/api/v1/replikat/releases/$self/run")
+        val partnerToken = tokens.issue("Tstnz", Role.PARTNER, null, null, null, "test", Instant.now(), partnerId = self).plainText
+
+        val sourceBody = """{"partnerId":$self,"kind":"REPLIKAT","url":"http://127.0.0.1:$port/replikat/","username":"tstnz","secret":"$partnerToken","delta":true}"""
+        val source = call("POST", "/api/v1/replikat/sources", sourceBody.toByteArray())
+        assertEquals(201, source.statusCode(), text(source))
+        assertTrue(partnerToken !in text(source), "the secret is never returned")
+        assertContains(text(source), "\"hasSecret\":true")
+        val sourceId = Regex("\"id\":(\\d+)").find(text(source))!!.groupValues[1]
+        assertEquals(400, call("POST", "/api/v1/replikat/sources", sourceBody.replace("http://", "ftp://").toByteArray()).statusCode())
+
+        val run = call("POST", "/api/v1/replikat/sources/$sourceId/run")
+        assertEquals(200, run.statusCode(), text(run))
+        assertContains(text(run), "\"status\":\"OK\"")
+        assertContains(text(call("GET", "/api/v1/replikat/sources/$sourceId/imports")), "TSTNZ_")
+
+        val byAddress = text(call("GET", "/api/v1/availability/search?plz=12345&s=Muster&h=30"))
+        assertContains(byAddress, "\"source\":\"REPLIKAT\"")
+        assertContains(byAddress, "\"h\":\"30\"")
+        assertContains(text(call("GET", "/api/v1/availability/search?hid=HID-31")), "\"h\":\"31\"")
+        assertContains(text(call("GET", "/api/v1/availability/search?lat=52.5&long=13.3&radius=100")), "\"h\":\"31\"")
+        assertEquals("""{"hits":[],"errors":{}}""", text(call("GET", "/api/v1/availability/search?lat=48.1&long=11.5")))
+        assertEquals(400, call("GET", "/api/v1/availability/search").statusCode())
+
+        val online = call("POST", "/api/v1/replikat/sources", """{"partnerId":$self,"kind":"ONLINE","url":"http://127.0.0.1:$port","secret":"$partnerToken"}""".toByteArray())
+        assertEquals(201, online.statusCode(), text(online))
+        val both = text(call("GET", "/api/v1/availability/search?plz=12345&s=Musterstraße&h=31&partnerId=$self"))
+        assertContains(both, "\"source\":\"ONLINE\"")
+        assertContains(both, "\"source\":\"REPLIKAT\"")
+
+        val ds = Regex("\"ds\":(\\{.*?\"pl\":\\[.*?]})").find(both)!!.groupValues[1]
+        val template = call("POST", "/api/v1/availability/order-template", """{"partnerId":$self,"ds":$ds,"products":["FTTH 100"]}""".toByteArray())
+        assertEquals(200, template.statusCode(), text(template))
+        assertContains(text(template), "\"hausnummer\":\"31\"")
+        assertContains(text(template), "externeAuftragsnummer")
+        assertEquals(400, call("POST", "/api/v1/availability/order-template", """{"partnerId":$self,"ds":$ds,"products":["DSL 16"]}""".toByteArray()).statusCode())
+    }
+
+    private fun location(house: String, homeIds: List<String> = emptyList()) = Location(
         addressId = "AID-$house", longitude = "13.3", latitude = "52.5", postalCode = "12345", city = "Musterstadt", street = "Musterstraße", houseNumber = house,
         products = listOf(ProductAvailability("FTTH 100", "FTTH", downstream = "100", upstream = "40")),
-        technologies = listOf(TechnologyAvailability("FTTH", expansionStatus = "homesConnected")),
+        technologies = listOf(TechnologyAvailability("FTTH", expansionStatus = "homesConnected", homeIds = homeIds)),
     )
 }

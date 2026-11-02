@@ -103,3 +103,94 @@ Die Online-Abfrage antwortet mit einer Liste von Datensätzen im JSON-Format obe
 | 404 | Datei existiert nicht (mehr) |
 
 Die Replikat-Spezifikation verlangt beim Download zusätzlich ein Client-Zertifikat. Das lässt sich am Reverse-Proxy einrichten (SA-018, Vorlage mit M8).
+
+## Als Auftraggeber
+
+### Quellen (`availability:read`, Ändern mit `availability:admin`)
+
+Je Partner gibt es eine oder mehrere Quellen:
+
+| `kind` | `url` | Verhalten |
+|---|---|---|
+| `REPLIKAT` | Download-Verzeichnis des Partners, z. B. `https://spri.partner.example/replikat/` | täglicher Import, Suche im lokalen Bestand |
+| `ONLINE` | Basis-URL einer anderen open-spri-Instanz | jede Suche fragt `GET <url>/api/v1/availability` |
+
+Zugangsdaten: Mit `username` wird Basic-Auth gesendet, ohne `username` geht das `secret` als Bearer-Token. Bei einer open-spri-Instanz ist das ein Partner-Token, das der Partner für uns ausgestellt hat. Das Geheimnis wird mit `OPENSPRI_MASTER_KEY` verschlüsselt gespeichert und nie zurückgegeben (`hasSecret`). Ohne Master-Key antwortet die API mit 409.
+
+```bash
+# Replikat-Quelle mit Deltareplikat
+curl -s -X POST $SPRI/api/v1/replikat/sources -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"partnerId": 7, "kind": "REPLIKAT", "url": "https://spri.partner.example/replikat/", "username": "testnetz", "secret": "'$PARTNER_TOKEN'", "delta": true}'
+
+# Online-Abfrage an eine open-spri-Instanz
+curl -s -X POST $SPRI/api/v1/replikat/sources -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"partnerId": 8, "kind": "ONLINE", "url": "https://spri.partner2.example", "secret": "'$PARTNER2_TOKEN'"}'
+
+# Ändern ohne secret behält das hinterlegte Geheimnis; löschen
+curl -s -X PUT $SPRI/api/v1/replikat/sources/1 -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"partnerId": 7, "kind": "REPLIKAT", "url": "https://spri.partner.example/replikat/", "username": "testnetz", "delta": true, "enabled": false}'
+curl -s -X DELETE $SPRI/api/v1/replikat/sources/2 -H "Authorization: Bearer $TOKEN"
+```
+
+### Import
+
+Der Import läuft täglich um 07:00 (`OPENSPRI_REPLIKAT_IMPORT_CRON`), nachdem die Partner ihre Replikate bis 06:00 bereitgestellt haben (Replikat 3.1). Ablauf je Quelle:
+
+1. Metadatei `<CarrierCode>_<JJJJMMTT>_meta.xml` von heute laden, sonst die von gestern. Der Carrier Code ist der aus den Partnerdaten.
+2. Ist das Replikat dieses Tages schon importiert, passiert nichts (Ergebnis mit Hinweis „bereits importiert“). Ein Deltareplikat wird also nie zweimal angewendet.
+3. Ein Deltareplikat (`<CC>_<JJJJMMTT>_delta.zip`, SA-016) wird nur genommen, wenn `delta` gesetzt ist und der Vortag erfolgreich importiert wurde. Sonst wird das Vollreplikat importiert.
+4. Die Datei wird geladen und ihre MD5 mit der Metadatei verglichen. Danach wird sie gegen die `Replikat.xsd` 1.7 geprüft (höchstens 1 GiB entpackt).
+5. Ein Vollreplikat ersetzt den Bestand des Partners. Ein Delta wird nach `ak` angewendet: ADD und MOD ersetzen, DEL löscht.
+
+Schlägt ein Schritt fehl, bleibt der Bestand unverändert und der Lauf steht mit `FAILED` und Grund in der Liste. Warnungen ändern nichts am Import, zum Beispiel ein abweichender Carrier Code oder Koordinaten außerhalb Deutschlands (vertauscht, SA-017).
+
+```bash
+curl -s -X POST $SPRI/api/v1/replikat/sources/1/run -H "Authorization: Bearer $TOKEN"     # jetzt importieren
+curl -s "$SPRI/api/v1/replikat/sources/1/imports?limit=10" -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{"id": 12, "status": "OK", "fileName": "GFNORD_20261102_delta.zip", "replikatDate": "2026-11-02", "delta": true,
+ "records": 3, "added": 1, "changed": 1, "deleted": 1, "warnings": [], "error": null, "startedAt": "…", "finishedAt": "…"}
+```
+
+### Suche
+
+`GET /api/v1/availability/search` sucht über alle Partner mit aktiver Quelle. Bei Replikat-Quellen wird im importierten Bestand gesucht, bei Online-Quellen wird die Instanz des Partners gefragt. Mögliche Kriterien:
+
+- Adresse: `plz`, `o`, `s`, `h`, `hz`; `o` und `s` gelten als Präfix
+- `hid` (HomeID) oder `aid` (Adress-ID)
+- Koordinaten: `lat`, `long`, `radius` in Metern (Standard 50, höchstens 5000), nur bei Replikat-Quellen
+
+Mit `partnerId` wird nur bei diesem Partner gesucht. Ein Partner, der nicht antwortet, verhindert die Antwort nicht: Er steht mit dem Grund in `errors`.
+
+```bash
+curl -s "$SPRI/api/v1/availability/search?plz=12345&s=Muster&h=1" -H "Authorization: Bearer $TOKEN"
+curl -s "$SPRI/api/v1/availability/search?lat=52.5263&long=13.3143&radius=100" -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{"hits": [{"partnerId": 7, "partnerName": "Glasfaser Nord", "source": "REPLIKAT", "ds": {"plz": "12345", "s": "Musterstraße", "h": "1", "pl": [ … ], "tl": [ … ]}}],
+ "errors": {"8": "HTTP 503 von https://spri.partner2.example/api/v1/availability?…"}}
+```
+
+### Treffer in einen Auftrag übernehmen
+
+`POST /api/v1/availability/order-template` erzeugt aus einem Treffer einen vorbefüllten NEU-Auftrag. Die Abbildung folgt Kapitel 4 der Replikat-Spezifikation:
+
+| Replikat | Auftrag (`geschaeftsfall`) |
+|---|---|
+| `plz`, `o`, `ot`, `s`, `h`, `hz` | `auftragsposition/geschaeftsfallProdukt/standortA` |
+| `gebaeudeteil` | `standortA/gebaeudeteil/gebaeudeteilName` |
+| HomeID (`hidl`) | `geschaeftsfallProdukt/vormieter/homeId/homeIdNummer` |
+| erstes gewähltes Produkt | `auftragsposition/produkt/bezeichner` |
+| weitere Produkte | je eine `auftragsposition/position` |
+| `auftragsart` = `KONNEKTIVITAET` | zusätzliche Position „Konnektivität“ |
+| `zl` (Zeitfenster) | `termine/auftraggeberWunschtermin/zeitfenster` (nur S/PRI-Werte 1 bis 20) |
+
+Produkte und HomeID müssen zum Standort gehören, sonst kommt 400. Bedient der Standort mehrere HomeIDs und ist keine gewählt, steht das in `missing`. `missing` nennt außerdem alles, was vor `POST /orders` noch fehlt, etwa die externe Auftragsnummer, den Endkunden und den Wunschtermin. `hints` gibt Hinweise aus dem Replikat weiter, zum Beispiel, dass Eigentümerdaten verlangt werden.
+
+```bash
+curl -s -X POST $SPRI/api/v1/availability/order-template -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"partnerId": 7, "ds": { … Treffer … }, "products": ["FTTH 100", "Feste IP-Adresse"], "hid": "HID1"}'
+```
