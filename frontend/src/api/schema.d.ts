@@ -609,6 +609,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/compose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Auftrag aus einfachen Angaben zusammensetzen
+         * @description Liefert das `auftrag`-JSON des Geschäftsfalls in der Struktur der XSD (mit `@type`) für POST /orders, ohne es zu speichern. Nur Angegebenes wird übernommen; `missing` nennt, was der Geschäftsfall noch braucht. Geprüft wird erst bei POST /orders.
+         */
+        post: operations["compose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{id}": {
         parameters: {
             query?: never;
@@ -1635,6 +1655,16 @@ export interface components {
             /** @description bei REQUEST: STORNO, TERMINVERSCHIEBUNG oder REKLAMATION */
             request?: string | null;
         };
+        /** @description Anschrift des Standorts */
+        AddressDto: {
+            buildingPart?: string | null;
+            city?: string | null;
+            district?: string | null;
+            houseNumber?: string | null;
+            houseNumberSuffix?: string | null;
+            postalCode?: string | null;
+            street?: string | null;
+        };
         /** @description Erster Administrator */
         AdminAccount: {
             /** @example Administration */
@@ -1812,6 +1842,51 @@ export interface components {
             /** @description der Entstörauftrag mit `reklamation` (wie bei POST /orders) */
             auftrag: components["schemas"]["JsonNode"];
         };
+        /** @description Einfache Angaben, aus denen open-spri das `auftrag`-JSON des Geschäftsfalls zusammensetzt */
+        ComposeOrderRequest: {
+            /**
+             * @description NEU, KUE-AG, AEN-LMAE, LAE, PV, EST, DIAG-GET, DIAG-SET
+             * @example NEU
+             */
+            businessCase: string;
+            /** @description auftraggebernummer */
+            clientNumber?: string | null;
+            /** @description Ansprechpartner Auftragsmanagement */
+            contact?: components["schemas"]["PartyDto"] | null;
+            /** @description KUE-AG, AEN-LMAE, LAE, EST, DIAG: Vertragsnummer aus dem Bestand */
+            contractNumber?: string | null;
+            /**
+             * Format: date
+             * @description auftraggeberWunschtermin
+             */
+            desiredDate?: string | null;
+            externalOrderNumber?: string | null;
+            fault?: components["schemas"]["FaultDto"] | null;
+            homeId?: string | null;
+            /** @description Leitungen im Bestand und PV */
+            lineId?: string | null;
+            /** @description DIAG: Operationen, z. B. BBdown, BBup oder RESET */
+            operations?: string[];
+            /** @description VorabstimmungsID (WBCI), Pflicht bei PV */
+            preAgreementId?: string | null;
+            /** @description erstes = Produkt der Auftragsposition, weitere = Positionen (AEN-LMAE: hinzugefügte Leistungsmerkmale) */
+            products?: string[];
+            /** @description leistungsnummer */
+            serviceNumber?: string | null;
+            /** @description Standort A (NEU, PV) */
+            site?: components["schemas"]["AddressDto"] | null;
+            /** @description Endkunde am Standort (NEU, PV) */
+            siteParty?: components["schemas"]["PartyDto"] | null;
+            /** @description Zeitfenster des Wunschtermins (1 bis 20) */
+            timeWindow?: string | null;
+        };
+        /** @description Das zusammengesetzte `auftrag`-JSON; noch nicht geprüft und nicht gespeichert */
+        ComposedOrderDto: {
+            /** @description für POST /orders (Feldnamen der XSD) */
+            auftrag: components["schemas"]["JsonNode"];
+            /** @description was der Geschäftsfall noch braucht (XSD-Pfade) */
+            missing: string[];
+        };
         /** @description Rahmenvertrag: Auftraggeber- und Leistungsnummer, unter denen Aufträge laufen */
         ContractDto: {
             /**
@@ -1980,6 +2055,19 @@ export interface components {
              */
             type: string;
         };
+        /** @description Angaben zur Störung (EST) */
+        FaultDto: {
+            /** @description kontaktaufnahmeErwuenscht */
+            contactWanted?: boolean;
+            /** @description kontaktEndkunde */
+            customer?: components["schemas"]["PartyDto"] | null;
+            /** @description stoerungsbeschreibung */
+            description?: string | null;
+            /** @description stoerungsNrAuftraggeber */
+            number?: string | null;
+            /** @description vorpruefungErfolgt */
+            preChecked?: boolean;
+        };
         /** @description Ein Eintrag im Verlauf: Auftrag, Änderung oder Meldung mit den Befunden der Prüfungen */
         HistoryDto: {
             /**
@@ -2069,6 +2157,32 @@ export interface components {
             receivedAt: string;
             /** @description RECEIVED, PROCESSED oder FAILED */
             status: string;
+        };
+        /** @description Ein Vertrag im Bestand */
+        InventoryContractDto: {
+            clientNumber?: string | null;
+            contractNumber: string;
+            /**
+             * Format: date-time
+             * @description Ende (Kündigung, Providerwechsel); leer = aktiv
+             */
+            endedAt?: string | null;
+            /** Format: int64 */
+            id: number;
+            lineId: string;
+            /**
+             * Format: int64
+             * @description Auftrag, mit dem der Vertrag entstand
+             */
+            orderId?: number | null;
+            /** Format: int64 */
+            partnerId: number;
+            products: string[];
+            /** @description unsere Rolle: AUFTRAGGEBER (wir nutzen die Leitung des Partners) oder LEISTUNGSERBRINGER (der Partner nutzt unsere) */
+            role: string;
+            serviceNumber?: string | null;
+            /** Format: date-time */
+            startedAt: string;
         };
         JsonNode: {
             array?: boolean;
@@ -2271,6 +2385,19 @@ export interface components {
             name: string;
             /** @description technischer Kontakt; erhält die Ausfall-Mail (11.2.3.2) */
             technicalContactEmail?: string | null;
+        };
+        /** @description Person (`salutation` 1 Herr, 2 Frau, 9 keine Anrede) oder mit `company` eine Firma */
+        PartyDto: {
+            /** @description Firmenname; dann wird `firma` statt `person` gesetzt */
+            company?: string | null;
+            /** @example Erika */
+            firstName?: string | null;
+            /** @example Musterfrau */
+            lastName?: string | null;
+            /** @example 0123 456789 */
+            phone?: string | null;
+            /** @example 2 */
+            salutation?: string | null;
         };
         /** @description Vollmacht: der Auftraggeber erlaubt dem Besteller, in seinem Namen zu bestellen (R-11) */
         PowerOfAttorneyDto: {
@@ -3247,7 +3374,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContractDto"][];
+                    "application/json": components["schemas"]["InventoryContractDto"][];
                 };
             };
         };
@@ -3269,7 +3396,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContractDto"][];
+                    "application/json": components["schemas"]["InventoryContractDto"][];
                 };
             };
         };
@@ -3498,6 +3625,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderDetailDto"];
+                };
+            };
+        };
+    };
+    compose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComposeOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComposedOrderDto"];
                 };
             };
         };

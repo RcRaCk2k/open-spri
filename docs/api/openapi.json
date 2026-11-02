@@ -1111,7 +1111,7 @@
                 "schema" : {
                   "type" : "array",
                   "items" : {
-                    "$ref" : "#/components/schemas/ContractDto"
+                    "$ref" : "#/components/schemas/InventoryContractDto"
                   }
                 }
               }
@@ -1142,7 +1142,7 @@
                 "schema" : {
                   "type" : "array",
                   "items" : {
-                    "$ref" : "#/components/schemas/ContractDto"
+                    "$ref" : "#/components/schemas/InventoryContractDto"
                   }
                 }
               }
@@ -1519,6 +1519,36 @@
           }
         },
         "summary" : "Auftrag anlegen (Entwurf) oder sofort senden",
+        "tags" : [ "Aufträge" ]
+      }
+    },
+    "/api/v1/orders/compose" : {
+      "post" : {
+        "description" : "Liefert das `auftrag`-JSON des Geschäftsfalls in der Struktur der XSD (mit `@type`) für POST /orders, ohne es zu speichern. Nur Angegebenes wird übernommen; `missing` nennt, was der Geschäftsfall noch braucht. Geprüft wird erst bei POST /orders.",
+        "operationId" : "compose",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ComposeOrderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ComposedOrderDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Auftrag aus einfachen Angaben zusammensetzen",
         "tags" : [ "Aufträge" ]
       }
     },
@@ -3941,6 +3971,33 @@
         },
         "required" : [ "kind" ]
       },
+      "AddressDto" : {
+        "type" : "object",
+        "description" : "Anschrift des Standorts",
+        "properties" : {
+          "buildingPart" : {
+            "type" : [ "string", "null" ]
+          },
+          "city" : {
+            "type" : [ "string", "null" ]
+          },
+          "district" : {
+            "type" : [ "string", "null" ]
+          },
+          "houseNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "houseNumberSuffix" : {
+            "type" : [ "string", "null" ]
+          },
+          "postalCode" : {
+            "type" : [ "string", "null" ]
+          },
+          "street" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
       "AdminAccount" : {
         "type" : "object",
         "description" : "Erster Administrator",
@@ -4280,6 +4337,116 @@
         },
         "required" : [ "auftrag" ]
       },
+      "ComposeOrderRequest" : {
+        "type" : "object",
+        "description" : "Einfache Angaben, aus denen open-spri das `auftrag`-JSON des Geschäftsfalls zusammensetzt",
+        "properties" : {
+          "businessCase" : {
+            "type" : "string",
+            "description" : "NEU, KUE-AG, AEN-LMAE, LAE, PV, EST, DIAG-GET, DIAG-SET",
+            "example" : "NEU"
+          },
+          "clientNumber" : {
+            "type" : [ "string", "null" ],
+            "description" : "auftraggebernummer"
+          },
+          "contact" : {
+            "description" : "Ansprechpartner Auftragsmanagement",
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/PartyDto"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "contractNumber" : {
+            "type" : [ "string", "null" ],
+            "description" : "KUE-AG, AEN-LMAE, LAE, EST, DIAG: Vertragsnummer aus dem Bestand"
+          },
+          "desiredDate" : {
+            "type" : [ "string", "null" ],
+            "format" : "date",
+            "description" : "auftraggeberWunschtermin"
+          },
+          "externalOrderNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "fault" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/FaultDto"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "homeId" : {
+            "type" : [ "string", "null" ]
+          },
+          "lineId" : {
+            "type" : [ "string", "null" ],
+            "description" : "Leitungen im Bestand und PV"
+          },
+          "operations" : {
+            "type" : "array",
+            "description" : "DIAG: Operationen, z. B. BBdown, BBup oder RESET",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "preAgreementId" : {
+            "type" : [ "string", "null" ],
+            "description" : "VorabstimmungsID (WBCI), Pflicht bei PV"
+          },
+          "products" : {
+            "type" : "array",
+            "description" : "erstes = Produkt der Auftragsposition, weitere = Positionen (AEN-LMAE: hinzugefügte Leistungsmerkmale)",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "serviceNumber" : {
+            "type" : [ "string", "null" ],
+            "description" : "leistungsnummer"
+          },
+          "site" : {
+            "description" : "Standort A (NEU, PV)",
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/AddressDto"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "siteParty" : {
+            "description" : "Endkunde am Standort (NEU, PV)",
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/PartyDto"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "timeWindow" : {
+            "type" : [ "string", "null" ],
+            "description" : "Zeitfenster des Wunschtermins (1 bis 20)"
+          }
+        },
+        "required" : [ "businessCase" ]
+      },
+      "ComposedOrderDto" : {
+        "type" : "object",
+        "description" : "Das zusammengesetzte `auftrag`-JSON; noch nicht geprüft und nicht gespeichert",
+        "properties" : {
+          "auftrag" : {
+            "$ref" : "#/components/schemas/JsonNode",
+            "description" : "für POST /orders (Feldnamen der XSD)"
+          },
+          "missing" : {
+            "type" : "array",
+            "description" : "was der Geschäftsfall noch braucht (XSD-Pfade)",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "auftrag", "missing" ]
+      },
       "ContractDto" : {
         "type" : "object",
         "description" : "Rahmenvertrag: Auftraggeber- und Leistungsnummer, unter denen Aufträge laufen",
@@ -4586,6 +4753,36 @@
         },
         "required" : [ "at", "codes", "findings", "id", "partnerId", "type" ]
       },
+      "FaultDto" : {
+        "type" : "object",
+        "description" : "Angaben zur Störung (EST)",
+        "properties" : {
+          "contactWanted" : {
+            "type" : "boolean",
+            "description" : "kontaktaufnahmeErwuenscht"
+          },
+          "customer" : {
+            "description" : "kontaktEndkunde",
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/PartyDto"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "description" : {
+            "type" : [ "string", "null" ],
+            "description" : "stoerungsbeschreibung"
+          },
+          "number" : {
+            "type" : [ "string", "null" ],
+            "description" : "stoerungsNrAuftraggeber"
+          },
+          "preChecked" : {
+            "type" : "boolean",
+            "description" : "vorpruefungErfolgt"
+          }
+        }
+      },
       "HistoryDto" : {
         "type" : "object",
         "description" : "Ein Eintrag im Verlauf: Auftrag, Änderung oder Meldung mit den Befunden der Prüfungen",
@@ -4776,6 +4973,57 @@
           }
         },
         "required" : [ "archiveId", "id", "operation", "partnerId", "receivedAt", "status" ]
+      },
+      "InventoryContractDto" : {
+        "type" : "object",
+        "description" : "Ein Vertrag im Bestand",
+        "properties" : {
+          "clientNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "contractNumber" : {
+            "type" : "string"
+          },
+          "endedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "Ende (Kündigung, Providerwechsel); leer = aktiv"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lineId" : {
+            "type" : "string"
+          },
+          "orderId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "Auftrag, mit dem der Vertrag entstand"
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "products" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "role" : {
+            "type" : "string",
+            "description" : "unsere Rolle: AUFTRAGGEBER (wir nutzen die Leitung des Partners) oder LEISTUNGSERBRINGER (der Partner nutzt unsere)"
+          },
+          "serviceNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "contractNumber", "id", "lineId", "partnerId", "products", "role", "startedAt" ]
       },
       "JsonNode" : {
         "type" : "object",
@@ -5256,6 +5504,32 @@
           }
         },
         "required" : [ "allowedSourceNetworks", "carrierCode", "certificates", "enabled", "id", "name" ]
+      },
+      "PartyDto" : {
+        "type" : "object",
+        "description" : "Person (`salutation` 1 Herr, 2 Frau, 9 keine Anrede) oder mit `company` eine Firma",
+        "properties" : {
+          "company" : {
+            "type" : [ "string", "null" ],
+            "description" : "Firmenname; dann wird `firma` statt `person` gesetzt"
+          },
+          "firstName" : {
+            "type" : [ "string", "null" ],
+            "example" : "Erika"
+          },
+          "lastName" : {
+            "type" : [ "string", "null" ],
+            "example" : "Musterfrau"
+          },
+          "phone" : {
+            "type" : [ "string", "null" ],
+            "example" : "0123 456789"
+          },
+          "salutation" : {
+            "type" : [ "string", "null" ],
+            "example" : "2"
+          }
+        }
       },
       "PowerOfAttorneyDto" : {
         "type" : "object",

@@ -18,6 +18,7 @@ import de.openspri.rest.auth.Requires
 import de.openspri.rest.auth.currentActor
 import de.openspri.soap.NotFoundException
 import de.openspri.soap.OrderCommands
+import de.openspri.soap.OrderComposer
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -112,6 +113,26 @@ class OrderController(
         val order = commands.submitOrder(PartnerId(body.partnerId), body.auftrag, overrides)
         audit.record(currentActor(), "order.submit", "order:${order.id!!.value}", "partner=${body.partnerId} number=${order.data.externalOrderNumber}" + overrideNote(overrides))
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(detail(order.id!!))
+    }
+
+    @PostMapping("/compose", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    @PreAuthorize(Requires.ORDERS_WRITE)
+    @Operation(
+        summary = "Auftrag aus einfachen Angaben zusammensetzen",
+        description = "Liefert das `auftrag`-JSON des Geschäftsfalls in der Struktur der XSD (mit `@type`) für POST /orders, ohne es zu speichern. " +
+            "Nur Angegebenes wird übernommen; `missing` nennt, was der Geschäftsfall noch braucht. Geprüft wird erst bei POST /orders.",
+    )
+    fun compose(@RequestBody body: ComposeOrderRequest): ComposedOrderDto {
+        val case = runCatching { BusinessCase.fromCode(body.businessCase) }.getOrNull()
+            ?: throw IllegalArgumentException("businessCase: erlaubt sind ${OrderComposer.SUPPORTED.joinToString { it.code }}")
+        val composed = OrderComposer.compose(
+            OrderComposer.Input(
+                case, body.externalOrderNumber, body.clientNumber, body.serviceNumber, body.desiredDate, body.contact?.toComposer(),
+                body.contractNumber, body.lineId, body.preAgreementId, body.products, body.siteParty?.toComposer(), body.site?.toComposer(),
+                body.homeId, body.fault?.toComposer(), body.operations, body.timeWindow,
+            ),
+        )
+        return ComposedOrderDto(composed.auftrag, composed.missing)
     }
 
     @GetMapping("/{id}/draft")

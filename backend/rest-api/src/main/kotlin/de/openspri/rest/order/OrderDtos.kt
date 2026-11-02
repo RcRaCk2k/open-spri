@@ -4,6 +4,7 @@ import de.openspri.domain.order.Order
 import de.openspri.domain.order.OrderEvent
 import de.openspri.domain.order.OrderHistoryEntry
 import de.openspri.domain.order.OutboundOrderService
+import de.openspri.soap.OrderComposer
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED
 import tools.jackson.databind.JsonNode
@@ -177,4 +178,65 @@ data class PvReplyRequest(
     @field:Schema(description = "antwortcode, z. B. bei Ablehnung") val answerCode: String? = null,
     @field:Schema(description = "antworttext") val answerText: String? = null,
     @field:Schema(requiredMode = REQUIRED) val codes: List<CodeDto>,
+)
+
+@Schema(description = "Person (`salutation` 1 Herr, 2 Frau, 9 keine Anrede) oder mit `company` eine Firma")
+data class PartyDto(
+    @field:Schema(example = "2") val salutation: String? = null,
+    @field:Schema(example = "Erika") val firstName: String? = null,
+    @field:Schema(example = "Musterfrau") val lastName: String? = null,
+    @field:Schema(description = "Firmenname; dann wird `firma` statt `person` gesetzt") val company: String? = null,
+    @field:Schema(example = "0123 456789") val phone: String? = null,
+) {
+    fun toComposer() = OrderComposer.Party(salutation, firstName, lastName, company, phone)
+}
+
+@Schema(description = "Anschrift des Standorts")
+data class AddressDto(
+    val street: String? = null,
+    val houseNumber: String? = null,
+    val houseNumberSuffix: String? = null,
+    val postalCode: String? = null,
+    val city: String? = null,
+    val district: String? = null,
+    val buildingPart: String? = null,
+) {
+    fun toComposer() = OrderComposer.Address(street, houseNumber, houseNumberSuffix, postalCode, city, district, buildingPart)
+}
+
+@Schema(description = "Angaben zur Störung (EST)")
+data class FaultDto(
+    @field:Schema(description = "stoerungsNrAuftraggeber") val number: String? = null,
+    @field:Schema(description = "stoerungsbeschreibung") val description: String? = null,
+    @field:Schema(description = "vorpruefungErfolgt") val preChecked: Boolean = false,
+    @field:Schema(description = "kontaktEndkunde") val customer: PartyDto? = null,
+    @field:Schema(description = "kontaktaufnahmeErwuenscht") val contactWanted: Boolean = false,
+) {
+    fun toComposer() = OrderComposer.Fault(number, description, preChecked, customer?.toComposer(), contactWanted)
+}
+
+@Schema(description = "Einfache Angaben, aus denen open-spri das `auftrag`-JSON des Geschäftsfalls zusammensetzt")
+data class ComposeOrderRequest(
+    @field:Schema(description = "NEU, KUE-AG, AEN-LMAE, LAE, PV, EST, DIAG-GET, DIAG-SET", example = "NEU", requiredMode = REQUIRED) val businessCase: String,
+    val externalOrderNumber: String? = null,
+    @field:Schema(description = "auftraggebernummer") val clientNumber: String? = null,
+    @field:Schema(description = "leistungsnummer") val serviceNumber: String? = null,
+    @field:Schema(description = "auftraggeberWunschtermin") val desiredDate: LocalDate? = null,
+    @field:Schema(description = "Ansprechpartner Auftragsmanagement") val contact: PartyDto? = null,
+    @field:Schema(description = "KUE-AG, AEN-LMAE, LAE, EST, DIAG: Vertragsnummer aus dem Bestand") val contractNumber: String? = null,
+    @field:Schema(description = "Leitungen im Bestand und PV") val lineId: String? = null,
+    @field:Schema(description = "VorabstimmungsID (WBCI), Pflicht bei PV") val preAgreementId: String? = null,
+    @field:Schema(description = "erstes = Produkt der Auftragsposition, weitere = Positionen (AEN-LMAE: hinzugefügte Leistungsmerkmale)") val products: List<String> = emptyList(),
+    @field:Schema(description = "Endkunde am Standort (NEU, PV)") val siteParty: PartyDto? = null,
+    @field:Schema(description = "Standort A (NEU, PV)") val site: AddressDto? = null,
+    val homeId: String? = null,
+    val fault: FaultDto? = null,
+    @field:Schema(description = "DIAG: Operationen, z. B. BBdown, BBup oder RESET") val operations: List<String> = emptyList(),
+    @field:Schema(description = "Zeitfenster des Wunschtermins (1 bis 20)") val timeWindow: String? = null,
+)
+
+@Schema(description = "Das zusammengesetzte `auftrag`-JSON; noch nicht geprüft und nicht gespeichert")
+data class ComposedOrderDto(
+    @field:Schema(description = "für POST /orders (Feldnamen der XSD)", requiredMode = REQUIRED) val auftrag: JsonNode,
+    @field:Schema(description = "was der Geschäftsfall noch braucht (XSD-Pfade)", requiredMode = REQUIRED) val missing: List<String>,
 )

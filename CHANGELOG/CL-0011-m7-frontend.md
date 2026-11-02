@@ -71,14 +71,45 @@ Bisher zeigte die Oberfläche nur eine Statusseite (M0). M7 bringt alle Seiten a
   - Fehlertexte in dunklerem Rot
   - deutsche Namen für die Schließen-Knöpfe von Dialogen und Meldungen; reduzierte Bewegung wird beachtet
 
+### Teil 3: Auftragsassistent, Verfügbarkeitssuche, Bestand
+- **Neuer Endpunkt `POST /api/v1/orders/compose`** (`OrderComposer` im Modul `spri-soap`):
+  - setzt aus einfachen Angaben das `auftrag`-JSON jedes Geschäftsfalls des Auftraggebers zusammen (NEU, KUE-AG, LAE, AEN-LMAE, PV, EST, DIAG-GET, DIAG-SET), mit allen `@type`-Angaben
+  - `missing` nennt fehlende XSD-Pfade, auch Pflichtfelder der XSD wie die Telefonnummer des Auftragsmanagements und den Vornamen im Endkundenkontakt.
+  - Die XSD-Kenntnis liegt damit im Backend, nicht im Frontend.
+- **Auftragsassistent** (`/orders/new`):
+  - Partner und Geschäftsfall wählen; danach zeigt der Assistent nur die Felder des Geschäftsfalls
+  - Leitung aus dem Bestand übernehmen; Produkte mit Vorschlägen aus dem Produktkatalog des Partners
+  - Endkunde (Person oder Firma) und Standort, Störung, Diagnose-Operationen
+  - „Prüfen und Vorschau“ zeigt fehlende Angaben und das XSD-JSON; das JSON lässt sich vor dem Speichern noch ändern
+  - Gespeichert wird als Entwurf; gesendet wird auf der Auftragsseite.
+- **Verfügbarkeitssuche** (`/availability`):
+  - Suche nach Adresse, HomeID/Adress-ID oder Koordinaten mit Umkreis, optional nur bei einem Partner
+  - Treffer mit Produkten, Bandbreiten, Ausbaustatus, Konnektivität, Eigentümerdaten und HomeIDs
+  - Partner ohne Antwort werden genannt.
+  - „Auftrag anlegen“: Produkte und HomeID wählen, `POST /availability/order-template` (Replikat 1.7 Kap. 4) liefert die Vorlage, der Assistent öffnet sich vorbefüllt mit den Hinweisen aus dem Replikat.
+- **Bestand** (`/inventory`):
+  - Verträge nach Rolle, LineID und aktiv/alle, mit Verweis auf den auslösenden Auftrag
+  - je aktiver Leitung des Partners die passenden Aufträge (KUE-AG, LAE, AEN-LMAE, EST, DIAG) im vorbefüllten Assistenten
+  - für unsere eigenen Leitungen die KDLE
+- **Fehler gefunden und behoben:**
+  - `InventoryController.ContractDto` und der Rahmenvertrag `AgreementController.ContractDto` hatten denselben Schemanamen. Die OpenAPI-Datei beschrieb `/inventory` deshalb mit den Feldern des Rahmenvertrags. Das Schema heißt jetzt `InventoryContractDto`. Die neue ArchUnit-Regel `restSchemaNamesAreUnique` verhindert solche Doppelungen künftig.
+  - Gefüllte Buttons fielen beim Überfahren mit der Maus auf einen Kontrast von 3,9:1. Die Hover-Farbe ist jetzt dunkler.
+
 ## Auswirkungen
 - S/PRI-Schnittstelle: keine Änderung
-- REST-API: neu `GET /api/v1/audit`
+- REST-API: neu `GET /api/v1/audit` und `POST /api/v1/orders/compose`; Schema `InventoryContractDto` statt des falsch zugeordneten `ContractDto` bei `/inventory` (die Felder der Antwort sind unverändert)
 - Datenbank: keine Migration
 - Konfiguration: keine; in der CI wird `OPENSPRI_MASTER_KEY` gesetzt
 - Betrieb: Die Ersteinrichtung geht jetzt vollständig in der Oberfläche.
 
 ## Tests
+- Teil 3:
+  - `OrderApiTest`: Für jeden der acht Geschäftsfälle wird ein Auftrag zusammengesetzt und als Entwurf gespeichert (XSD und Anlage 1 bestanden). Dazu fehlende Angaben, KUE-LE und unbekannter Geschäftsfall.
+  - `ArchitectureTest.restSchemaNamesAreUnique`, geprüft auch mit dem alten Namen (schlägt fehl)
+  - Playwright `new-order.spec.ts`:
+    - KUE-AG im Assistenten mit fehlenden Angaben, Vorschau und Entwurf
+    - Verfügbarkeit: Die Instanz gibt ihren Standort frei und fragt sich selbst online ab (Partner-Token, Online-Quelle). Danach Suche, Treffer, Auftragsvorlage und vorbefüllter Assistent.
+  - Vitest: Formular → Compose-Anfrage je Geschäftsfall, Vorbefüllung aus Auftragsvorlage und Bestand, Replikat-Datensatz lesen
 - Teil 2:
   - Playwright `orders.spec.ts`:
     - Partner und Entwurf entstehen über die API.

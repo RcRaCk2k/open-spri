@@ -6,7 +6,8 @@ import { api, call } from "../../api/client";
 import { ErrorAlert, Loading } from "../../components/Feedback";
 import { PhaseBadge } from "../../components/OrderBadges";
 import { formatDate, formatDateTime } from "../../format";
-import { usePartnerNames } from "../../hooks";
+import { hasScope, Scope } from "../../auth/scopes";
+import { usePartnerNames, useScopes } from "../../hooks";
 import { BUSINESS_CASES, PHASE_LABELS, REQUEST_LABELS, ROLE_NAMES } from "./labels";
 
 const PAGE = 50;
@@ -27,6 +28,7 @@ export function OrderListPage({ workQueue = false }: { workQueue?: boolean }) {
   };
   const [q] = useDebouncedValue(filter.q, 300);
   const partners = usePartnerNames();
+  const scopes = useScopes();
   const query = useInfiniteQuery({
     queryKey: ["orders", { ...filter, q }],
     initialPageParam: undefined as number | undefined,
@@ -46,7 +48,9 @@ export function OrderListPage({ workQueue = false }: { workQueue?: boolean }) {
     <Stack>
       <Group justify="space-between">
         <Title order={2}>{workQueue ? "Arbeitsvorrat Leistungserbringer" : "Aufträge"}</Title>
-        {workQueue && <Button component={Link} to="/terminations/new" variant="default">Kündigung durch uns (KDLE)</Button>}
+        {workQueue
+          ? <Button component={Link} to="/terminations/new" variant="default">Kündigung durch uns (KDLE)</Button>
+          : hasScope(scopes, Scope.ordersWrite) && <Button component={Link} to="/orders/new">Neuer Auftrag</Button>}
       </Group>
       {workQueue && <Text c="dimmed">Offene Aufträge unserer Partner an uns. Im Auftrag stehen die Meldungen, die jetzt zulässig sind.</Text>}
       <Group align="flex-end" role="search">

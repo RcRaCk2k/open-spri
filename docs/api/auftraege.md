@@ -119,6 +119,39 @@ Antwort 202 mit dem Auftrag wie bei `GET /orders/{id}`, Phase `SUBMITTED`. Mögl
 | 404 | Partner existiert nicht |
 | 409 | Auftragsnummer beim Partner schon vergeben (11.4), Wunschtermin außerhalb der Frist (R-05), Partner deaktiviert |
 
+#### Auftrag aus einfachen Angaben zusammensetzen
+
+Wer die XSD-Struktur nicht selbst bauen will, lässt sie von open-spri zusammensetzen. `POST /orders/compose` liefert das `auftrag`-JSON des Geschäftsfalls mit allen `@type`-Angaben. Es wird weder geprüft noch gespeichert. `missing` nennt die XSD-Pfade, die der Geschäftsfall noch braucht. Die Web-Oberfläche baut ihren Auftragsassistenten genau so.
+
+```bash
+curl -s -X POST $SPRI/api/v1/orders/compose -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{
+  "businessCase": "KUE-AG", "externalOrderNumber": "KUE-2026-0001", "clientNumber": "AG4711", "serviceNumber": "LN0815",
+  "desiredDate": "2027-01-31", "contact": {"lastName": "Auftragsmanagement", "phone": "0123 456789"},
+  "contractNumber": "V4711", "lineId": "DEU.GFNORD.0000000001"
+}'
+```
+
+```json
+{"auftrag": {"externeAuftragsnummer": "KUE-2026-0001", "auftraggeber": {…}, "geschaeftsfall": {"@type": "KuendigungType", "vertragsnummer": "V4711", …},
+             "geschaeftsfallArt": "Kuendigung", "aenderungskennzeichen": "Standard"},
+ "missing": []}
+```
+
+| Feld | Geschäftsfälle | wird zu |
+|---|---|---|
+| `businessCase` | alle außer KUE-LE | `@type` des Geschäftsfalls und `geschaeftsfallArt` |
+| `externalOrderNumber`, `clientNumber`, `serviceNumber` | alle | `externeAuftragsnummer`, `auftraggeber` |
+| `desiredDate`, `timeWindow` | alle außer DIAG | `termine/auftraggeberWunschtermin` (`datum`, `zeitfenster`) |
+| `contact` (`lastName`, `phone` Pflicht) | alle außer DIAG | `ansprechpartner/auftragsmanagement` |
+| `contractNumber`, `lineId` | KUE-AG, LAE, AEN-LMAE, EST, DIAG; `lineId` auch PV | `vertragsnummer`, `lineId` |
+| `preAgreementId` | PV (Pflicht), NEU, KUE-AG | `vorabstimmungId` |
+| `products` | NEU, PV, LAE, AEN-LMAE | erstes: `auftragsposition/produkt`; weitere: `position` (bei AEN-LMAE mit `aktionscode` A) |
+| `siteParty`, `site`, `homeId` | NEU, PV | `standortA` mit `person` oder `firma`, `vormieter/homeId` |
+| `fault` | EST | `stoerungsNrAuftraggeber`, `stoerungsbeschreibung`, `vorpruefungErfolgt`, `kontaktEndkunde` |
+| `operations` | DIAG-GET, DIAG-SET | `auftragsposition/parameter/operation` |
+
+Das Ergebnis geht unverändert oder ergänzt an `POST /orders`.
+
 #### Fehlerhafte Aufträge für KFT-Negativtests (ADR-0008)
 
 Einige KFT-Testfälle verlangen, dass wir als Auftraggeber absichtlich einen fehlerhaften Auftrag senden, damit der Leistungserbringer mit ABBM antwortet. open-spri weist solche Aufträge normalerweise mit 409 ab. Mit einem Token, das den Scope `orders:override` trägt, lassen sich einzelne Regeln übersteuern:

@@ -4,7 +4,7 @@ import { NAVIGATION, visibleNavigation } from "./navigation";
 describe("visibleNavigation", () => {
   it("shows only pages the scopes allow, in groups", () => {
     const viewer = visibleNavigation(["orders:read", "audit:read"]);
-    expect([...viewer.values()].flat().map((e) => e.path)).toEqual(["/", "/orders", "/work-queue", "/pv-requests", "/audit"]);
+    expect([...viewer.values()].flat().map((e) => e.path)).toEqual(["/", "/orders", "/work-queue", "/pv-requests", "/inventory", "/audit"]);
     const nothing = visibleNavigation([]);
     expect([...nothing.values()].flat().map((e) => e.path)).toEqual(["/"]);
   });

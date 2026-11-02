@@ -280,6 +280,42 @@ class OrderApiTest(
     }
 
     @Test
+    fun `compose builds a valid order for every business case of the Auftraggeber, missing fields are listed`() {
+        val date = LocalDate.now().plusDays(40)
+        val common = """"externalOrderNumber":"COMP-%s","clientNumber":"AG4711","serviceNumber":"LN0815","desiredDate":"$date",
+            "contact":{"salutation":"9","lastName":"Auftragsmanagement","phone":"0123 456789"},"contractNumber":"V-4711","lineId":"DEU.GFNORD.0000004711""""
+        val bodies = mapOf(
+            "NEU" to """"products":["FTTH 100","Feste IP-Adresse"],"homeId":"HID-0815","timeWindow":"3","siteParty":{"salutation":"2","firstName":"Erika","lastName":"Musterfrau"},
+                "site":{"street":"Musterstraße","houseNumber":"1","houseNumberSuffix":"a","postalCode":"12345","city":"Musterstadt","district":"Mitte","buildingPart":"Hinterhaus"}""",
+            "KUE-AG" to """"products":[]""",
+            "AEN-LMAE" to """"products":["FTTH 100","Feste IP-Adresse"]""",
+            "LAE" to """"products":["FTTH 250"]""",
+            "PV" to """"preAgreementId":"DEU.ABC.V000000001","products":["FTTH 100"],"siteParty":{"company":"Beispiel GmbH"},
+                "site":{"street":"Industrieweg","houseNumber":"7","postalCode":"12345","city":"Musterstadt"}""",
+            "EST" to """"fault":{"number":"ST-1","description":"Kein Sync am ONT","preChecked":true,"customer":{"salutation":"1","firstName":"Max","lastName":"Mustermann","phone":"0123 1"},"contactWanted":true}""",
+            "DIAG-GET" to """"operations":["BBdown","BBup"]""",
+            "DIAG-SET" to """"operations":["RESET"]""",
+        )
+        bodies.entries.forEachIndexed { i, (case, specific) ->
+            val composed = call("POST", "/api/v1/orders/compose", """{"businessCase":"$case",${common.format(i)},$specific}""", operatorAg)
+            assertEquals(200, composed.statusCode(), composed.body())
+            assertContains(composed.body(), "\"missing\":[]", message = "$case: ${composed.body()}")
+            val auftrag = Regex("\"auftrag\":(\\{.*}),\"missing\"").find(composed.body())!!.groupValues[1]
+            val draft = call("POST", "/api/v1/orders", """{"partnerId":77,"auftrag":$auftrag}""", operatorAg)
+            assertEquals(201, draft.statusCode(), "$case: ${draft.body()}")
+            assertContains(draft.body(), "\"businessCase\":\"$case\"")
+        }
+
+        val partial = call("POST", "/api/v1/orders/compose", """{"businessCase":"NEU","products":["FTTH 100"],"contact":{"lastName":"AM"}}""", operatorAg).body()
+        assertContains(partial, "auftragsmanagement/telefonnummer")
+        assertContains(partial, "externeAuftragsnummer")
+        assertContains(partial, "standortA/person oder firma")
+        assertContains(partial, "\"@type\":\"FTTXBereitstellungType\"")
+        assertEquals(400, call("POST", "/api/v1/orders/compose", """{"businessCase":"KUE-LE"}""", operatorAg).statusCode())
+        assertEquals(400, call("POST", "/api/v1/orders/compose", """{"businessCase":"XYZ"}""", operatorAg).statusCode())
+    }
+
+    @Test
     fun `message code table is readable`() {
         val codes = call("GET", "/api/v1/message-codes?messageType=QEB")
         assertEquals(200, codes.statusCode())

@@ -32,4 +32,17 @@ class ArchitectureTest {
         .that().resideInAPackage("de.openspri.domain..")
         .should().dependOnClassesThat().resideOutsideOfPackages("de.openspri.domain..", "java..", "kotlin..", "org.jetbrains..")
         .because("adapters depend on the domain, never the other way round")
+
+    /**
+     * springdoc names a schema after the simple class name: two DTOs with the same name end up as one schema, and one
+     * endpoint is documented with the wrong fields (found with InventoryController.ContractDto, M7).
+     */
+    @ArchTest
+    fun restSchemaNamesAreUnique(classes: com.tngtech.archunit.core.domain.JavaClasses) {
+        val schemas = classes
+            .filter { it.packageName.startsWith("de.openspri.rest") && it.isAnnotatedWith(io.swagger.v3.oas.annotations.media.Schema::class.java) }
+            .groupBy { c -> c.getAnnotationOfType(io.swagger.v3.oas.annotations.media.Schema::class.java).name.ifEmpty { c.simpleName } }
+            .filterValues { it.size > 1 }
+        kotlin.test.assertEquals(emptyMap(), schemas.mapValues { (_, v) -> v.map { it.name } }, "OpenAPI schema names must be unique")
+    }
 }

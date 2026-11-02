@@ -11,7 +11,7 @@ Die Web-Oberfläche ist eine React-Anwendung in `frontend/`. Sie nutzt **ausschl
 | `src/auth/` | Anmeldung (`useMe`), Setup-Status, Scopes |
 | `src/navigation.ts` | alle Seiten mit dem nötigen Scope; die Navigation zeigt nur erlaubte Seiten |
 | `src/App.tsx` | Routen; bis zur Ersteinrichtung führt jede Seite zum Assistenten, danach braucht jede Seite eine Anmeldung |
-| `src/pages/` | Seiten (Setup, Anmeldung, Dashboard, Audit-Log, Benutzer und Tokens …), `src/pages/orders/` für Aufträge, Arbeitsvorrat, Providerwechsel und KDLE |
+| `src/pages/` | Seiten (Setup, Anmeldung, Dashboard, Audit-Log, Benutzer und Tokens …), `src/pages/orders/` für Aufträge, Assistent, Arbeitsvorrat, Providerwechsel und KDLE, `src/pages/availability/` für die Verfügbarkeitssuche |
 | `src/theme.ts` | Mantine-Theme mit Farben, die WCAG 2.1 AA erfüllen |
 | `e2e/` | Playwright-Tests |
 

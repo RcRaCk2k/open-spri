@@ -27,7 +27,7 @@ import java.time.Instant
 class InventoryController(private val inventory: InventoryStore) {
 
     @Schema(description = "Ein Vertrag im Bestand")
-    data class ContractDto(
+    data class InventoryContractDto(
         @field:Schema(requiredMode = REQUIRED) val id: Long,
         @field:Schema(description = "unsere Rolle: AUFTRAGGEBER (wir nutzen die Leitung des Partners) oder LEISTUNGSERBRINGER (der Partner nutzt unsere)", requiredMode = REQUIRED)
         val role: String,
@@ -52,20 +52,20 @@ class InventoryController(private val inventory: InventoryStore) {
         @Parameter(description = "nur aktive Verträge") @RequestParam(defaultValue = "true") active: Boolean,
         @RequestParam(required = false) cursor: Long?,
         @RequestParam(defaultValue = "50") limit: Int,
-    ): List<ContractDto> = inventory.search(
+    ): List<InventoryContractDto> = inventory.search(
         InventoryFilter(role?.let { enumValue<OrderRole>(it, "role") }, partnerId?.let(::PartnerId), lineId, active, cursor, limit),
     ).map(::toDto)
 
     @GetMapping("/{lineId}")
     @PreAuthorize(Requires.ORDERS_READ)
     @Operation(summary = "Verträge einer Leitung", description = "Alle Verträge zur LineID, auch beendete, neueste zuerst.")
-    fun line(@PathVariable lineId: String): List<ContractDto> {
+    fun line(@PathVariable lineId: String): List<InventoryContractDto> {
         val contracts = inventory.search(InventoryFilter(lineId = lineId, activeOnly = false, limit = 500))
         if (contracts.isEmpty()) throw NoSuchElementException("Kein Vertrag zur LineID $lineId")
         return contracts.map(::toDto)
     }
 
-    private fun toDto(c: InventoryContract) = ContractDto(
+    private fun toDto(c: InventoryContract) = InventoryContractDto(
         c.id!!, c.role.name, c.partnerId.value, c.contractNumber, c.lineId, c.clientNumber, c.serviceNumber, c.products, c.orderId?.value, c.startedAt, c.endedAt,
     )
 }

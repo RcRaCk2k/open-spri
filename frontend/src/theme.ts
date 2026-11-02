@@ -37,6 +37,9 @@ export const cssVariablesResolver: CSSVariablesResolver = (t) => {
     light[`--mantine-color-${name}-outline`] = onLight(shades[9]!);
     light[`--mantine-color-${name}-text`] = onLight(shades[9]!);
     light[`--mantine-color-${name}-light`] = shades[0]!;
+    // filled buttons use shade 9 (primaryShade); Mantine's hover would be the lighter shade 8 (3.9:1 with white)
+    light[`--mantine-color-${name}-filled-hover`] = onLight(shades[9]!);
+    dark[`--mantine-color-${name}-filled-hover`] = onLight(shades[9]!);
     dark[`--mantine-color-${name}-light-color`] = shades[2]!;
     dark[`--mantine-color-${name}-outline`] = shades[2]!;
     dark[`--mantine-color-${name}-text`] = shades[2]!;

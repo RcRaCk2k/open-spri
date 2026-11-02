@@ -48,10 +48,13 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, ...page(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))) },
           { path: "/orders", ...page(() => import("./pages/orders/OrderListPage").then((m) => ({ default: () => <m.OrderListPage /> }))) },
+          { path: "/orders/new", ...page(() => import("./pages/orders/NewOrderPage").then((m) => ({ default: m.NewOrderPage }))) },
           { path: "/orders/:id", ...page(() => import("./pages/orders/OrderDetailPage").then((m) => ({ default: m.OrderDetailPage }))) },
           { path: "/work-queue", ...page(() => import("./pages/orders/OrderListPage").then((m) => ({ default: () => <m.OrderListPage workQueue /> }))) },
           { path: "/pv-requests", ...page(() => import("./pages/orders/PvRequestsPage").then((m) => ({ default: m.PvRequestsPage }))) },
           { path: "/terminations/new", ...page(() => import("./pages/orders/TerminationPage").then((m) => ({ default: m.TerminationPage }))) },
+          { path: "/availability", ...page(() => import("./pages/availability/AvailabilityPage").then((m) => ({ default: m.AvailabilityPage }))) },
+          { path: "/inventory", ...page(() => import("./pages/InventoryPage").then((m) => ({ default: m.InventoryPage }))) },
           { path: "/audit", ...page(() => import("./pages/AuditPage").then((m) => ({ default: m.AuditPage }))) },
           { path: "/users", ...page(() => import("./pages/UsersPage").then((m) => ({ default: m.UsersPage }))) },
           { path: "*", element: <NotFoundPage /> },
