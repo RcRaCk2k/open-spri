@@ -40,6 +40,30 @@ Die Testfallliste (`Testfaelle_SPRIv4X_20250523.xlsx`) lädt der Build von ak-sp
 
 **Meldungscodetabelle:** Liegt die AK-Tabelle lokal unter `docs/spec-original/SPRI_Meldungscodetabelle.csv`, laufen die Szenarien gegen sie und prüfen damit strenger. Sonst, etwa in der CI, verwenden sie eine Tabelle, die aus der Testfallliste abgeleitet ist (`TestCaseCodes`): alle Codes, die die Liste ausdrücklich nennt, mit den Meldungstypen, bei denen sie vorkommen. Diese Tabelle schränkt die Codes nicht auf Geschäftsfälle ein, weil die Liste oft nur `*2` angibt (etwa bei der ERLM einer Diagnose). Die Prüfung je Geschäftsfall (R-13) läuft deshalb nur mit der AK-Tabelle. Vor dem KFT müssen die Szenarien also lokal mit der AK-Tabelle grün sein.
 
+## Simulator als Container
+
+Derselbe Simulator läuft auch als eigener Dienst `spri-simulator` (AUFGABE 10.3). Es ist das `api`-Image mit `OPENSPRI_MODE=SIMULATOR`, gedacht nur für Test und Entwicklung. So lässt sich eine echte Installation mit Datenbank und Proxy gegen alle Testfälle prüfen, etwa vor dem KFT-Termin.
+
+```bash
+# 1. Token der Instanz mit Rolle ADMIN und Scope orders:override (ADR-0008), in .env als OPENSPRI_SIM_TOKEN
+curl -s -X POST https://spri.example.de/api/v1/tokens -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "KFT-Simulator", "role": "ADMIN", "scopes": ["orders:read", "orders:write", "le:messages:write", "partners:read", "partners:admin", "orders:override"]}'
+# 2. Testfallliste nach ./config legen (scripts/fetch-spec.sh lädt sie nach docs/spec-original/)
+cp docs/spec-original/Testfaelle_SPRIv4X_20250523.xlsx config/
+# 3. Simulator starten
+COMPOSE_PROFILES=proxy,simulator docker compose up -d spri-simulator
+# 4. Testfälle ausführen: einzelne TF-IDs oder ohne Body alle
+curl -s -X POST http://127.0.0.1:8090/sim/run -d '{"tfIds": ["S.1.1.01", "Z.13.1.01"]}'
+curl -s -X POST http://127.0.0.1:8090/sim/run --max-time 900          # alle 211, dauert einige Minuten
+# 5. Bericht
+curl -s http://127.0.0.1:8090/sim/report.html -o kft-bericht.html
+curl -s http://127.0.0.1:8090/sim/report.xml  -o kft-bericht.xml    # JUnit-XML
+```
+
+Beim Start holt sich der Simulator aus dem Onboarding-Blatt der Instanz deren Signaturzertifikat und S/PRI-Endpunkt. Er erzeugt einen eigenen Signaturschlüssel und trägt sich mit dem Carrier Code `KFTSIM` als Partner ein; bei einem Neustart ersetzt er dort sein Zertifikat. Er verwendet die aktive Meldungscodetabelle der Instanz und legt Projektvereinbarung, Vollmacht und Produktkatalog an wie die Szenario-Tests. `POST /sim/run` antwortet mit 200, wenn alle Testfälle bestanden sind, sonst mit 409 und den Gründen.
+
+**Achtung:** Der Simulator legt Testaufträge, Bestand und Stammdaten in der Instanz an. Er gehört nie an eine produktive Instanz.
+
 ## Auslegung der Testfallliste
 
 | Notation | Umsetzung |
@@ -83,5 +107,6 @@ Der Test `coverage gate` lässt den Build scheitern, wenn mehr Testfälle offen 
 | 4 | Bestand, Providerwechsel als Leistungserbringer | 14 von 211 |
 | 5 | Negativ-Testfälle als Leistungserbringer; als Auftraggeber Produkt „Dummy“ und Leistungsmerkmal „TEST“ (S.1.2.7, Z.4.2.02, Z.5.2.02) | 4 von 211 |
 | 6 | Negativ-Testfälle als Auftraggeber mit Übersteuerung (ADR-0008) | **0 von 211** |
+| 7 | Simulator als Container (`POST /sim/run`, JUnit-XML und HTML) | – |
 
 Alle 211 Testfälle beider Blätter laufen automatisiert. Das Coverage-Gate lässt keinen offenen Testfall mehr zu.

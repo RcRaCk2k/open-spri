@@ -210,6 +210,10 @@ OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL=betrieb@example.de
 ```
 Ohne Mailserver schreibt open-spri die Benachrichtigungen nur ins Log.
 
+## KFT-Simulator (nur Test und Entwicklung)
+
+Mit `COMPOSE_PROFILES=proxy,simulator` startet zusätzlich der Dienst `spri-simulator`. Er spielt die Gegenseite der KFT-Testfälle gegen diese Instanz (Token mit `orders:override` in `OPENSPRI_SIM_TOKEN`, Testfallliste in `./config`). Bedienung und Bericht beschreibt [kft-szenarien.md](kft-szenarien.md#simulator-als-container). Der Simulator legt Testdaten an und gehört nie an eine produktive Instanz.
+
 ## Zusätzliche IP-Sperre für den S/PRI-Endpunkt
 
 open-spri prüft die IPs der Partner selbst. Zusätzlich lässt sich in nginx eine zweite Sperre setzen: `deploy/nginx/snippets/openspri-spri-allowlist.conf` bearbeiten, dann `docker compose restart proxy`.

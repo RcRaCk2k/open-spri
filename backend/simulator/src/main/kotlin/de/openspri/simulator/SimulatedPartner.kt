@@ -116,6 +116,15 @@ class SimulatedPartner(
     /** Starts the S/PRI endpoint on [port] (0 = free port) and returns its URL. */
     fun start(port: Int = 0, host: String = "127.0.0.1"): URI {
         val http = HttpServer.create(InetSocketAddress(host, port), 0)
+        register(http)
+        http.executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()
+        http.start()
+        server = http
+        return URI("http://$host:${http.address.port}$PATH")
+    }
+
+    /** Adds the S/PRI endpoint ([PATH]) to an existing server, e.g. next to the control API of [SimulatorMain]. */
+    fun register(http: HttpServer) {
         http.createContext(PATH) { exchange ->
             val body = exchange.requestBody.readAllBytes()
             val action = exchange.requestHeaders.getFirst("SOAPAction")
@@ -137,10 +146,6 @@ class SimulatedPartner(
             }
             exchange.close()
         }
-        http.executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()
-        http.start()
-        server = http
-        return URI("http://$host:${http.address.port}$PATH")
     }
 
     fun received(): List<Received> = received.toList()

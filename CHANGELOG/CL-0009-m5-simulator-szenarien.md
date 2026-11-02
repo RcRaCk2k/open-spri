@@ -68,6 +68,13 @@ Der KFT bei Enghouse bricht nach drei erfolglosen Versuchen ab. Deshalb müssen 
 - Szenarien: Z.2.2.01, Z.2.2.02, Z.4.2.01 und Z.5.2.01 laufen mit Übersteuerung. **Alle 211 Testfälle sind grün, das Coverage-Gate steht auf 0.**
 - ADR-0008, CLAUDE.md („Was nicht erlaubt ist“), `docs/api/auth.md`, `docs/api/auftraege.md`.
 
+### Teil 7: Simulator als Container
+- `SimulatorMain`: Mit `OPENSPRI_MODE=SIMULATOR` startet das `api`-Image den Simulator statt open-spri (`OpenSpriApplication.main`).
+  - Er holt Zertifikat und S/PRI-Endpunkt der Zielinstanz aus dem Onboarding-Blatt und trägt sich als Partner `KFTSIM` ein (Zertifikatswechsel bei Neustart).
+  - Er verwendet die aktive Meldungscodetabelle der Instanz.
+  - Steuerung über `POST /sim/run` (TF-IDs oder alle), Berichte unter `GET /sim/report.xml` (JUnit) und `/sim/report.html` (`ScenarioReport`).
+- Compose-Dienst `spri-simulator` (Profil `simulator`), Variablen in `.env.example`, Doku in `docs/kft-szenarien.md` und `docs/betrieb.md`.
+
 ## Auswirkungen
 - S/PRI-Schnittstelle: Meldungen zu Aufträgen im Namen Dritter tragen jetzt die Auftraggebernummer des Bestellers, Meldungen zu Aufträgen mit VorabstimmungsID die VorabstimmungsID. TBK-Meldungen werden jetzt XSD-konform gebaut; die ENTM als Leistungserbringer enthält die Vertragsnummer aus der ABM. Entstöraufträge ohne Auftragsposition sind jetzt auch nach Anlage 1 gültig (SA-015), eingehend wie ausgehend.
 - S/PRI-Schnittstelle (Teil 4): Meldungen an den abgebenden EKP gehen jetzt an ihn statt an den Auftraggeber.
@@ -76,10 +83,11 @@ Der KFT bei Enghouse bricht nach drei erfolglosen Versuchen ab. Deshalb müssen 
 - Fachlogik (Teil 5): neuer Befund „Unzulässiger Geschäftsfall“, eigene Aufträge mit unpassender Geschäftsfallart werden abgewiesen (409); Änderungen zu unbekannten Aufträgen erzeugen einen Auftrag, auf den nur ABBM zulässig ist.
 - Sicherheit (Teil 6): neuer Scope `orders:override`, in keiner Rolle (ADR-0008)
 - REST-API (Teil 6): Parameter `override` an `POST /orders` (mit `send=true`) und `POST /orders/{id}/send`
-- Konfiguration: keine Änderung
+- Konfiguration (Teil 7): `OPENSPRI_MODE`, `OPENSPRI_SIM_*`, `OPENSPRI_KFT_TEST_CASES`; Compose-Profil `simulator`
 - Build: neues Modul `simulator`; `:app`-Tests laden die Testfallliste über `:simulator:downloadKftTestCases`
 
 ## Tests
+- Teil 7: `SimulatorModeTest` (Simulator als eigener Prozess gegen eine Instanz: Selbsteintragung, drei Testfälle per TF-ID, 400 bei unbekannter TF-ID, JUnit-XML und HTML)
 - Teil 6: `KftScenarioTest` **211 von 211 grün**, Gate 0; `OutboundOrderServiceTest` (Übersteuerung einzeln wirksam, Befund im Verlauf, Storno als neuer Auftrag); `OrderApiTest` (409 ohne, 403 ohne Scope, 400 bei unbekanntem Wert und beim Entwurf, 202 mit Scope, Befund im Verlauf); `SecurityTest` (Scope in keiner Rolle, nur ausdrücklich im Admin-Token)
 - Teil 5: `KftScenarioTest` 207 Testfälle grün, 4 offen (Z.2.2.01, Z.2.2.02, Z.4.2.01, Z.5.2.01: eigene Prüfungen verhindern den fehlerhaften Auftrag); `InboundOrderServiceTest` (Storno zu unbekanntem Auftrag, Geschäftsfallart)
 - Teil 4: `KftScenarioTest` 197 Testfälle grün, 14 offen (Negativ-Testfälle); `InventoryBookTest` (Vertrag aus NEU/PV, Ablösung, Kündigung, Storno ohne Wirkung, abgebender EKP, Providerwechsel an den Vertragsinhaber, 409 ohne Bestand); `ApplicationIntegrationTest` (Bestand und abgebender EKP auf MariaDB)

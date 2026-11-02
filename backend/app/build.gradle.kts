@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":rest-api"))
     implementation(project(":auth-token"))
     implementation(project(":auth-local"))
+    implementation(project(":simulator"))           // OPENSPRI_MODE=SIMULATOR (container spri-simulator)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlin.reflect)
@@ -22,7 +23,6 @@ dependencies {
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.archunit.junit5)
     testImplementation(testFixtures(project(":spri-soap")))
-    testImplementation(project(":simulator"))
 }
 
 springBoot {

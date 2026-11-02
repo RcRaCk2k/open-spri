@@ -69,6 +69,31 @@ services:
       start_period: 60s
       retries: 6
 
+  # KFT-like simulator (AUFGABE 10.3), only for test and development: COMPOSE_PROFILES=proxy,simulator.
+  # Same image as api in OPENSPRI_MODE=SIMULATOR; docs/kft-szenarien.md, section "Simulator als Container".
+  spri-simulator:
+    profiles: [simulator]
+    image: ${OPENSPRI_IMAGE_PREFIX:-ghcr.io/rcrack2k/open-spri}/api:${OPENSPRI_VERSION:-local}
+    restart: "no"
+    environment:
+      OPENSPRI_MODE: SIMULATOR
+      OPENSPRI_SIM_TARGET_URL: http://api:8080
+      # API token of the instance: role ADMIN with the scope orders:override (ADR-0008)
+      OPENSPRI_SIM_TOKEN: ${OPENSPRI_SIM_TOKEN:-}
+      OPENSPRI_SIM_PUBLIC_URL: http://spri-simulator:8090/spri/v4
+      # inside the stack the simulator talks to the api directly, not through the proxy
+      OPENSPRI_SIM_TARGET_SPRI_URL: http://api:8080/spri/v4
+      # KFT test case list (xlsx, not part of the image): put it into ./config
+      OPENSPRI_KFT_TEST_CASES: ${OPENSPRI_KFT_TEST_CASES:-/etc/openspri/Testfaelle_SPRIv4X_20250523.xlsx}
+      TZ: Europe/Berlin
+    volumes:
+      - ./config:/etc/openspri:ro
+    ports:
+      - "127.0.0.1:8090:8090"
+    depends_on:
+      api:
+        condition: service_healthy
+
   frontend:
     build:
       context: .
