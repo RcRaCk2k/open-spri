@@ -69,7 +69,7 @@ class KftScenarioTest(
             { keys.current().certificate to URI("http://127.0.0.1:$port/spri/v4") }, codes::get,
         )
         val endpoint = simulator.start()
-        val us = OpenSpriClient(URI("http://127.0.0.1:$port"), tokens.issue("kft", Role.ADMIN, null, null, null, "KFT-Szenarien", Instant.now()).plainText)
+        val us = OpenSpriClient(URI("http://127.0.0.1:$port"), tokens.issue("kft", Role.ADMIN, Role.ADMIN.grantable, null, null, "KFT-Szenarien", Instant.now()).plainText)
         val partner = us.objectNode().put("name", "KFT-Simulator").put("carrierCode", "KFTSIM").put("endpointUrl", endpoint.toString())
         partner.putArray("allowedSourceNetworks").add("127.0.0.1/32").add("::1/128")
         partner.putArray("certificatesPem").add(pem(simulator.credentials))
@@ -105,6 +105,6 @@ class KftScenarioTest(
 
     private companion object {
         /** Lowered with every part of M5; must reach 0 (docs/AUFGABE-SPRI.md M5). */
-        const val OPEN_TEST_CASES = 4
+        const val OPEN_TEST_CASES = 0
     }
 }

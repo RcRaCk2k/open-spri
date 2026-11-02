@@ -86,12 +86,17 @@ object TestCaseVariants {
         HINT_CODE.find(case.hint)?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.takeIf { "1312" !in case.hint }
 
     /**
-     * Faulty orders open-spri sends as Auftraggeber: "Dummy" and "TEST" are valid against XSD and Anlage 1, the
-     * Leistungserbringer rejects them. Orders our own rules reject (date, Geschäftsfallart, Storno without order)
-     * are not possible yet.
+     * As Auftraggeber open-spri sends the faulty orders: "Dummy" and "TEST" are valid against XSD and Anlage 1; the
+     * date, the Geschäftsfallart and "Storno" in a new order need an override of our own rules (ADR-0008).
      */
-    val faultyOrdersAsAuftraggeber = setOf(Variant.INVALID_PRODUCT, Variant.INVALID_FEATURE)
+    fun overrides(case: KftTestCase): List<String> = of(case).mapNotNull {
+        when (it) {
+            Variant.FAR_DATE -> "R-05"
+            Variant.WRONG_BUSINESS_CASE -> "GESCHAEFTSFALLART"
+            Variant.WRONG_CHANGE_INDICATOR -> "AENDERUNGSKENNZEICHEN"
+            else -> null
+        }
+    }
 
-    fun missing(case: KftTestCase): Set<Variant> =
-        of(case) - implemented - (if (case.partnerSheet) faultyOrdersAsAuftraggeber else faultyOrders)
+    fun missing(case: KftTestCase): Set<Variant> = of(case) - implemented - faultyOrders
 }

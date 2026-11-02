@@ -10,6 +10,7 @@ import de.openspri.domain.order.OrderRole
 import de.openspri.domain.order.OutboundOrderService
 import de.openspri.domain.order.Phase
 import de.openspri.domain.order.RequestKind
+import de.openspri.domain.order.RuleOverride
 import de.openspri.domain.partner.PartnerId
 import de.openspri.domain.query.OrderFilter
 import de.openspri.domain.query.OrderQueries
@@ -95,14 +96,21 @@ class OrderController(
     fun create(
         @RequestBody body: CreateOrderRequest,
         @Parameter(description = "true: sofort senden statt Entwurf") @RequestParam(defaultValue = "false") send: Boolean,
+        @Parameter(
+            description = "Nur für KFT-Negativtests (ADR-0008, Scope `orders:override`): diese Auftragsregeln blockieren nicht. " +
+                "Erlaubt: R-05, GESCHAEFTSFALLART, AENDERUNGSKENNZEICHEN. XSD und Anlage 1 gelten immer.",
+        )
+        @RequestParam(required = false) override: List<String>?,
     ): ResponseEntity<OrderDetailDto> {
+        val overrides = overrides(override)
         if (!send) {
+            require(overrides.isEmpty()) { "override: nur beim Senden (send=true oder POST /orders/{id}/send)" }
             val draft = commands.saveDraft(PartnerId(body.partnerId), body.auftrag)
             audit.record(currentActor(), "order.draft", "order:${draft.id!!.value}", "partner=${body.partnerId} number=${draft.data.externalOrderNumber}")
             return ResponseEntity.status(HttpStatus.CREATED).body(detail(draft.id!!))
         }
-        val order = commands.submitOrder(PartnerId(body.partnerId), body.auftrag)
-        audit.record(currentActor(), "order.submit", "order:${order.id!!.value}", "partner=${body.partnerId} number=${order.data.externalOrderNumber}")
+        val order = commands.submitOrder(PartnerId(body.partnerId), body.auftrag, overrides)
+        audit.record(currentActor(), "order.submit", "order:${order.id!!.value}", "partner=${body.partnerId} number=${order.data.externalOrderNumber}" + overrideNote(overrides))
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(detail(order.id!!))
     }
 
@@ -140,9 +148,13 @@ class OrderController(
         summary = "Entwurf senden",
         description = "Baut den Auftrag mit aktuellem Kopf neu, prüft XSD, Anlage 1 und Auftragsregeln und legt ihn in den Postausgang.",
     )
-    fun send(@PathVariable id: Long): OrderDetailDto {
-        val order = commands.sendDraft(OrderId(id))
-        audit.record(currentActor(), "order.submit", "order:$id", "partner=${order.partnerId.value} number=${order.data.externalOrderNumber}")
+    fun send(
+        @PathVariable id: Long,
+        @Parameter(description = "wie bei POST /orders (ADR-0008, Scope `orders:override`)") @RequestParam(required = false) override: List<String>?,
+    ): OrderDetailDto {
+        val overrides = overrides(override)
+        val order = commands.sendDraft(OrderId(id), overrides)
+        audit.record(currentActor(), "order.submit", "order:$id", "partner=${order.partnerId.value} number=${order.data.externalOrderNumber}" + overrideNote(overrides))
         return detail(OrderId(id))
     }
 
@@ -201,6 +213,15 @@ class OrderController(
     }
 
     private fun detail(id: OrderId) = OrderDetailDto.of(commands.order(id), service)
+
+    /** ADR-0008: overriding own order rules needs the scope `orders:override`, which no role contains. */
+    private fun overrides(values: List<String>?): Set<RuleOverride> {
+        val overrides = values.orEmpty().flatMap { it.split(',') }.filter { it.isNotBlank() }.map(RuleOverride::fromCode).toSet()
+        if (overrides.isNotEmpty() && Scope.ORDERS_OVERRIDE !in currentActor().scopes) throw AccessDeniedException("Scope ${Scope.ORDERS_OVERRIDE.value} fehlt")
+        return overrides
+    }
+
+    private fun overrideNote(overrides: Set<RuleOverride>) = if (overrides.isEmpty()) "" else " override=${overrides.joinToString(",") { it.code }}"
 }
 
 internal inline fun <reified E : Enum<E>> enumValue(value: String, field: String): E =

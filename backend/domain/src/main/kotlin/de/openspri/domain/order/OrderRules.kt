@@ -5,6 +5,28 @@ import de.openspri.domain.ChangeIndicator
 import java.time.LocalDate
 
 /**
+ * Rules of our own orders that may be overridden for the KFT negative test cases (ADR-0008, scope
+ * `orders:override`). XSD, Anlage 1 and the lifecycle are never overridden.
+ *
+ * @property code name in the REST API (`?override=`)
+ * @property prefix start of the finding the rule produces
+ */
+enum class RuleOverride(val code: String, val prefix: String) {
+    /** R-05: execution date 180 days or more ahead (KFT Z.2.2.01/Z.2.2.02, ABBM 1003). */
+    DATE_LIMIT("R-05", "R-05"),
+    /** Geschäftsfallart does not fit the business case (KFT Z.5.2.01, ABBM 1102). */
+    BUSINESS_CASE_KIND("GESCHAEFTSFALLART", "Unzulässiger Geschäftsfall"),
+    /** A new order with "Storno" instead of "Standard" (KFT Z.4.2.01, ABBM 1007). */
+    CHANGE_WITHOUT_ORDER("AENDERUNGSKENNZEICHEN", "Änderungskennzeichen ohne Ursprungsauftrag"),
+    ;
+
+    companion object {
+        fun fromCode(code: String) = entries.firstOrNull { it.code == code.trim().uppercase() }
+            ?: throw IllegalArgumentException("override: erlaubt sind ${entries.joinToString { it.code }}")
+    }
+}
+
+/**
  * Content rules of AUFGABE chapter 5.2 that are independent of the message sequence. They return findings
  * (texts with rule reference); what happens with a finding depends on the role: as Leistungserbringer it is
  * the basis for an ABBM, as Auftraggeber it is a check of our own order before sending.

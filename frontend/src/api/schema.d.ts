@@ -2723,6 +2723,8 @@ export interface operations {
             query?: {
                 /** @description true: sofort senden statt Entwurf */
                 send?: boolean;
+                /** @description Nur für KFT-Negativtests (ADR-0008, Scope `orders:override`): diese Auftragsregeln blockieren nicht. Erlaubt: R-05, GESCHAEFTSFALLART, AENDERUNGSKENNZEICHEN. XSD und Anlage 1 gelten immer. */
+                override?: string[];
             };
             header?: never;
             path?: never;
@@ -2981,7 +2983,10 @@ export interface operations {
     };
     send: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description wie bei POST /orders (ADR-0008, Scope `orders:override`) */
+                override?: string[];
+            };
             header?: never;
             path: {
                 id: number;

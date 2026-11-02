@@ -46,11 +46,16 @@ class OutboundOrderService(
     private val inventory: InventoryBook? = null,
 ) {
 
-    /** We order from a partner (we are Auftraggeber). [payload] is the annehmenAuftragRequest element. */
-    fun submitOrder(partnerId: PartnerId, data: OrderData, payload: ByteArray): Order = transactions.run {
+    /**
+     * We order from a partner (we are Auftraggeber). [payload] is the annehmenAuftragRequest element.
+     *
+     * @param overrides rules whose findings do not block the order (ADR-0008); they are recorded in the history.
+     *   [RuleOverride.CHANGE_WITHOUT_ORDER] allows a new order with "Storno" or "Terminverschiebung" (KFT Z.4.2.01).
+     */
+    fun submitOrder(partnerId: PartnerId, data: OrderData, payload: ByteArray, overrides: Set<RuleOverride> = emptySet()): Order = transactions.run {
         requireNewNumber(partnerId, data, except = null)
         val now = clock.instant()
-        send(Order(null, partnerId, OrderRole.AUFTRAGGEBER, data, draftState(data), now, now), data, payload)
+        send(Order(null, partnerId, OrderRole.AUFTRAGGEBER, data, draftState(data), now, now), data, payload, overrides)
     }
 
     /**
@@ -75,12 +80,12 @@ class OutboundOrderService(
     fun draftContent(order: Order): ByteArray? = drafts?.get(requireNotNull(order.id))
 
     /** Sends a draft: the same checks as [submitOrder], then DRAFT → SUBMITTED and into the outbox. */
-    fun sendDraft(order: Order, data: OrderData, payload: ByteArray): Order = transactions.run {
+    fun sendDraft(order: Order, data: OrderData, payload: ByteArray, overrides: Set<RuleOverride> = emptySet()): Order = transactions.run {
         if (order.state.phase != Phase.DRAFT) throw OrderActionRejected(listOf("Nur ein Entwurf kann gesendet werden"), allowedActions(order))
         if (data.externalOrderNumber != order.data.externalOrderNumber) {
             throw OrderActionRejected(listOf("Die externe Auftragsnummer des Entwurfs hat sich geändert; Entwurf zuerst speichern"))
         }
-        val sent = send(order.copy(data = data, state = draftState(data)), data, payload)
+        val sent = send(order.copy(data = data, state = draftState(data)), data, payload, overrides)
         drafts?.remove(requireNotNull(order.id))
         sent
     }
@@ -93,16 +98,33 @@ class OutboundOrderService(
     }
 
     /** [draft] may be unsaved (direct submit) or a stored draft. Checks first, so nothing is stored on rejection. */
-    private fun send(draft: Order, data: OrderData, payload: ByteArray): Order {
-        require(data.changeIndicator == ChangeIndicator.STANDARD) { "use requestChange for Storno and Terminverschiebung" }
+    private fun send(draft: Order, data: OrderData, payload: ByteArray, overrides: Set<RuleOverride> = emptySet()): Order {
         val today = LocalDate.now(clock)
-        val findings = OrderRules.check(data, today) + agreements?.checkProject(draft.partnerId, data, today).orEmpty()
-        if (findings.isNotEmpty()) throw OrderActionRejected(findings)
-        val transition = OrderLifecycle.apply(draft.state, OrderEvent.Send) as Transition.Accepted
+        val findings = OrderRules.check(data, today).toMutableList() + agreements?.checkProject(draft.partnerId, data, today).orEmpty()
+        val withoutOrder = data.changeIndicator != ChangeIndicator.STANDARD
+        val all = if (withoutOrder) {
+            val finding = "${RuleOverride.CHANGE_WITHOUT_ORDER.prefix}: ${data.changeIndicator.code} als neuer Auftrag; " +
+                "Storno und Terminverschiebung über POST /orders/{id}/cancel bzw. /reschedule senden"
+            findings + finding
+        } else findings
+        val (overridden, blocking) = all.partition { finding -> overrides.any { finding.startsWith(it.prefix) } }
+        if (blocking.isNotEmpty()) throw OrderActionRejected(blocking)
+        // a new order with "Storno" (KFT Z.4.2.01): the Leistungserbringer can only answer with ABBM
+        val state = if (withoutOrder) {
+            OrderLifecycle.requestWithoutOrder(data.businessCase, if (data.changeIndicator == ChangeIndicator.STORNO) RequestKind.STORNO else RequestKind.TERMINVERSCHIEBUNG)
+        } else {
+            (OrderLifecycle.apply(draft.state, OrderEvent.Send) as Transition.Accepted).state
+        }
         val now = clock.instant()
-        val order = orders.save(draft.copy(state = transition.state, updatedAt = now, sequenceKey = keyFor(draft.partnerId, data)))
+        val order = orders.save(draft.copy(state = state, updatedAt = now, sequenceKey = keyFor(draft.partnerId, data)))
         enqueue(order, RequestType.ORDER, SoapOperation.ANNEHMEN_AUFTRAG, payload)
-        record(OrderHistoryEntry(order.id, order.partnerId, null, OrderHistoryEntry.Kind.ORDER, at = now, direction = OUTBOUND), order)
+        record(
+            OrderHistoryEntry(
+                order.id, order.partnerId, null, OrderHistoryEntry.Kind.ORDER, changeIndicator = data.changeIndicator,
+                findings = overridden.map { "Übersteuert (ADR-0008): $it" }, at = now, direction = OUTBOUND,
+            ),
+            order,
+        )
         return order
     }
 

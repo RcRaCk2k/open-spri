@@ -53,6 +53,7 @@ open-spri ist eine MIT-lizenzierte Implementierung der **S/PRI-Schnittstelle V4.
 - Meldungen ohne Outbox versenden oder die Reihenfolge parallelisieren
 - Eingehende S/PRI-Nachrichten an `InboundProcessor` vorbei prüfen, oder CXF-Security-Interceptors einsetzen, die SOAP-Faults statt TEQ liefern (ADR-0005)
 - Validierung abschalten oder lockern, „weil ein Partner es so schickt“. Dafür gibt es stattdessen eine partnerbezogene, dokumentierte Ausnahme mit ADR.
+- Eigene Auftragsprüfungen umgehen. Einzige Ausnahme sind die Regeln in `RuleOverride` (ADR-0008, KFT-Negativtests): nur einzeln, nur mit dem Scope `orders:override`, protokolliert. XSD, Anlage 1 und Zustandsautomat gelten immer.
 - Echte Kunden-, Partner- oder Zertifikatsdaten in Tests, Logs oder Beispielen verwenden
 
 ## Befehle

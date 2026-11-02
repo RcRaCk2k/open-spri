@@ -927,6 +927,17 @@
             "type" : "boolean",
             "default" : false
           }
+        }, {
+          "description" : "Nur für KFT-Negativtests (ADR-0008, Scope `orders:override`): diese Auftragsregeln blockieren nicht. Erlaubt: R-05, GESCHAEFTSFALLART, AENDERUNGSKENNZEICHEN. XSD und Anlage 1 gelten immer.",
+          "in" : "query",
+          "name" : "override",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
         } ],
         "requestBody" : {
           "content" : {
@@ -1289,6 +1300,17 @@
           "schema" : {
             "type" : "integer",
             "format" : "int64"
+          }
+        }, {
+          "description" : "wie bei POST /orders (ADR-0008, Scope `orders:override`)",
+          "in" : "query",
+          "name" : "override",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         } ],
         "responses" : {

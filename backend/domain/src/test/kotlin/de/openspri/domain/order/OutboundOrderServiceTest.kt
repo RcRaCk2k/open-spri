@@ -54,6 +54,22 @@ class OutboundOrderServiceTest {
     }
 
     @Test
+    fun `an override lets a faulty own order through and records it (ADR-0008)`() {
+        val far = data.copy(externalOrderNumber = "AG-F", desiredDate = LocalDate.of(2027, 8, 1))
+        assertContains(assertThrows<OrderActionRejected> { service.submitOrder(partner, far, ByteArray(0), setOf(RuleOverride.BUSINESS_CASE_KIND)) }.message!!, "R-05")
+        val sent = service.submitOrder(partner, far, ByteArray(0), setOf(RuleOverride.DATE_LIMIT))
+        assertEquals(Phase.SUBMITTED, sent.state.phase)
+        assertContains(orders.history(sent.id!!).single().findings.single(), "Übersteuert (ADR-0008): R-05")
+
+        val storno = data.copy(externalOrderNumber = "AG-S", changeIndicator = ChangeIndicator.STORNO)
+        assertContains(assertThrows<OrderActionRejected> { service.submitOrder(partner, storno, ByteArray(0)) }.message!!, "ohne Ursprungsauftrag")
+        val orphan = service.submitOrder(partner, storno, ByteArray(0), setOf(RuleOverride.CHANGE_WITHOUT_ORDER))
+        assertEquals(Phase.NOT_STARTED, orphan.state.phase)
+        assertEquals(setOf(RequestKind.STORNO), orphan.state.openRequests)
+        assertEquals(2, outbox.entries.size)
+    }
+
+    @Test
     fun `own order with rule violations is not queued`() {
         val error = assertThrows<OrderActionRejected> { service.submitOrder(partner, data.copy(desiredDate = LocalDate.of(2027, 8, 1)), ByteArray(0)) }
         assertContains(error.message!!, "R-05")

@@ -119,6 +119,27 @@ Antwort 202 mit dem Auftrag wie bei `GET /orders/{id}`, Phase `SUBMITTED`. Mögl
 | 404 | Partner existiert nicht |
 | 409 | Auftragsnummer beim Partner schon vergeben (11.4), Wunschtermin außerhalb der Frist (R-05), Partner deaktiviert |
 
+#### Fehlerhafte Aufträge für KFT-Negativtests (ADR-0008)
+
+Einige KFT-Testfälle verlangen, dass wir als Auftraggeber absichtlich einen fehlerhaften Auftrag senden, damit der Leistungserbringer mit ABBM antwortet. open-spri weist solche Aufträge normalerweise mit 409 ab. Mit einem Token, das den Scope `orders:override` trägt, lassen sich einzelne Regeln übersteuern:
+
+| `override` | erlaubt | KFT |
+|---|---|---|
+| `R-05` | Wunschtermin 180 Tage oder mehr voraus | Z.2.2.01, Z.2.2.02 |
+| `GESCHAEFTSFALLART` | Geschäftsfallart passt nicht zum Geschäftsfall | Z.5.2.01 |
+| `AENDERUNGSKENNZEICHEN` | neuer Auftrag mit „Storno“ oder „Terminverschiebung“ | Z.4.2.01 |
+
+```bash
+# Token mit dem Scope ausstellen (nur ADMIN, ausdrücklich angeben)
+curl -s -X POST $SPRI/api/v1/tokens -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "KFT", "role": "ADMIN", "scopes": ["orders:read", "orders:write", "orders:override"], "expiresAt": "2026-12-31T23:59:59Z"}'
+
+curl -s -X POST "$SPRI/api/v1/orders?send=true&override=R-05" -H "Authorization: Bearer $KFT_TOKEN" -H "Content-Type: application/json" \
+  -d @kuendigung-in-200-tagen.json
+```
+
+XSD, Anlage 1 und Zustandsautomat gelten immer. Die Übersteuerung steht im Audit-Log und als Befund „Übersteuert (ADR-0008): …“ im Verlauf. Ohne den Scope antwortet die API mit 403, bei einem unbekannten Wert mit 400.
+
 #### Entwürfe
 
 ```bash

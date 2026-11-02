@@ -62,6 +62,7 @@ Die Testfallliste (`Testfaelle_SPRIv4X_20250523.xlsx`) lädt der Build von ak-sp
 | Konnektivität | zusätzliche Position mit Produkt „Konnektivität“ (Anlage 1 Zeile 154); „mit Eigentümerdaten“: `standortVersand` mit dem Eigentümer und `montagehinweis` nach Variante 1 (Zeile 129). „Falsche Auftragsart“ (S.1.2.12, S.8.2.12) bezieht sich auf das Replikat; der Auftrag ist ein normaler Konnektivitätsauftrag, der Leistungserbringer antwortet mit ABBM 1510. |
 | Providerwechsel als Leistungserbringer (Z.13.x) | Der Bestandsaufbau legt einen Vertrag des Simulators auf der Leitung an; er ist damit der abgebende EKP. Unsere AKM-PV, ABM-PV, ERLM-PV, ENTM-PV und ABBM-PV gehen an ihn, mit der Vertragsnummer des Bestandsvertrags (geprüft). Seine RUEM-PV kommt in seiner Rolle als abgebender EKP. Wie beim KFT spielt derselbe Partner Auftraggeber und abgebenden EKP. |
 | Negativ-Testfälle als Leistungserbringer (Z.9.2.x, Z.11.2.x, Z.12.2.x, S.8.2.7) | Der Simulator sendet den fehlerhaften Auftrag. open-spri muss ihn mit dem passenden Befund erkennen, sonst schlägt der Testfall fehl: Termin mehr als 179 Tage voraus → R-05; Produkt „Dummy“ oder Leistungsmerkmal „TEST“ → „nicht im Produktkatalog“ (der Runner legt dafür unseren Produktkatalog an); Geschäftsfallart „Diagnose“ bei LAE → „Unzulässiger Geschäftsfall“; „Storno“ statt „Standard“ in einem neuen Auftrag → „unzulässiges Änderungskennzeichen“. Danach antworten wir wie in der Testfallliste, bei Storno statt Standard mit einer ABBM mit Änderungskennzeichen Storno. |
+| Negativ-Testfälle als Auftraggeber (S.1.2.7, Z.2.2.x, Z.4.2.x, Z.5.2.x) | „Dummy“ und „TEST“ sind nach XSD und Anlage 1 gültig und gehen normal hinaus. Termin mehr als 179 Tage voraus, Geschäftsfallart „Diagnose“ und „Storno“ statt „Standard“ weist open-spri selbst ab; der Runner sendet sie mit `?override=` und einem Token mit `orders:override` (ADR-0008). |
 | Diagnose (Z.15/Z.16) | GET mit den Parametern `BBdown`, `BBup`, SET mit `RESET`; die ERLM enthält je Parameter ein `dignoseergebnis` (SA-010) |
 
 Jede Abweichung von dieser Auslegung beim echten KFT wird als SA-Eintrag nachgetragen.
@@ -81,7 +82,6 @@ Der Test `coverage gate` lässt den Build scheitern, wenn mehr Testfälle offen 
 | 3 | besondere Auftragsinhalte: Projektkenner, Auftragskenner, Dritte, Vorabstimmung, HomeID, Konnektivität | 20 von 211 |
 | 4 | Bestand, Providerwechsel als Leistungserbringer | 14 von 211 |
 | 5 | Negativ-Testfälle als Leistungserbringer; als Auftraggeber Produkt „Dummy“ und Leistungsmerkmal „TEST“ (S.1.2.7, Z.4.2.02, Z.5.2.02) | 4 von 211 |
+| 6 | Negativ-Testfälle als Auftraggeber mit Übersteuerung (ADR-0008) | **0 von 211** |
 
-Offen nach Teil 5 (Z.2.2.01, Z.2.2.02, Z.4.2.01, Z.5.2.01):
-- **Negativ-Testfälle als Auftraggeber,** bei denen der Auftraggeber absichtlich einen fehlerhaften Auftrag sendet: Termin mehr als 179 Tage voraus, Storno statt Standard, Diagnose statt Änderung, Produkt „Dummy“, Leistungsmerkmal „TEST“, falsche Auftragsart
-
+Alle 211 Testfälle beider Blätter laufen automatisiert. Das Coverage-Gate lässt keinen offenen Testfall mehr zu.

@@ -42,7 +42,7 @@ class ApiTokens(private val store: ApiTokenStore, private val random: SecureRand
 
     fun issue(name: String, role: Role, scopes: Set<Scope>?, expiresAt: Instant?, ownerUserId: Long?, createdBy: String, now: Instant): Issued {
         val effective = scopes ?: role.scopes
-        require(role.scopes.containsAll(effective)) { "Scopes ${effective - role.scopes} gehören nicht zur Rolle $role" }
+        require(role.grantable.containsAll(effective)) { "Scopes ${effective - role.grantable} gehören nicht zur Rolle $role" }
         require(name.isNotBlank()) { "Ein Token braucht einen Namen" }
         val prefix = randomString(8)
         val secret = randomString(32)

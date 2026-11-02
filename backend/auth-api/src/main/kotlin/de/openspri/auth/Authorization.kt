@@ -21,6 +21,11 @@ enum class Scope(val value: String) {
     USERS_ADMIN("users:admin"),
     SETTINGS_ADMIN("settings:admin"),
     AUDIT_READ("audit:read"),
+    /**
+     * Send own orders that our order rules would reject (KFT negative test cases, ADR-0008). In no role: only an
+     * administrator can put it explicitly into an API token ([Role.grantable]).
+     */
+    ORDERS_OVERRIDE("orders:override"),
     ;
 
     val authority: GrantedAuthority get() = SimpleGrantedAuthority("SCOPE_$value")
@@ -32,12 +37,16 @@ enum class Scope(val value: String) {
 
 /** Roles bundle scopes. A token may be restricted to a subset of its role's scopes. */
 enum class Role(val scopes: Set<Scope>) {
-    ADMIN(Scope.entries.toSet()),
+    ADMIN(Scope.entries.toSet() - Scope.ORDERS_OVERRIDE),
     OPERATOR_AG(setOf(Scope.ORDERS_READ, Scope.ORDERS_WRITE, Scope.DELIVERIES_READ, Scope.DELIVERIES_WRITE, Scope.PARTNERS_READ, Scope.AVAILABILITY_READ, Scope.EVENTS_READ)),
     OPERATOR_LE(setOf(Scope.ORDERS_READ, Scope.LE_MESSAGES_WRITE, Scope.DELIVERIES_READ, Scope.DELIVERIES_WRITE, Scope.PARTNERS_READ, Scope.AVAILABILITY_READ, Scope.EVENTS_READ)),
     VIEWER(setOf(Scope.ORDERS_READ, Scope.DELIVERIES_READ, Scope.PARTNERS_READ, Scope.AVAILABILITY_READ, Scope.EVENTS_READ, Scope.AUDIT_READ)),
     /** External systems (CRM, workflow): order and message traffic, no administration. */
     INTEGRATION(setOf(Scope.ORDERS_READ, Scope.ORDERS_WRITE, Scope.LE_MESSAGES_WRITE, Scope.DELIVERIES_READ, Scope.PARTNERS_READ, Scope.AVAILABILITY_READ, Scope.EVENTS_READ)),
+    ;
+
+    /** Scopes a token of this role may carry: its own, for ADMIN also `orders:override` on explicit request (ADR-0008). */
+    val grantable: Set<Scope> get() = if (this == ADMIN) scopes + Scope.ORDERS_OVERRIDE else scopes
 }
 
 /** Who is acting. Stored as Spring Security principal; written to the audit log. */

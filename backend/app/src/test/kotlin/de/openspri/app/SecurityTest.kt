@@ -17,6 +17,7 @@ import java.net.http.HttpResponse
 import java.time.Instant
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /** AUFGABE 7.3/7.5: authentication modules, scopes, session and CSRF - over real HTTP. */
 @SpringBootTest(
@@ -83,6 +84,18 @@ class SecurityTest(@Autowired private val tokens: ApiTokens, @Autowired private 
         val admin = issue(Role.ADMIN)
         val response = post("/api/v1/tokens", """{"name":"x","role":"VIEWER","scopes":["orders:write"]}""", admin)
         assertEquals(400, response.statusCode())
+    }
+
+    @Test
+    fun `orders override is in no role, only an explicit ADMIN token carries it (ADR-0008)`() {
+        val admin = issue(Role.ADMIN)
+        assertEquals(400, post("/api/v1/tokens", """{"name":"x","role":"INTEGRATION","scopes":["orders:override"]}""", admin).statusCode())
+        val plain = post("/api/v1/tokens", """{"name":"x","role":"ADMIN"}""", admin)
+        assertEquals(201, plain.statusCode(), plain.body())
+        assertTrue("orders:override" !in plain.body())
+        val explicit = post("/api/v1/tokens", """{"name":"kft","role":"ADMIN","scopes":["orders:read","orders:write","orders:override"]}""", admin)
+        assertEquals(201, explicit.statusCode(), explicit.body())
+        assertContains(explicit.body(), "orders:override")
     }
 
     @Test

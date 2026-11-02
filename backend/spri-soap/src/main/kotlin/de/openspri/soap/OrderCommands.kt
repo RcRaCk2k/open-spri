@@ -12,6 +12,7 @@ import de.openspri.domain.order.OrderLifecycle
 import de.openspri.domain.order.OrderRole
 import de.openspri.domain.order.OutboundOrderService
 import de.openspri.domain.order.RequestKind
+import de.openspri.domain.order.RuleOverride
 import de.openspri.domain.partner.PartnerDirectory
 import de.openspri.domain.partner.PartnerId
 import de.openspri.domain.query.ArchiveQueries
@@ -73,10 +74,11 @@ class OrderCommands(
 ) {
     private val json = JsonMapper.builder().build()
 
-    fun submitOrder(partnerId: PartnerId, auftrag: JsonNode): Order {
+    /** [overrides]: rules that do not block (ADR-0008); the caller has checked the scope `orders:override`. */
+    fun submitOrder(partnerId: PartnerId, auftrag: JsonNode, overrides: Set<RuleOverride> = emptySet()): Order {
         enabledPartner(partnerId)
-        val (built, data) = newOrder(auftrag)
-        return service.submitOrder(partnerId, data, built.bytes)
+        val (built, data) = payloads.order(auftrag)
+        return service.submitOrder(partnerId, data, built.bytes, overrides)
     }
 
     /** Saves a draft. It must already be a valid order (XSD, Anlage 1); the order rules are checked when it is sent. */
@@ -91,13 +93,13 @@ class OrderCommands(
     fun draft(orderId: OrderId): JsonNode? = service.draftContent(order(orderId))?.let { json.readTree(it) }
 
     /** Builds the payload again from the draft (fresh control header and current key) and sends it. */
-    fun sendDraft(orderId: OrderId): Order {
+    fun sendDraft(orderId: OrderId, overrides: Set<RuleOverride> = emptySet()): Order {
         val order = order(orderId)
         val content = service.draftContent(order)
             ?: throw OrderActionRejected(listOf("Nur ein Entwurf kann gesendet werden"), service.allowedActions(order))
         enabledPartner(order.partnerId)
         val (built, data) = newOrder(json.readTree(content))
-        return service.sendDraft(order, data, built.bytes)
+        return service.sendDraft(order, data, built.bytes, overrides)
     }
 
     fun deleteDraft(orderId: OrderId) = service.deleteDraft(order(orderId))

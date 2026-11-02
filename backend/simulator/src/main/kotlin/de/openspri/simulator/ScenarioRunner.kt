@@ -164,9 +164,13 @@ class ScenarioRunner(
             val auftrag = OrderTemplates.order(case.businessCase, number, desiredDate, houseNumber, inventory, variants = variants, owner = TestCaseVariants.withOwner(case))
             val body = us.objectNode().put("partnerId", partnerId)
             body.set("auftrag", auftrag)
-            ourOrderId = us.post("/api/v1/orders?send=true", body).path("order").path("id").longValue()
-            log("open-spri → Auftrag ${case.businessCase.code} $number")
-            simOrder = awaitReceived(SoapOperation.ANNEHMEN_AUFTRAG) { it.order?.changeIndicator == ChangeIndicator.STANDARD }.order
+            // KFT negative test cases: a faulty order needs an override of our own rules (ADR-0008, scope orders:override)
+            val overrides = TestCaseVariants.overrides(case)
+            val query = if (overrides.isEmpty()) "" else "&override=" + overrides.joinToString(",")
+            ourOrderId = us.post("/api/v1/orders?send=true$query", body).path("order").path("id").longValue()
+            log("open-spri → Auftrag ${case.businessCase.code} $number" + if (overrides.isEmpty()) "" else " (übersteuert: ${overrides.joinToString()})")
+            val expected = if (Variant.WRONG_CHANGE_INDICATOR in variants) ChangeIndicator.STORNO else ChangeIndicator.STANDARD
+            simOrder = awaitReceived(SoapOperation.ANNEHMEN_AUFTRAG) { it.order?.changeIndicator == expected }.order
             historySeen = us.history(ourOrderId!!).size
         }
 

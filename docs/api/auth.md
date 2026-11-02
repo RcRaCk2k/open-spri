@@ -88,10 +88,11 @@ curl -s -b jar -X POST $SPRI/api/v1/auth/logout -H "X-XSRF-TOKEN: $(awk '/XSRF-T
 | `users:admin` | Benutzer und Tokens |
 | `settings:admin` | Einstellungen, Signaturschlüssel |
 | `audit:read` | Audit-Log |
+| `orders:override` | eigene Auftragsregeln einzeln übersteuern (`?override=`), nur für KFT-Negativtests (ADR-0008). In keiner Rolle; ein Admin kann ihn ausdrücklich in ein Token aufnehmen. |
 
 | Rolle | Scopes |
 |---|---|
-| `ADMIN` | alle |
+| `ADMIN` | alle außer `orders:override` (nur ausdrücklich im Token, ADR-0008) |
 | `OPERATOR_AG` | `orders:read`, `orders:write`, `deliveries:read/write`, `partners:read`, `availability:read`, `events:read` |
 | `OPERATOR_LE` | wie `OPERATOR_AG`, aber `le:messages:write` statt `orders:write` |
 | `VIEWER` | nur lesen, dazu `audit:read` |

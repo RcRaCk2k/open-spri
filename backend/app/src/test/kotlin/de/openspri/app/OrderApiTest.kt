@@ -264,6 +264,22 @@ class OrderApiTest(
     }
 
     @Test
+    fun `overriding own order rules needs the scope orders override (ADR-0008)`() {
+        val far = auftrag("OVR-0001").replace(Regex("\"datum\":\"[0-9-]+\""), "\"datum\":\"${LocalDate.now().plusDays(200)}\"")
+        val body = """{"partnerId":77,"auftrag":$far}"""
+        val rejected = call("POST", "/api/v1/orders?send=true", body)
+        assertEquals(409, rejected.statusCode())
+        assertContains(rejected.body(), "R-05")
+        assertEquals(403, call("POST", "/api/v1/orders?send=true&override=R-05", body).statusCode(), "ADMIN does not have the scope")
+        val override = tokens.issue("kft", Role.ADMIN, Role.ADMIN.grantable, null, null, "test", Instant.now()).plainText
+        assertEquals(400, call("POST", "/api/v1/orders?send=true&override=ALLES", body, override).statusCode())
+        assertEquals(400, call("POST", "/api/v1/orders?override=R-05", body, override).statusCode(), "only when sending")
+        val sent = call("POST", "/api/v1/orders?send=true&override=R-05", body, override)
+        assertEquals(202, sent.statusCode(), sent.body())
+        assertContains(call("GET", "/api/v1/orders/${id(sent.body())}/history").body(), "Übersteuert (ADR-0008): R-05")
+    }
+
+    @Test
     fun `message code table is readable`() {
         val codes = call("GET", "/api/v1/message-codes?messageType=QEB")
         assertEquals(200, codes.statusCode())
