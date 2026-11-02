@@ -14,8 +14,9 @@ Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requ
 >   - Setup-Assistent, Anmeldung, Dashboard mit Fristen und Zustellfehlern
 >   - Aufträge mit Verlauf, Roh-XML und den zulässigen Aktionen; LE-Arbeitsvorrat, Providerwechsel-Anfragen, KDLE
 >   - Auftragsassistent für alle Geschäftsfälle, vorbefüllt aus Verfügbarkeitssuche oder Bestand
+>   - Partner mit Zertifikaten, IP-Freigaben, Verträgen und Vollmachten; Produkte mit Wechselmatrix; Meldungscodes
 >   - Audit-Log, Benutzer und Tokens
->   - Es folgen die Stammdaten und Einstellungen (Partner, Produkte, Meldungscodes, Webhooks, Zustellmonitor, eigene Verfügbarkeit). Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
+>   - Es folgen Webhooks, Einstellungen, Zustellmonitor und die eigene Verfügbarkeit. Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
 
 ## Funktionsumfang (Ziel v1.0)
 

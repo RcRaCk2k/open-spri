@@ -95,6 +95,25 @@ Bisher zeigte die Oberfläche nur eine Statusseite (M0). M7 bringt alle Seiten a
   - `InventoryController.ContractDto` und der Rahmenvertrag `AgreementController.ContractDto` hatten denselben Schemanamen. Die OpenAPI-Datei beschrieb `/inventory` deshalb mit den Feldern des Rahmenvertrags. Das Schema heißt jetzt `InventoryContractDto`. Die neue ArchUnit-Regel `restSchemaNamesAreUnique` verhindert solche Doppelungen künftig.
   - Gefüllte Buttons fielen beim Überfahren mit der Maus auf einen Kontrast von 3,9:1. Die Hover-Farbe ist jetzt dunkler.
 
+### Teil 4: Stammdaten (Partner, Produkte, Meldungscodes)
+- **Partner** (`/partners`):
+  - Liste mit Warnungen zu Zertifikaten (läuft in 30 Tagen ab, unter 3072 Bit, abgelaufen) und fehlenden IP-Freigaben
+  - Anlegen mit Carrier Code, Endpunkt, technischem Kontakt, Quell-IPs und erstem Zertifikat
+  - „Unsere Angaben für Partner“: Onboarding-Blatt mit Signaturzertifikat zum Kopieren und WSDL-Download
+- **Partnerseite** (`/partners/{id}`):
+  - Stammdaten ändern und den Partner (de)aktivieren
+  - Zertifikate hinzufügen und entfernen (Zertifikatswechsel)
+  - IP-Freigaben in CIDR
+  - Rahmenverträge, Vollmachten mit Dokument (PDF, PNG oder JPEG, hochladen und herunterladen) und Projektvereinbarungen
+- **Produkte** (`/products`):
+  - Katalog unserer Produkte und der Produkte der Partner, anlegen, ändern, deaktivieren und löschen
+  - Produktwechselmatrix (Anlage 6) als Vorgabe oder je Partner: Zeilen bearbeiten, CSV-Import, einen Wechsel prüfen (LAE, AEN-LMAE oder nur NEU + KUE-AG)
+- **Meldungscodes** (`/message-codes`):
+  - aktive Tabelle mit Quelle und SHA-256
+  - Filter nach Meldungstyp und Text; lokale Ergänzungen sind markiert
+  - Import der Datei aus dem AK-Confluence (`message-codes:admin`)
+- Binäre Uploads und Downloads (Vollmacht, Tabelle, WSDL) laufen über den generierten Client (`rawBody`, `parseAs`), ohne handgeschriebene URLs.
+
 ## Auswirkungen
 - S/PRI-Schnittstelle: keine Änderung
 - REST-API: neu `GET /api/v1/audit` und `POST /api/v1/orders/compose`; Schema `InventoryContractDto` statt des falsch zugeordneten `ContractDto` bei `/inventory` (die Felder der Antwort sind unverändert)
@@ -103,6 +122,12 @@ Bisher zeigte die Oberfläche nur eine Statusseite (M0). M7 bringt alle Seiten a
 - Betrieb: Die Ersteinrichtung geht jetzt vollständig in der Oberfläche.
 
 ## Tests
+- Teil 4:
+  - Playwright `master-data.spec.ts`:
+    - Partner mit falschem Carrier Code, Zertifikat (erfundenes, selbstsigniertes RSA-3072-Zertifikat ohne privaten Schlüssel in `e2e/fixtures`), ungültige und gültige IP-Freigaben, Rahmenvertrag, Projekt, Onboarding-Blatt
+    - Produkt, Wechselmatrix mit Prüfung, Meldungscodes
+    - axe auf Partnerseite, Onboarding und Matrix
+  - Alle neuen Seiten sind in der Navigation und laufen damit durch `api-only.spec.ts`.
 - Teil 3:
   - `OrderApiTest`: Für jeden der acht Geschäftsfälle wird ein Auftrag zusammengesetzt und als Entwurf gespeichert (XSD und Anlage 1 bestanden). Dazu fehlende Angaben, KUE-LE und unbekannter Geschäftsfall.
   - `ArchitectureTest.restSchemaNamesAreUnique`, geprüft auch mit dem alten Namen (schlägt fehl)

@@ -16,6 +16,9 @@ export const NAVIGATION: readonly NavEntry[] = [
   { path: "/pv-requests", label: "Providerwechsel-Anfragen", group: "Aufträge", scope: Scope.ordersRead },
   { path: "/availability", label: "Verfügbarkeit", group: "Aufträge", scope: Scope.availabilityRead },
   { path: "/inventory", label: "Bestand", group: "Aufträge", scope: Scope.ordersRead },
+  { path: "/partners", label: "Partner", group: "Stammdaten", scope: Scope.partnersRead },
+  { path: "/products", label: "Produkte", group: "Stammdaten", scope: Scope.partnersRead },
+  { path: "/message-codes", label: "Meldungscodes", group: "Stammdaten", scope: Scope.ordersRead },
   { path: "/audit", label: "Audit-Log", group: "Verwaltung", scope: Scope.auditRead },
   { path: "/users", label: "Benutzer und Tokens", group: "Verwaltung", scope: Scope.usersAdmin },
 ];
