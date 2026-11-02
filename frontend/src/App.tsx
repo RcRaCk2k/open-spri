@@ -1,15 +1,13 @@
+import type React from "react";
 import { Navigate, Outlet, createBrowserRouter, useLocation, type RouteObject } from "react-router";
 import { Center, Text } from "@mantine/core";
 import { useMe, useSetupStatus } from "./auth/session";
 import { ErrorAlert, Loading } from "./components/Feedback";
 import { Layout } from "./layout/Layout";
-import { AuditPage } from "./pages/AuditPage";
-import { DashboardPage } from "./pages/DashboardPage";
 import { ErrorPage } from "./pages/ErrorPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { SetupPage } from "./pages/SetupPage";
-import { UsersPage } from "./pages/UsersPage";
 
 /** Until the first setup is completed, every page leads to the setup wizard. */
 function SetupGate() {
@@ -33,6 +31,11 @@ function SessionGate() {
   return <Layout me={me.data} />;
 }
 
+/** Pages are loaded on first use, so the login does not load the whole application. */
+const page = (load: () => Promise<{ default: React.ComponentType }>): Pick<RouteObject, "lazy"> => ({
+  lazy: async () => ({ Component: (await load()).default }),
+});
+
 export const routes: RouteObject[] = [
   {
     element: <SetupGate />,
@@ -43,9 +46,14 @@ export const routes: RouteObject[] = [
       {
         element: <SessionGate />,
         children: [
-          { index: true, element: <DashboardPage /> },
-          { path: "/audit", element: <AuditPage /> },
-          { path: "/users", element: <UsersPage /> },
+          { index: true, ...page(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))) },
+          { path: "/orders", ...page(() => import("./pages/orders/OrderListPage").then((m) => ({ default: () => <m.OrderListPage /> }))) },
+          { path: "/orders/:id", ...page(() => import("./pages/orders/OrderDetailPage").then((m) => ({ default: m.OrderDetailPage }))) },
+          { path: "/work-queue", ...page(() => import("./pages/orders/OrderListPage").then((m) => ({ default: () => <m.OrderListPage workQueue /> }))) },
+          { path: "/pv-requests", ...page(() => import("./pages/orders/PvRequestsPage").then((m) => ({ default: m.PvRequestsPage }))) },
+          { path: "/terminations/new", ...page(() => import("./pages/orders/TerminationPage").then((m) => ({ default: m.TerminationPage }))) },
+          { path: "/audit", ...page(() => import("./pages/AuditPage").then((m) => ({ default: m.AuditPage }))) },
+          { path: "/users", ...page(() => import("./pages/UsersPage").then((m) => ({ default: m.UsersPage }))) },
           { path: "*", element: <NotFoundPage /> },
         ],
       },

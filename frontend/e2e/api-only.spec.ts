@@ -6,6 +6,7 @@ import { expectAccessible } from "./a11y";
  * of the frontend itself. And every page meets WCAG 2.1 AA as far as axe-core can check it.
  */
 test("alle Seiten: nur /api/v1 und barrierearm (axe, WCAG 2.1 AA, hell und dunkel)", async ({ page, baseURL }) => {
+  test.setTimeout(180_000);
   const origin = new URL(baseURL!).origin;
   const foreign: string[] = [];
   page.on("request", (request) => {
@@ -17,6 +18,7 @@ test("alle Seiten: nur /api/v1 und barrierearm (axe, WCAG 2.1 AA, hell und dunke
   });
 
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   const links = await page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("link").all();
   const paths = await Promise.all(links.map(async (l) => new URL((await l.getAttribute("href"))!, origin).pathname));
   expect(paths.length).toBeGreaterThan(1);

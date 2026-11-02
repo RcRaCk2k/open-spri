@@ -16,13 +16,13 @@ test("Benutzer anlegen, Token ausstellen und widerrufen, alles im Audit-Log", as
   await page.getByRole("button", { name: "Benutzer anlegen" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Benutzername").fill(`e2e.${suffix}`);
-  await dialog.getByLabel("Anzeigename").fill("Erika E2E");
+  await dialog.getByLabel("Anzeigename").fill(`Erika E2E ${suffix}`);
   await dialog.getByRole("textbox", { name: "Passwort", exact: true }).fill("kurz");
   await dialog.getByRole("button", { name: "Anlegen" }).click();
   await expect(dialog.getByText("mindestens 12 Zeichen").last()).toBeVisible();
   await dialog.getByRole("textbox", { name: "Passwort", exact: true }).fill("e2e-passwort-fuer-erika");
   await dialog.getByRole("button", { name: "Anlegen" }).click();
-  await expect(page.getByRole("cell", { name: /Erika E2E/ })).toBeVisible();
+  await expect(page.getByRole("cell", { name: new RegExp(`Erika E2E ${suffix}`) })).toBeVisible();
 
   await page.getByRole("tab", { name: "API-Tokens" }).click();
   await page.getByRole("button", { name: "Token ausstellen" }).click();

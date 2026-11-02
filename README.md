@@ -10,7 +10,11 @@ Freie, offene Implementierung der **S/PRI-Schnittstelle** (Supplier/Partner Requ
 > - Verfügbarkeit nach Replikat 1.7 ([`docs/api/verfuegbarkeit.md`](docs/api/verfuegbarkeit.md)):
 >   - Als Leistungserbringer: eigene Standorte pflegen, tägliches Voll- und Deltareplikat je Partner, Download und Online-Abfrage mit Partner-Token.
 >   - Als Auftraggeber: Replikate der Partner importieren oder ihre Instanz online abfragen, nach Adresse, HomeID oder Umkreis suchen und einen Treffer in einen Auftrag übernehmen.
-> - Web-Oberfläche (M7, in Arbeit): Setup-Assistent, Anmeldung, Dashboard mit Fristen und Zustellfehlern, Audit-Log, Benutzer und Tokens. Die weiteren Seiten folgen. Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
+> - Web-Oberfläche (M7, in Arbeit):
+>   - Setup-Assistent, Anmeldung, Dashboard mit Fristen und Zustellfehlern
+>   - Aufträge mit Verlauf, Roh-XML und den zulässigen Aktionen; LE-Arbeitsvorrat, Providerwechsel-Anfragen, KDLE
+>   - Audit-Log, Benutzer und Tokens
+>   - Es folgen das Anlegen von Aufträgen, Verfügbarkeit, Bestand und die Stammdaten. Umfang und Fahrplan stehen in [`docs/AUFGABE-SPRI.md`](docs/AUFGABE-SPRI.md).
 
 ## Funktionsumfang (Ziel v1.0)
 

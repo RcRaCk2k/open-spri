@@ -47,6 +47,30 @@ Bisher zeigte die Oberfläche nur eine Statusseite (M0). M7 bringt alle Seiten a
 - **CI:** Der Compose-Job startet den Stack und führt danach `pnpm e2e` gegen `https://localhost` aus. Das Setup-Token kommt aus dem API-Log, der Master-Key wird je Lauf neu erzeugt. Bei einem Fehler wird der Playwright-Bericht hochgeladen.
 - **Doku:** `docs/frontend.md` (Aufbau, Regeln für neue Seiten, E2E lokal), Audit-Log in `docs/api/auth.md`
 
+### Teil 2: Aufträge, Arbeitsvorrat, Providerwechsel, KDLE
+- **Auftragsliste** (`/orders`):
+  - Filter nach Rolle, Geschäftsfall, Phase und offen/alle, Präfixsuche
+  - Die Filter stehen in der URL, eine gefilterte Liste lässt sich also als Lesezeichen speichern.
+  - Blättern per Cursor
+- **Arbeitsvorrat LE** (`/work-queue`): offene Aufträge der Partner an uns, mit Einstieg in die Kündigung durch uns.
+- **Auftragsdetail** (`/orders/{id}`):
+  - Daten des Auftrags und offene Änderungen
+  - „Nächste Schritte“ zeigt nur `allowedActions`, und nur solche, für die die Anmeldung den Scope hat (`le:messages:write` bzw. `orders:write`).
+  - Verlauf als Zeitleiste mit Richtung, Codes samt Text aus der Meldungscodetabelle und Befunden der Prüfungen
+  - Roh-XML eingehender Nachrichten aus dem Archiv, für ausgehende der gesendete Inhalt aus dem Postausgang. Der Abruf steht im Audit-Log.
+- **Aktionen:**
+  - Meldung senden: Meldungscodes nur passend zu Meldungstyp und Geschäftsfall, ABM mit Feld für den verbindlichen Liefertermin, weitere Meldungsattribute als JSON
+  - Storno, Terminverschiebung, Reklamation (Entstörauftrag als JSON)
+  - Jeder Dialog sendet einen eigenen `Idempotency-Key`, ein wiederholter Klick löst also keine zweite Nachricht aus.
+- **Entwürfe:** Den Auftrag als XSD-JSON ansehen und ändern, senden oder verwerfen.
+- **Providerwechsel-Anfragen** (`/pv-requests`): AKM-PV nach Antwortfrist sortiert, mit Markierung ab zwei Tagen vor der Frist; RUEM-PV mit Zustimmung oder Ablehnung.
+- **Kündigung durch uns** (`/terminations/new`): KDLE-Formular, vorbefüllbar über URL-Parameter (Partner, Vertrags-, Auftraggebernummer, LineID).
+- **Seiten bei Bedarf laden:** Jede Seite wird erst beim ersten Aufruf geladen. Der Einstieg mit Anmeldung und Setup ist rund 180 kB groß (gzip).
+- **Barrierefreiheit:**
+  - Die Texte der hellen und der Outline-Variante sind in allen Farben dunkler. Orange auf Weiß lag vorher unter 4,5:1.
+  - Fehlertexte in dunklerem Rot
+  - deutsche Namen für die Schließen-Knöpfe von Dialogen und Meldungen; reduzierte Bewegung wird beachtet
+
 ## Auswirkungen
 - S/PRI-Schnittstelle: keine Änderung
 - REST-API: neu `GET /api/v1/audit`
@@ -55,6 +79,13 @@ Bisher zeigte die Oberfläche nur eine Statusseite (M0). M7 bringt alle Seiten a
 - Betrieb: Die Ersteinrichtung geht jetzt vollständig in der Oberfläche.
 
 ## Tests
+- Teil 2:
+  - Playwright `orders.spec.ts`:
+    - Partner und Entwurf entstehen über die API.
+    - In der Oberfläche: suchen, Entwurf ansehen und senden, Verlauf, gesendetes XML, nur „Storno“ als nächster Schritt, Storno senden
+    - axe auf Auftrag, Dialog und KDLE-Formular
+    - Arbeitsvorrat, Providerwechsel-Anfragen und Pflichtfelder der KDLE
+  - Vitest `MessageForm.test.tsx`: Codes gefiltert nach Geschäftsfall; die ABM geht mit Liefertermin und `Idempotency-Key` an die API. Dazu Beschriftung und Scopes der Aktionen sowie das Einrücken von XML.
 - Teil 1:
   - Playwright gegen MariaDB, API und Oberfläche, 6 Tests:
     - Setup-Assistent mit Fehlern bei Token, Carrier Code und Passwortwiederholung

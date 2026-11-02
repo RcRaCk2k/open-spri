@@ -10,3 +10,7 @@ window.matchMedia ??= (query: string) => ({
   addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
 });
 globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} };
+// jsdom has no FontFaceSet; Mantine's autosize textarea listens to it
+if (!("fonts" in document)) {
+  Object.defineProperty(document, "fonts", { value: { addEventListener: () => {}, removeEventListener: () => {}, ready: Promise.resolve() } });
+}

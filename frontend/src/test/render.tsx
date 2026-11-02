@@ -1,9 +1,14 @@
-import { MantineProvider } from "@mantine/core";
+import { MantineProvider, mergeThemeOverrides, Modal } from "@mantine/core";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider, type RouteObject } from "react-router";
 import { createQueryClient } from "../queryClient";
 import { theme } from "../theme";
+
+/** No animations in jsdom: dialogs are visible at once. */
+export const testTheme = mergeThemeOverrides(theme, {
+  components: { Modal: Modal.extend({ defaultProps: { transitionProps: { duration: 0 } } }) },
+});
 
 /** Renders routes like the application does, starting at [path]. */
 export function renderRoutes(routes: RouteObject[], path: string) {
@@ -11,7 +16,7 @@ export function renderRoutes(routes: RouteObject[], path: string) {
   const client = createQueryClient();
   client.setDefaultOptions({ queries: { retry: false } });
   render(
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={testTheme}>
       <QueryClientProvider client={client}>
         <RouterProvider router={router} />
       </QueryClientProvider>

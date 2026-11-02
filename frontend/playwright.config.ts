@@ -18,6 +18,8 @@ export default defineConfig({
     locale: "de-DE",
     timezoneId: "Europe/Berlin",
     trace: "retain-on-failure",
+    // no animations: axe checks the final state (the theme respects reduced motion)
+    reducedMotion: "reduce",
   },
   projects: [
     { name: "setup", testMatch: /setup\.setup\.ts/ },

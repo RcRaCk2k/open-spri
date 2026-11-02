@@ -11,6 +11,9 @@ export interface NavEntry {
 /** All pages of the web interface (AUFGABE 8.6). */
 export const NAVIGATION: readonly NavEntry[] = [
   { path: "/", label: "Dashboard", group: "Übersicht" },
+  { path: "/orders", label: "Aufträge", group: "Aufträge", scope: Scope.ordersRead },
+  { path: "/work-queue", label: "Arbeitsvorrat LE", group: "Aufträge", scope: Scope.ordersRead },
+  { path: "/pv-requests", label: "Providerwechsel-Anfragen", group: "Aufträge", scope: Scope.ordersRead },
   { path: "/audit", label: "Audit-Log", group: "Verwaltung", scope: Scope.auditRead },
   { path: "/users", label: "Benutzer und Tokens", group: "Verwaltung", scope: Scope.usersAdmin },
 ];

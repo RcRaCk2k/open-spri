@@ -11,7 +11,7 @@ Die Web-Oberfläche ist eine React-Anwendung in `frontend/`. Sie nutzt **ausschl
 | `src/auth/` | Anmeldung (`useMe`), Setup-Status, Scopes |
 | `src/navigation.ts` | alle Seiten mit dem nötigen Scope; die Navigation zeigt nur erlaubte Seiten |
 | `src/App.tsx` | Routen; bis zur Ersteinrichtung führt jede Seite zum Assistenten, danach braucht jede Seite eine Anmeldung |
-| `src/pages/` | Seiten (Setup, Anmeldung, Dashboard, Audit-Log, Benutzer und Tokens …) |
+| `src/pages/` | Seiten (Setup, Anmeldung, Dashboard, Audit-Log, Benutzer und Tokens …), `src/pages/orders/` für Aufträge, Arbeitsvorrat, Providerwechsel und KDLE |
 | `src/theme.ts` | Mantine-Theme mit Farben, die WCAG 2.1 AA erfüllen |
 | `e2e/` | Playwright-Tests |
 
@@ -21,7 +21,9 @@ Die Web-Oberfläche ist eine React-Anwendung in `frontend/`. Sie nutzt **ausschl
 2. Die API wird nur über `api.GET/POST/…` aus `src/api/client.ts` mit `call()` aufgerufen, Daten werden mit TanStack Query geladen.
 3. Formulare werden mit `react-hook-form` und `zod` geprüft. Fehler der API zeigt `ErrorAlert` an, Zeilenfehler (`errors`) eingeschlossen.
 4. Die Seite kommt mit ihrem Scope in `src/navigation.ts`. Der E2E-Test `api-only.spec.ts` prüft dann jede Seite der Navigation automatisch: Er ruft sie auf, erlaubt nur Aufrufe an `/api/v1` und prüft mit axe WCAG 2.1 AA im hellen und im dunklen Farbschema.
-5. Texte sind deutsch, Bezeichner im Code englisch, S/PRI-Begriffe bleiben wie im Standard.
+5. Aktionen, die eine S/PRI-Nachricht auslösen, senden je Dialog einen eigenen `Idempotency-Key` (`newIdempotencyKey()` in `src/hooks.ts`). Angeboten werden nur Aktionen aus `allowedActions`.
+6. Die Route wird in `src/App.tsx` mit `page(() => import(…))` eingetragen, damit die Seite erst bei Bedarf geladen wird.
+7. Texte sind deutsch, Bezeichner im Code englisch, S/PRI-Begriffe bleiben wie im Standard.
 
 ## Tests
 
