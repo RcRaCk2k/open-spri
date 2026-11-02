@@ -329,3 +329,72 @@ class InMemoryInventory : de.openspri.domain.order.InventoryStore {
         .filter { (filter.lineId == null || it.lineId == filter.lineId) && (!filter.activeOnly || it.active) && (filter.beforeId == null || it.id!! < filter.beforeId) }
         .take(filter.limit.coerceIn(1, 500))
 }
+
+/** Own sites, releases, provided Replikate and export state of the Leistungserbringer (M6). */
+class InMemoryAvailability :
+    de.openspri.domain.availability.AvailabilitySites,
+    de.openspri.domain.availability.ReplikatReleases,
+    de.openspri.domain.availability.ReplikatSnapshots,
+    de.openspri.domain.availability.ReplikatExportState {
+    val sites: MutableList<de.openspri.domain.availability.AvailabilitySite> = java.util.concurrent.CopyOnWriteArrayList()
+    val releases = java.util.concurrent.ConcurrentHashMap<PartnerId, de.openspri.domain.availability.ReplikatRelease>()
+    val snapshots: MutableList<Triple<de.openspri.domain.availability.ReplikatSnapshot, ByteArray, ByteArray>> = java.util.concurrent.CopyOnWriteArrayList()
+    private val states = java.util.concurrent.ConcurrentHashMap<PartnerId, Map<de.openspri.domain.availability.LocationKey, de.openspri.domain.availability.Location>>()
+    private var nextId = 1L
+
+    override fun search(filter: de.openspri.domain.availability.AddressFilter) = sites.filter { site ->
+        val l = site.location
+        fun prefix(value: String?, filterValue: String?) = filterValue.isNullOrBlank() || value.orEmpty().lowercase().startsWith(filterValue.lowercase())
+        fun equal(value: String?, filterValue: String?) = filterValue.isNullOrBlank() || value.orEmpty().equals(filterValue, ignoreCase = true)
+        equal(l.postalCode, filter.postalCode) && prefix(l.city, filter.city) && prefix(l.street, filter.street) && equal(l.houseNumber, filter.houseNumber) &&
+            equal(l.houseNumberSuffix, filter.houseNumberSuffix) && equal(l.addressId, filter.addressId) &&
+            (filter.homeId.isNullOrBlank() || filter.homeId in l.homeIds) && (filter.beforeId == null || site.id!! < filter.beforeId)
+    }.sortedByDescending { it.id }.take(filter.limit)
+
+    override fun get(id: Long) = sites.firstOrNull { it.id == id }
+
+    @Synchronized
+    override fun save(site: de.openspri.domain.availability.AvailabilitySite): de.openspri.domain.availability.AvailabilitySite {
+        check(sites.none { it.id != site.id && it.location.key == site.location.key }) { "Standort existiert bereits (gleiche Adresse und HomeIDs)" }
+        val stored = if (site.id == null) site.copy(id = nextId++) else site
+        sites.removeIf { it.id == stored.id }
+        sites += stored
+        return stored
+    }
+
+    override fun delete(id: Long) = sites.removeIf { it.id == id }
+    override fun all() = sites.sortedBy { it.id }.asSequence()
+
+    @Synchronized
+    override fun replaceAll(locations: List<de.openspri.domain.availability.Location>, at: Instant): Int {
+        sites.clear()
+        locations.forEach { save(de.openspri.domain.availability.AvailabilitySite(null, it, at)) }
+        return locations.size
+    }
+
+    override fun list() = releases.values.sortedBy { it.partnerId.value }
+    override fun get(partnerId: PartnerId) = releases[partnerId]
+    override fun save(release: de.openspri.domain.availability.ReplikatRelease) { releases[release.partnerId] = release }
+    override fun delete(partnerId: PartnerId) = releases.remove(partnerId) != null
+
+    @Synchronized
+    override fun save(snapshot: de.openspri.domain.availability.ReplikatSnapshot, content: ByteArray, meta: ByteArray): de.openspri.domain.availability.ReplikatSnapshot {
+        snapshots.removeIf { it.first.partnerId == snapshot.partnerId && it.first.fileName == snapshot.fileName }
+        val stored = snapshot.copy(id = nextId++)
+        snapshots += Triple(stored, content, meta)
+        return stored
+    }
+
+    override fun list(partnerId: PartnerId) = snapshots.map { it.first }.filter { it.partnerId == partnerId }.sortedByDescending { it.id }
+    override fun file(partnerId: PartnerId, fileName: String) = snapshots.firstOrNull { it.first.partnerId == partnerId && it.first.fileName == fileName }?.second
+        ?: snapshots.firstOrNull { it.first.partnerId == partnerId && it.first.metaFileName == fileName }?.third
+
+    override fun purgeBefore(date: java.time.LocalDate): Int {
+        val old = snapshots.filter { it.first.date.isBefore(date) }
+        snapshots.removeAll(old)
+        return old.size
+    }
+
+    override fun load(partnerId: PartnerId) = states[partnerId].orEmpty()
+    override fun replace(partnerId: PartnerId, state: Map<de.openspri.domain.availability.LocationKey, de.openspri.domain.availability.Location>) { states[partnerId] = state }
+}

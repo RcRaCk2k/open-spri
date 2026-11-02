@@ -57,6 +57,14 @@ class ReplikatXmlTest {
     }
 
     @Test
+    fun `every record of a long Replikat is read, also without whitespace between them`() {
+        val locations = (1..250).map { Location(postalCode = "12345", city = "Musterstadt", street = "Musterstraße", houseNumber = "$it", products = listOf(ProductAvailability("FTTH 100"))) }
+        val header = ReplikatHeader(LocalDate.of(2026, 11, 2), "TSTNZ", delta = false)
+        val written = ByteArrayOutputStream().also { ReplikatXml.write(it, header, locations.asSequence()) }.toByteArray()
+        assertEquals(header to locations, read(written))
+    }
+
+    @Test
     fun `an invalid Replikat is reported with line numbers`() {
         val invalid = String(example("Standard")).replace("<n1:plz>10589</n1:plz>", "<n1:plz>ABCDE</n1:plz>")
         val errors = ReplikatXml.validate(ByteArrayInputStream(invalid.toByteArray()))

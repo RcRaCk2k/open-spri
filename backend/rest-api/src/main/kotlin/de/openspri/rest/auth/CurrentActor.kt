@@ -24,4 +24,6 @@ object Requires {
     const val SETTINGS_ADMIN = "hasAuthority('SCOPE_settings:admin')"
     const val AUDIT_READ = "hasAuthority('SCOPE_audit:read')"
     const val ORDERS_OVERRIDE = "hasAuthority('SCOPE_orders:override')"
+    const val AVAILABILITY_READ = "hasAuthority('SCOPE_availability:read')"
+    const val AVAILABILITY_ADMIN = "hasAuthority('SCOPE_availability:admin')"
 }

@@ -12,6 +12,9 @@ val xjc = configurations.create("xjc")
 
 dependencies {
     api(project(":domain"))
+    api(platform(libs.spring.boot.bom))
+    api("tools.jackson.core:jackson-databind")
+    implementation("org.slf4j:slf4j-api")
     xjc(platform(libs.spring.boot.bom))
     xjc(libs.jaxb.xjc)
     xjc(libs.jaxb.runtime)
@@ -83,4 +86,8 @@ tasks.processTestResources { dependsOn(unpackExamples) }
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
+}
+
+dependencies {
+    testImplementation(testFixtures(project(":domain")))
 }

@@ -23,6 +23,8 @@ data class ApiToken(
     val revokedAt: Instant? = null,
     val lastUsedAt: Instant? = null,
     val lastUsedIp: String? = null,
+    /** Role PARTNER: the partner the token belongs to (Replikat download, online query). */
+    val partnerId: Long? = null,
 ) {
     fun usable(now: Instant) = revokedAt == null && (expiresAt == null || expiresAt.isAfter(now))
 }
@@ -40,13 +42,23 @@ class ApiTokens(private val store: ApiTokenStore, private val random: SecureRand
 
     data class Issued(val token: ApiToken, val plainText: String)
 
-    fun issue(name: String, role: Role, scopes: Set<Scope>?, expiresAt: Instant?, ownerUserId: Long?, createdBy: String, now: Instant): Issued {
+    fun issue(
+        name: String,
+        role: Role,
+        scopes: Set<Scope>?,
+        expiresAt: Instant?,
+        ownerUserId: Long?,
+        createdBy: String,
+        now: Instant,
+        partnerId: Long? = null,
+    ): Issued {
         val effective = scopes ?: role.scopes
         require(role.grantable.containsAll(effective)) { "Scopes ${effective - role.grantable} gehören nicht zur Rolle $role" }
         require(name.isNotBlank()) { "Ein Token braucht einen Namen" }
+        require((role == Role.PARTNER) == (partnerId != null)) { "partnerId: nur und immer bei Rolle PARTNER" }
         val prefix = randomString(8)
         val secret = randomString(32)
-        val token = store.save(ApiToken(null, name.trim(), prefix, hash(secret), role, effective, ownerUserId, createdBy, now, expiresAt))
+        val token = store.save(ApiToken(null, name.trim(), prefix, hash(secret), role, effective, ownerUserId, createdBy, now, expiresAt, partnerId = partnerId))
         return Issued(token, "$PREFIX${prefix}_$secret")
     }
 

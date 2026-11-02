@@ -70,10 +70,10 @@ class JdbcApiTokenStore(private val jdbc: JdbcClient) : ApiTokenStore {
     override fun save(token: ApiToken): ApiToken {
         val keys = GeneratedKeyHolder()
         jdbc.sql(
-            """INSERT INTO api_token (tenant_id, name, prefix, secret_hash, role, scopes, owner_user_id, created_by, created_at, expires_at)
-               VALUES (:t, :n, :p, :h, :r, :s, :o, :cb, :c, :e)""",
+            """INSERT INTO api_token (tenant_id, name, prefix, secret_hash, role, scopes, owner_user_id, partner_id, created_by, created_at, expires_at)
+               VALUES (:t, :n, :p, :h, :r, :s, :o, :partner, :cb, :c, :e)""",
         ).param("t", Tenant.DEFAULT).param("n", token.name).param("p", token.prefix).param("h", token.secretHash)
-            .param("r", token.role.name).param("s", token.scopes.joinToString(",") { it.value }).param("o", token.ownerUserId)
+            .param("r", token.role.name).param("s", token.scopes.joinToString(",") { it.value }).param("o", token.ownerUserId).param("partner", token.partnerId)
             .param("cb", token.createdBy).param("c", Timestamp.from(token.createdAt)).param("e", token.expiresAt?.let(Timestamp::from))
             .update(keys, "id")
         return token.copy(id = keys.key!!.toLong())
@@ -108,6 +108,7 @@ class JdbcApiTokenStore(private val jdbc: JdbcClient) : ApiTokenStore {
         revokedAt = rs.getTimestamp("revoked_at")?.toInstant(),
         lastUsedAt = rs.getTimestamp("last_used_at")?.toInstant(),
         lastUsedIp = rs.getString("last_used_ip"),
+        partnerId = rs.getLong("partner_id").takeIf { !rs.wasNull() },
     )
 }
 

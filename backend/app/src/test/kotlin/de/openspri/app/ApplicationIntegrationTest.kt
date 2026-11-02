@@ -48,6 +48,11 @@ class ApplicationIntegrationTest(
     @Autowired private val products: de.openspri.persistence.JdbcProductCatalog,
     @Autowired private val maintenance: de.openspri.persistence.JdbcMaintenanceAnnouncements,
     @Autowired private val inventory: de.openspri.persistence.JdbcInventory,
+    @Autowired private val sites: de.openspri.persistence.JdbcAvailabilitySites,
+    @Autowired private val releases: de.openspri.persistence.JdbcReplikatReleases,
+    @Autowired private val snapshots: de.openspri.persistence.JdbcReplikatSnapshots,
+    @Autowired private val exportState: de.openspri.persistence.JdbcReplikatExportState,
+    @Autowired private val apiTokens: de.openspri.auth.ApiTokens,
 ) {
     @LocalServerPort
     private var port = 0
@@ -250,6 +255,45 @@ class ApplicationIntegrationTest(
             de.openspri.domain.order.Order(null, partner, le, data, de.openspri.domain.order.OrderLifecycle.submitted(data.businessCase), now, now),
         )
         assertEquals(data.handover, orderRepository.get(order.id!!)!!.data.handover)
+    }
+
+    @Test
+    fun `availability sites, releases, Replikat files and export state on MariaDB`() {
+        val partner = partners.create(name = "Replikat", carrierCode = "DEU.REPLIK", certificates = listOf(credentials.certificate), networks = emptyList())
+        val now = java.time.Instant.now()
+        fun location(house: String, homeIds: List<String> = emptyList()) = de.openspri.domain.availability.Location(
+            postalCode = "54321", city = "Teststadt", street = "Prüfweg_%", houseNumber = house,
+            products = listOf(de.openspri.domain.availability.ProductAvailability("FTTH 100")),
+            technologies = listOf(de.openspri.domain.availability.TechnologyAvailability("FTTH", homeIds = homeIds)),
+        )
+        val one = sites.save(de.openspri.domain.availability.AvailabilitySite(null, location("1", listOf("H1", "H2")), now))
+        sites.save(de.openspri.domain.availability.AvailabilitySite(null, location("1", listOf("H3")), now))
+        org.junit.jupiter.api.assertThrows<IllegalStateException> { sites.save(de.openspri.domain.availability.AvailabilitySite(null, location("1", listOf("H2", "H1")), now)) }
+        assertEquals(listOf(one.id), sites.search(de.openspri.domain.availability.AddressFilter(homeId = "H2")).map { it.id })
+        assertEquals(2, sites.search(de.openspri.domain.availability.AddressFilter(postalCode = "54321", street = "Prüfweg_%")).size)
+        assertEquals(emptyList(), sites.search(de.openspri.domain.availability.AddressFilter(street = "PrüfwegX")))
+        assertEquals(location("1", listOf("H1", "H2")), sites.get(one.id!!)!!.location)
+        assertEquals(1, sites.replaceAll(listOf(location("5")), now))
+        assertEquals(listOf("5"), sites.all().map { it.location.houseNumber }.toList())
+
+        releases.save(de.openspri.domain.availability.ReplikatRelease(partner, omittedFields = setOf("geo", "kont"), quotas = setOf("Nord")))
+        assertEquals(setOf("geo", "kont"), releases.get(partner)!!.omittedFields)
+
+        val snapshot = de.openspri.domain.availability.ReplikatSnapshot(null, partner, java.time.LocalDate.now(), de.openspri.domain.availability.ReplikatKind.FULL,
+            "REPLIK_20261102.zip", "REPLIK_20261102_meta.xml", "0".repeat(32), 1, 3, now)
+        snapshots.save(snapshot, byteArrayOf(1, 2, 3), "<meta/>".toByteArray())
+        snapshots.save(snapshot, byteArrayOf(4, 5, 6), "<meta2/>".toByteArray())
+        assertEquals(listOf<Byte>(4, 5, 6), snapshots.file(partner, "REPLIK_20261102.zip")!!.toList())
+        assertEquals("<meta2/>", String(snapshots.file(partner, "REPLIK_20261102_meta.xml")!!))
+        assertEquals(1, snapshots.list(partner).size)
+        snapshots.save(snapshot.copy(date = java.time.LocalDate.now().minusDays(40), fileName = "REPLIK_OLD.zip", metaFileName = "REPLIK_OLD_meta.xml"), byteArrayOf(1), byteArrayOf(1))
+        assertEquals(1, snapshots.purgeBefore(java.time.LocalDate.now().minusDays(31)))
+
+        exportState.replace(partner, mapOf(location("7").key to location("7")))
+        assertEquals(mapOf(location("7").key to location("7")), exportState.load(partner))
+
+        val token = apiTokens.issue("Partner", de.openspri.auth.Role.PARTNER, null, null, null, "test", now, partnerId = partner.value)
+        assertEquals(partner.value, apiTokens.verify(token.plainText, now)!!.partnerId)
     }
 
     @Test

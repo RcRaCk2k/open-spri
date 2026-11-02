@@ -104,6 +104,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Online-Abfrage für Partner (Leistungserbringer)
+         * @description Nur mit Partner-Token (Rolle PARTNER) aus einer freigeschalteten IP und mit Replikat-Freigabe. Antwort: Datensätze wie im Replikat (Feldnamen der Replikat.xsd 1.7), mit den für den Partner vereinbarten Feldern und Kontingenten. Mindestens `plz` mit `s`, oder `aid`, oder `hid`.
+         */
+        get: operations["query"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/availability/sites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Eigene Standorte suchen
+         * @description Neueste zuerst; `s` und `o` als Präfix. Blättern mit `cursor`.
+         */
+        get: operations["sites"];
+        put?: never;
+        /**
+         * Eigenen Standort anlegen
+         * @description Body: Datensatz in Replikat-Feldnamen; geprüft gegen Replikat.xsd 1.7. 409 bei gleichem Standort.
+         */
+        post: operations["create_6"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/availability/sites/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Eigene Standorte importieren
+         * @description Replikat (XML oder ZIP, Replikat.xsd 1.7) oder CSV (Spalten siehe docs/api/verfuegbarkeit.md). `mode=replace` (Standard): die Datei ist der vollständige Bestand; `merge`: hinzufügen bzw. ersetzen. Ein Deltareplikat wird nach seinen Änderungskennzeichen angewendet. 400 mit Zeilennummern.
+         */
+        post: operations["import_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/availability/sites/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Eigenen Standort lesen */
+        get: operations["site"];
+        /** Eigenen Standort ändern */
+        put: operations["update_2"];
+        post?: never;
+        /**
+         * Eigenen Standort löschen
+         * @description Im nächsten Deltareplikat erscheint er mit DEL.
+         */
+        delete: operations["delete_2"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/deliveries": {
         parameters: {
             query?: never;
@@ -721,7 +807,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Partner ändern */
-        patch: operations["update_3"];
+        patch: operations["update_4"];
         trace?: never;
     };
     "/api/v1/partners/{id}/certificates": {
@@ -1075,6 +1161,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/replikat/releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Freigaben unseres Replikats */
+        get: operations["releases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/replikat/releases/{partnerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replikat für einen Partner freigeben oder ändern
+         * @description Ab dem nächsten Lauf (täglich, `OPENSPRI_REPLIKAT_EXPORT_CRON`) erhält der Partner ein Voll- und ggf. Deltareplikat.
+         */
+        put: operations["release"];
+        post?: never;
+        /** Freigabe entfernen */
+        delete: operations["deleteRelease"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/replikat/releases/{partnerId}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bereitgestellte Replikate eines Partners
+         * @description Die letzten 31 Tage (Replikat 3.1).
+         */
+        get: operations["files"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/replikat/releases/{partnerId}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replikat für einen Partner jetzt erzeugen
+         * @description Ersetzt die Dateien des heutigen Tages.
+         */
+        post: operations["run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings": {
         parameters: {
             query?: never;
@@ -1237,7 +1401,7 @@ export interface paths {
          * Benutzer ändern
          * @description Name, Rolle, Sperre oder Passwort.
          */
-        patch: operations["update_2"];
+        patch: operations["update_3"];
         trace?: never;
     };
     "/api/v1/webhooks": {
@@ -1541,11 +1705,16 @@ export interface components {
             /** @example CRM Produktion */
             name: string;
             /**
+             * Format: int64
+             * @description Pflicht bei Rolle PARTNER: Partner, der damit unser Replikat lädt bzw. die Online-Abfrage nutzt
+             */
+            partnerId?: number | null;
+            /**
              * @description Rolle; bestimmt die maximal möglichen Berechtigungen
              * @example INTEGRATION
              * @enum {string}
              */
-            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION";
+            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION" | "PARTNER";
             /**
              * @description Optional: Einschränkung auf einen Teil der Berechtigungen der Rolle
              * @example [
@@ -1564,7 +1733,7 @@ export interface components {
              * @example OPERATOR_LE
              * @enum {string}
              */
-            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION";
+            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION" | "PARTNER";
             /** @example m.muster */
             username: string;
         };
@@ -1667,6 +1836,20 @@ export interface components {
             /** @description ORDER, REQUEST oder MESSAGE */
             kind: string;
             messageType?: string | null;
+        };
+        /** @description Ergebnis eines Imports eigener Standorte */
+        ImportDto: {
+            /** Format: int32 */
+            added: number;
+            /** Format: int32 */
+            changed: number;
+            /** Format: int32 */
+            deleted: number;
+            /**
+             * Format: int32
+             * @description Standorte danach
+             */
+            total: number;
         };
         /** @description Eine eingegangene Nachricht in der Verarbeitung */
         InboxDto: {
@@ -1961,6 +2144,42 @@ export interface components {
             /** @description die RUEM-PV steht noch aus */
             replyDue: boolean;
         };
+        /** @description Freigabe unseres Replikats für einen Partner (bilaterale Vereinbarung) */
+        ReleaseDto: {
+            /** @description zusätzlich ein Deltareplikat bereitstellen */
+            delta: boolean;
+            enabled: boolean;
+            /** @description optionale Replikat-Felder, die dieser Partner nicht erhält, z. B. geo, kont, ane */
+            omittedFields?: string[];
+            /** Format: int64 */
+            partnerId: number;
+            /** @description nur Standorte mit diesen Kontingenten (`kont`); leer = alle */
+            quotas?: string[];
+        };
+        /** @description Ein bereitgestelltes Replikat (ZIP) mit Metadatei */
+        ReplikatFileDto: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            date: string;
+            /** @example GFNORD_20261102.zip */
+            fileName: string;
+            /** @description FULL oder DELTA */
+            kind: string;
+            md5: string;
+            /** @example GFNORD_20261102_meta.xml */
+            metaFileName: string;
+            /**
+             * Format: int32
+             * @description Anzahl Datensätze
+             */
+            records: number;
+            /**
+             * Format: int64
+             * @description Größe in Byte
+             */
+            size: number;
+        };
         /** @description Terminverschiebung */
         RescheduleRequest: {
             /**
@@ -2029,6 +2248,15 @@ export interface components {
             source: string;
             subject: string;
         };
+        /** @description Ein eigener Standort (Leistungserbringer) mit dem Datensatz in Replikat-Feldnamen */
+        SiteDto: {
+            /** @description Datensatz `ds` der Replikat.xsd 1.7 als JSON: `plz`, `o`, `s`, `h`, `pl` (Produkte), `tl` (Technologien) … */
+            ds: components["schemas"]["JsonNode"];
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         /** @description Kündigung durch den Leistungserbringer (KUE-LE): Inhalt der KDLE (MeldungsattributeKDLEType) */
         TerminationRequest: {
             /** @description weitere `meldungsattribute` von MeldungsattributeKDLEType */
@@ -2073,6 +2301,11 @@ export interface components {
             /** @example CRM Produktion */
             name: string;
             /**
+             * Format: int64
+             * @description bei Rolle PARTNER: der Partner, für den das Token gilt
+             */
+            partnerId?: number | null;
+            /**
              * @description Öffentlicher Teil, erkennbar in Logs
              * @example Ab3dE7fG
              */
@@ -2080,7 +2313,7 @@ export interface components {
             /** Format: date-time */
             revokedAt?: string | null;
             /** @enum {string} */
-            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION";
+            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION" | "PARTNER";
             scopes: string[];
         };
         /** @description Änderungen; nicht angegebene Felder bleiben unverändert */
@@ -2098,7 +2331,7 @@ export interface components {
             /** @description neues Passwort, mindestens 12 Zeichen */
             password?: string | null;
             /** @enum {string|null} */
-            role?: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION" | null;
+            role?: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION" | "PARTNER" | null;
         };
         /** @description Ein Benutzer */
         UserResponse: {
@@ -2111,7 +2344,7 @@ export interface components {
             /** Format: date-time */
             lastLoginAt?: string | null;
             /** @enum {string} */
-            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION";
+            role: "ADMIN" | "OPERATOR_AG" | "OPERATOR_LE" | "VIEWER" | "INTEGRATION" | "PARTNER";
             username: string;
         };
         /** @description Ein Webhook-Empfänger */
@@ -2259,6 +2492,186 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ModuleResponse"][];
                 };
+            };
+        };
+    };
+    query: {
+        parameters: {
+            query?: {
+                plz?: string;
+                o?: string;
+                s?: string;
+                h?: string;
+                hz?: string;
+                aid?: string;
+                hid?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JsonNode"][];
+                };
+            };
+        };
+    };
+    sites: {
+        parameters: {
+            query?: {
+                plz?: string;
+                o?: string;
+                s?: string;
+                h?: string;
+                hz?: string;
+                aid?: string;
+                hid?: string;
+                cursor?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteDto"][];
+                };
+            };
+        };
+    };
+    create_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonNode"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteDto"];
+                };
+            };
+        };
+    };
+    import_2: {
+        parameters: {
+            query?: {
+                /** @description replace oder merge */
+                mode?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/xml": string;
+                "application/zip": string;
+                "text/csv": string;
+                "text/xml": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDto"];
+                };
+            };
+        };
+    };
+    site: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteDto"];
+                };
+            };
+        };
+    };
+    update_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonNode"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteDto"];
+                };
+            };
+        };
+    };
+    delete_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3112,7 +3525,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -3821,6 +4234,116 @@ export interface operations {
             };
         };
     };
+    releases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseDto"][];
+                };
+            };
+        };
+    };
+    release: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReleaseDto"];
+                };
+            };
+        };
+    };
+    deleteRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    files: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplikatFileDto"][];
+                };
+            };
+        };
+    };
+    run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplikatFileDto"][];
+                };
+            };
+        };
+    };
     get_1: {
         parameters: {
             query?: never;
@@ -4088,7 +4611,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;

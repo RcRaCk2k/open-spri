@@ -25,7 +25,12 @@ import java.time.Instant
 @RestController
 @RequestMapping("/api/v1/tokens", produces = [MediaType.APPLICATION_JSON_VALUE])
 @Tag(name = "API-Tokens", description = "Long-Life-Tokens für externe Systeme (CRM, Workflow)")
-class TokenController(private val tokens: ApiTokens, private val store: ApiTokenStore, private val audit: AuditLog) {
+class TokenController(
+    private val tokens: ApiTokens,
+    private val store: ApiTokenStore,
+    private val audit: AuditLog,
+    private val partners: de.openspri.domain.partner.PartnerAdministration,
+) {
 
     @Schema(description = "Ein API-Token. Das Geheimnis wird nie wieder angezeigt.")
     data class TokenResponse(
@@ -40,6 +45,7 @@ class TokenController(private val tokens: ApiTokens, private val store: ApiToken
         val revokedAt: Instant?,
         val lastUsedAt: Instant?,
         val lastUsedIp: String?,
+        @field:Schema(description = "bei Rolle PARTNER: der Partner, für den das Token gilt") val partnerId: Long? = null,
     )
 
     @Schema(description = "Neues Token")
@@ -51,6 +57,8 @@ class TokenController(private val tokens: ApiTokens, private val store: ApiToken
         val scopes: List<String>? = null,
         @field:Schema(description = "Optional: Ablaufzeitpunkt; ohne Angabe gilt das Token bis zum Widerruf")
         val expiresAt: Instant? = null,
+        @field:Schema(description = "Pflicht bei Rolle PARTNER: Partner, der damit unser Replikat lädt bzw. die Online-Abfrage nutzt")
+        val partnerId: Long? = null,
     )
 
     @Schema(description = "Das neue Token. `token` enthält das Geheimnis und wird nur in dieser Antwort angezeigt.")
@@ -70,7 +78,11 @@ class TokenController(private val tokens: ApiTokens, private val store: ApiToken
     @Operation(summary = "Token anlegen", description = "Das Geheimnis wird nur in der Antwort angezeigt; gespeichert wird ausschließlich sein Hash.")
     fun create(@RequestBody body: CreateTokenRequest): CreatedTokenResponse {
         val actor = currentActor()
-        val issued = tokens.issue(body.name, body.role, body.scopes?.map(Scope::fromValue)?.toSet(), body.expiresAt, actor.id.takeIf { actor.kind.name == "USER" }, actor.label, Instant.now())
+        body.partnerId?.let { id -> partners.get(de.openspri.domain.partner.PartnerId(id)) ?: throw NoSuchElementException("Partner $id existiert nicht") }
+        val issued = tokens.issue(
+            body.name, body.role, body.scopes?.map(Scope::fromValue)?.toSet(), body.expiresAt, actor.id.takeIf { actor.kind.name == "USER" }, actor.label, Instant.now(),
+            partnerId = body.partnerId,
+        )
         audit.record(actor, "token.create", "token:${issued.token.prefix}", "role=${body.role}")
         return CreatedTokenResponse(issued.plainText, toResponse(issued.token))
     }
@@ -85,6 +97,6 @@ class TokenController(private val tokens: ApiTokens, private val store: ApiToken
     }
 
     private fun toResponse(t: ApiToken) = TokenResponse(
-        t.id!!, t.name, t.prefix, t.role, t.scopes.map { it.value }.sorted(), t.createdBy, t.createdAt, t.expiresAt, t.revokedAt, t.lastUsedAt, t.lastUsedIp,
+        t.id!!, t.name, t.prefix, t.role, t.scopes.map { it.value }.sorted(), t.createdBy, t.createdAt, t.expiresAt, t.revokedAt, t.lastUsedAt, t.lastUsedIp, t.partnerId,
     )
 }

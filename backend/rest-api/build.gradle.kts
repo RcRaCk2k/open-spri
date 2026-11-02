@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":domain"))
     api(project(":auth-api"))
     implementation(project(":spri-soap"))
+    implementation(project(":replikat"))
     implementation(project(":auth-token"))
     implementation(project(":auth-local"))
     api(libs.spring.boot.starter.webmvc)

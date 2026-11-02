@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     api(project(":domain"))
+    implementation(project(":replikat"))     // records stored as Replikat JSON (ReplikatJson)
     implementation(project(":auth-token"))
     implementation(project(":auth-local"))
     api(libs.spring.boot.starter.jdbc)

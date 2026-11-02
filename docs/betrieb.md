@@ -210,6 +210,10 @@ OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL=betrieb@example.de
 ```
 Ohne Mailserver schreibt open-spri die Benachrichtigungen nur ins Log.
 
+## Replikat (Leistungserbringer)
+
+Jeden Tag um 03:00 Uhr (`OPENSPRI_REPLIKAT_EXPORT_CRON`, Uhrzeit des Containers, `TZ=Europe/Berlin`) erzeugt open-spri für jeden freigegebenen Partner ein Voll- und ggf. ein Deltareplikat. Die Spezifikation verlangt, dass es bis 06:00 Uhr bereitliegt. Partner laden es unter `https://<host>/replikat/` mit ihrem Partner-Token, nginx leitet `/replikat/` an die API weiter. open-spri hält 31 Tage vor; die Dateien liegen in der Datenbank (`replikat_snapshot`). Schlägt ein Lauf fehl, steht das im Log. Details: [api/verfuegbarkeit.md](api/verfuegbarkeit.md).
+
 ## KFT-Simulator (nur Test und Entwicklung)
 
 Mit `COMPOSE_PROFILES=proxy,simulator` startet zusätzlich der Dienst `spri-simulator`. Er spielt die Gegenseite der KFT-Testfälle gegen diese Instanz (Token mit `orders:override` in `OPENSPRI_SIM_TOKEN`, Testfallliste in `./config`). Bedienung und Bericht beschreibt [kft-szenarien.md](kft-szenarien.md#simulator-als-container). Der Simulator legt Testdaten an und gehört nie an eine produktive Instanz.

@@ -15,6 +15,13 @@ enum class Scope(val value: String) {
     PARTNERS_READ("partners:read"),
     PARTNERS_ADMIN("partners:admin"),
     AVAILABILITY_READ("availability:read"),
+    /** Own availabilities (Leistungserbringer), Replikat releases and sources (AUFGABE 5.4). */
+    AVAILABILITY_ADMIN("availability:admin"),
+    /**
+     * Partner access to our Replikat and online query (AUFGABE 7.5 `partner:<id>:availability`): only in tokens of
+     * role PARTNER, which are bound to one partner ([Actor.partnerId]).
+     */
+    PARTNER_AVAILABILITY("partner:availability"),
     EVENTS_READ("events:read"),
     WEBHOOKS_ADMIN("webhooks:admin"),
     MESSAGE_CODES_ADMIN("message-codes:admin"),
@@ -37,12 +44,14 @@ enum class Scope(val value: String) {
 
 /** Roles bundle scopes. A token may be restricted to a subset of its role's scopes. */
 enum class Role(val scopes: Set<Scope>) {
-    ADMIN(Scope.entries.toSet() - Scope.ORDERS_OVERRIDE),
+    ADMIN(Scope.entries.toSet() - Scope.ORDERS_OVERRIDE - Scope.PARTNER_AVAILABILITY),
     OPERATOR_AG(setOf(Scope.ORDERS_READ, Scope.ORDERS_WRITE, Scope.DELIVERIES_READ, Scope.DELIVERIES_WRITE, Scope.PARTNERS_READ, Scope.AVAILABILITY_READ, Scope.EVENTS_READ)),
-    OPERATOR_LE(setOf(Scope.ORDERS_READ, Scope.LE_MESSAGES_WRITE, Scope.DELIVERIES_READ, Scope.DELIVERIES_WRITE, Scope.PARTNERS_READ, Scope.AVAILABILITY_READ, Scope.EVENTS_READ)),
+    OPERATOR_LE(setOf(Scope.ORDERS_READ, Scope.LE_MESSAGES_WRITE, Scope.DELIVERIES_READ, Scope.DELIVERIES_WRITE, Scope.PARTNERS_READ, Scope.AVAILABILITY_READ, Scope.AVAILABILITY_ADMIN, Scope.EVENTS_READ)),
     VIEWER(setOf(Scope.ORDERS_READ, Scope.DELIVERIES_READ, Scope.PARTNERS_READ, Scope.AVAILABILITY_READ, Scope.EVENTS_READ, Scope.AUDIT_READ)),
     /** External systems (CRM, workflow): order and message traffic, no administration. */
     INTEGRATION(setOf(Scope.ORDERS_READ, Scope.ORDERS_WRITE, Scope.LE_MESSAGES_WRITE, Scope.DELIVERIES_READ, Scope.PARTNERS_READ, Scope.AVAILABILITY_READ, Scope.EVENTS_READ)),
+    /** A partner downloading our Replikat or using our online query; the token is bound to the partner. */
+    PARTNER(setOf(Scope.PARTNER_AVAILABILITY)),
     ;
 
     /** Scopes a token of this role may carry: its own, for ADMIN also `orders:override` on explicit request (ADR-0008). */
@@ -50,7 +59,7 @@ enum class Role(val scopes: Set<Scope>) {
 }
 
 /** Who is acting. Stored as Spring Security principal; written to the audit log. */
-data class Actor(val kind: Kind, val id: Long?, val name: String, val scopes: Set<Scope>) {
+data class Actor(val kind: Kind, val id: Long?, val name: String, val scopes: Set<Scope>, val partnerId: Long? = null) {
     enum class Kind { USER, TOKEN, SETUP, SYSTEM }
 
     val label: String get() = "${kind.name.lowercase()}:$name"

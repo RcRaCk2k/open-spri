@@ -78,18 +78,24 @@ object ReplikatXml {
         var date: LocalDate? = null
         var carrierCode: String? = null
         var delta = false
-        while (reader.hasNext()) {
-            if (reader.next() != XMLStreamConstants.START_ELEMENT) continue
-            when (reader.localName) {
-                "datum" -> date = LocalDate.parse(reader.elementText.trim().take(10))
-                "carrierCode" -> carrierCode = reader.elementText.trim()
-                "deltareplikat" -> delta = reader.elementText.trim().let { it == "true" || it == "1" }
-                "ds" -> {
-                    val ds = unmarshaller.unmarshal(reader, Replikat.Datensatzliste.Ds::class.java).value
-                    record(toLocation(ds))
-                    // the unmarshaller leaves the reader on the end tag of ds
+        var event = reader.eventType
+        while (true) {
+            if (event == XMLStreamConstants.START_ELEMENT && reader.localName == "ds") {
+                // the unmarshaller consumes the element and leaves the reader on the event after it, which may
+                // already be the next ds: do not advance again
+                record(toLocation(unmarshaller.unmarshal(reader, Replikat.Datensatzliste.Ds::class.java).value))
+                event = reader.eventType
+                continue
+            }
+            if (event == XMLStreamConstants.START_ELEMENT) {
+                when (reader.localName) {
+                    "datum" -> date = LocalDate.parse(reader.elementText.trim().take(10))
+                    "carrierCode" -> carrierCode = reader.elementText.trim()
+                    "deltareplikat" -> delta = reader.elementText.trim().let { it == "true" || it == "1" }
                 }
             }
+            if (!reader.hasNext()) break
+            event = reader.next()
         }
         reader.close()
         return ReplikatHeader(requireNotNull(date) { "datum fehlt" }, requireNotNull(carrierCode) { "carrierCode fehlt" }, delta)

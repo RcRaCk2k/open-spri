@@ -23,6 +23,7 @@ dependencies {
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.archunit.junit5)
     testImplementation(testFixtures(project(":spri-soap")))
+    testImplementation(project(":replikat"))
 }
 
 springBoot {

@@ -24,6 +24,13 @@ class ProblemHandlers {
             setProperty("errors", e.errors)
         }
 
+    @ExceptionHandler(de.openspri.replikat.ReplikatInvalidException::class)
+    fun invalidReplikat(e: de.openspri.replikat.ReplikatInvalidException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Der Inhalt entspricht nicht der Replikat.xsd 1.7").apply {
+            title = "Ungültiger Inhalt"
+            setProperty("errors", e.errors)
+        }
+
     @ExceptionHandler(NotFoundException::class)
     fun notFound(e: NotFoundException): ProblemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.message ?: "Nicht gefunden")
 

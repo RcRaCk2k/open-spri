@@ -58,6 +58,9 @@
   }, {
     "description" : "Event-Feed per Polling und Webhooks (D-14)",
     "name" : "Ereignisse"
+  }, {
+    "description" : "Eigene Standorte, Replikat, Online-Abfrage und Suche bei Partnern (AUFGABE 5.4)",
+    "name" : "Verfügbarkeit"
   } ],
   "paths" : {
     "/api/v1/about" : {
@@ -165,6 +168,340 @@
         },
         "summary" : "Anmeldeverfahren",
         "tags" : [ "Anmeldung" ]
+      }
+    },
+    "/api/v1/availability" : {
+      "get" : {
+        "description" : "Nur mit Partner-Token (Rolle PARTNER) aus einer freigeschalteten IP und mit Replikat-Freigabe. Antwort: Datensätze wie im Replikat (Feldnamen der Replikat.xsd 1.7), mit den für den Partner vereinbarten Feldern und Kontingenten. Mindestens `plz` mit `s`, oder `aid`, oder `hid`.",
+        "operationId" : "query",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "plz",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "o",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "s",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "h",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "hz",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "aid",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "hid",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/JsonNode"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Online-Abfrage für Partner (Leistungserbringer)",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/availability/sites" : {
+      "get" : {
+        "description" : "Neueste zuerst; `s` und `o` als Präfix. Blättern mit `cursor`.",
+        "operationId" : "sites",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "plz",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "o",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "s",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "h",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "hz",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "aid",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "hid",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SiteDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Eigene Standorte suchen",
+        "tags" : [ "Verfügbarkeit" ]
+      },
+      "post" : {
+        "description" : "Body: Datensatz in Replikat-Feldnamen; geprüft gegen Replikat.xsd 1.7. 409 bei gleichem Standort.",
+        "operationId" : "create_6",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JsonNode"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SiteDto"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Eigenen Standort anlegen",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/availability/sites/import" : {
+      "post" : {
+        "description" : "Replikat (XML oder ZIP, Replikat.xsd 1.7) oder CSV (Spalten siehe docs/api/verfuegbarkeit.md). `mode=replace` (Standard): die Datei ist der vollständige Bestand; `merge`: hinzufügen bzw. ersetzen. Ein Deltareplikat wird nach seinen Änderungskennzeichen angewendet. 400 mit Zeilennummern.",
+        "operationId" : "import_2",
+        "parameters" : [ {
+          "description" : "replace oder merge",
+          "in" : "query",
+          "name" : "mode",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "replace"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/xml" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            },
+            "application/zip" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            },
+            "text/csv" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            },
+            "text/xml" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ImportDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Eigene Standorte importieren",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/availability/sites/{id}" : {
+      "delete" : {
+        "description" : "Im nächsten Deltareplikat erscheint er mit DEL.",
+        "operationId" : "delete_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Eigenen Standort löschen",
+        "tags" : [ "Verfügbarkeit" ]
+      },
+      "get" : {
+        "operationId" : "site",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SiteDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Eigenen Standort lesen",
+        "tags" : [ "Verfügbarkeit" ]
+      },
+      "put" : {
+        "operationId" : "update_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JsonNode"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SiteDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Eigenen Standort ändern",
+        "tags" : [ "Verfügbarkeit" ]
       }
     },
     "/api/v1/deliveries" : {
@@ -1446,7 +1783,7 @@
         "tags" : [ "Partner" ]
       },
       "patch" : {
-        "operationId" : "update_3",
+        "operationId" : "update_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2527,6 +2864,150 @@
         "tags" : [ "Aufträge" ]
       }
     },
+    "/api/v1/replikat/releases" : {
+      "get" : {
+        "operationId" : "releases",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReleaseDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Freigaben unseres Replikats",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/replikat/releases/{partnerId}" : {
+      "delete" : {
+        "operationId" : "deleteRelease",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Freigabe entfernen",
+        "tags" : [ "Verfügbarkeit" ]
+      },
+      "put" : {
+        "description" : "Ab dem nächsten Lauf (täglich, `OPENSPRI_REPLIKAT_EXPORT_CRON`) erhält der Partner ein Voll- und ggf. Deltareplikat.",
+        "operationId" : "release",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReleaseDto"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReleaseDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Replikat für einen Partner freigeben oder ändern",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/replikat/releases/{partnerId}/files" : {
+      "get" : {
+        "description" : "Die letzten 31 Tage (Replikat 3.1).",
+        "operationId" : "files",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReplikatFileDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Bereitgestellte Replikate eines Partners",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
+    "/api/v1/replikat/releases/{partnerId}/run" : {
+      "post" : {
+        "description" : "Ersetzt die Dateien des heutigen Tages.",
+        "operationId" : "run",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "partnerId",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReplikatFileDto"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Replikat für einen Partner jetzt erzeugen",
+        "tags" : [ "Verfügbarkeit" ]
+      }
+    },
     "/api/v1/settings" : {
       "get" : {
         "operationId" : "get_1",
@@ -2832,7 +3313,7 @@
     "/api/v1/users/{id}" : {
       "patch" : {
         "description" : "Name, Rolle, Sperre oder Passwort.",
-        "operationId" : "update_2",
+        "operationId" : "update_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -3470,10 +3951,15 @@
             "type" : "string",
             "example" : "CRM Produktion"
           },
+          "partnerId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "Pflicht bei Rolle PARTNER: Partner, der damit unser Replikat lädt bzw. die Online-Abfrage nutzt"
+          },
           "role" : {
             "type" : "string",
             "description" : "Rolle; bestimmt die maximal möglichen Berechtigungen",
-            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION" ],
+            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION", "PARTNER" ],
             "example" : "INTEGRATION"
           },
           "scopes" : {
@@ -3501,7 +3987,7 @@
           },
           "role" : {
             "type" : "string",
-            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION" ],
+            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION", "PARTNER" ],
             "example" : "OPERATOR_LE"
           },
           "username" : {
@@ -3712,6 +4198,30 @@
           }
         },
         "required" : [ "at", "changeIndicator", "codes", "direction", "findings", "kind" ]
+      },
+      "ImportDto" : {
+        "type" : "object",
+        "description" : "Ergebnis eines Imports eigener Standorte",
+        "properties" : {
+          "added" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "changed" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "deleted" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Standorte danach"
+          }
+        },
+        "required" : [ "added", "changed", "deleted", "total" ]
       },
       "InboxDto" : {
         "type" : "object",
@@ -4356,6 +4866,78 @@
         },
         "required" : [ "order", "replyDue" ]
       },
+      "ReleaseDto" : {
+        "type" : "object",
+        "description" : "Freigabe unseres Replikats für einen Partner (bilaterale Vereinbarung)",
+        "properties" : {
+          "delta" : {
+            "type" : "boolean",
+            "description" : "zusätzlich ein Deltareplikat bereitstellen"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "omittedFields" : {
+            "type" : "array",
+            "description" : "optionale Replikat-Felder, die dieser Partner nicht erhält, z. B. geo, kont, ane",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "partnerId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "quotas" : {
+            "type" : "array",
+            "description" : "nur Standorte mit diesen Kontingenten (`kont`); leer = alle",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "delta", "enabled", "partnerId" ]
+      },
+      "ReplikatFileDto" : {
+        "type" : "object",
+        "description" : "Ein bereitgestelltes Replikat (ZIP) mit Metadatei",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "fileName" : {
+            "type" : "string",
+            "example" : "GFNORD_20261102.zip"
+          },
+          "kind" : {
+            "type" : "string",
+            "description" : "FULL oder DELTA"
+          },
+          "md5" : {
+            "type" : "string"
+          },
+          "metaFileName" : {
+            "type" : "string",
+            "example" : "GFNORD_20261102_meta.xml"
+          },
+          "records" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Anzahl Datensätze"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Größe in Byte"
+          }
+        },
+        "required" : [ "createdAt", "date", "fileName", "kind", "md5", "metaFileName", "records", "size" ]
+      },
       "RescheduleRequest" : {
         "type" : "object",
         "description" : "Terminverschiebung",
@@ -4486,6 +5068,25 @@
         },
         "required" : [ "certificatePem", "issuer", "keyBits", "notAfter", "serialNumber", "source", "subject" ]
       },
+      "SiteDto" : {
+        "type" : "object",
+        "description" : "Ein eigener Standort (Leistungserbringer) mit dem Datensatz in Replikat-Feldnamen",
+        "properties" : {
+          "ds" : {
+            "$ref" : "#/components/schemas/JsonNode",
+            "description" : "Datensatz `ds` der Replikat.xsd 1.7 als JSON: `plz`, `o`, `s`, `h`, `pl` (Produkte), `tl` (Technologien) …"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "ds", "id", "updatedAt" ]
+      },
       "TerminationRequest" : {
         "type" : "object",
         "description" : "Kündigung durch den Leistungserbringer (KUE-LE): Inhalt der KDLE (MeldungsattributeKDLEType)",
@@ -4568,6 +5169,11 @@
             "type" : "string",
             "example" : "CRM Produktion"
           },
+          "partnerId" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "bei Rolle PARTNER: der Partner, für den das Token gilt"
+          },
           "prefix" : {
             "type" : "string",
             "description" : "Öffentlicher Teil, erkennbar in Logs",
@@ -4579,7 +5185,7 @@
           },
           "role" : {
             "type" : "string",
-            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION" ]
+            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION", "PARTNER" ]
           },
           "scopes" : {
             "type" : "array",
@@ -4627,7 +5233,7 @@
           },
           "role" : {
             "type" : [ "string", "null" ],
-            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION" ]
+            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION", "PARTNER" ]
           }
         }
       },
@@ -4655,7 +5261,7 @@
           },
           "role" : {
             "type" : "string",
-            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION" ]
+            "enum" : [ "ADMIN", "OPERATOR_AG", "OPERATOR_LE", "VIEWER", "INTEGRATION", "PARTNER" ]
           },
           "username" : {
             "type" : "string"
