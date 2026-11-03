@@ -9,6 +9,8 @@ COPY frontend/ ./
 RUN pnpm check:api && pnpm build
 
 FROM nginx:1.30-alpine
+# security fixes of Alpine packages ahead of the next nginx image (Trivy in CI)
+RUN apk upgrade --no-cache
 COPY deploy/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/frontend/security-headers.conf /etc/nginx/openspri/security-headers.conf
 COPY --from=build /src/frontend/dist /usr/share/nginx/html
