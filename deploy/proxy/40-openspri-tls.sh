@@ -2,13 +2,16 @@
 # Selects the TLS certificate for nginx and keeps it current:
 # - Let's Encrypt certificate from /etc/letsencrypt/live/$PUBLIC_HOSTNAME if present,
 # - otherwise a temporary self-signed certificate so that nginx can start and answer the ACME challenge.
-# A background loop switches to the real certificate and reloads nginx after every renewal.
+# A background loop switches to the real certificate and reloads nginx after every renewal: every
+# CERT_WAIT_INTERVAL (10 s) while the temporary certificate is in use, so that the certificate from certbot is
+# active a few seconds after it was issued, afterwards every CERT_CHECK_INTERVAL (5 min) for renewals.
 set -eu
 
 LIVE="/etc/letsencrypt/live/${PUBLIC_HOSTNAME}"
 BOOT="/etc/nginx/tls-bootstrap"
 TLS="/etc/nginx/tls"
 INTERVAL="${CERT_CHECK_INTERVAL:-300}"
+WAIT_INTERVAL="${CERT_WAIT_INTERVAL:-10}"
 mkdir -p "$TLS" "$BOOT"
 
 if [ ! -s "$BOOT/fullchain.pem" ]; then
@@ -30,7 +33,11 @@ echo "open-spri proxy: using certificate $(readlink "$TLS/fullchain.pem")"
 
 (
     current="$(fingerprint)"
-    while sleep "$INTERVAL"; do
+    while :; do
+        case "$(readlink "$TLS/fullchain.pem")" in
+            "$BOOT"/*) sleep "$WAIT_INTERVAL" ;;
+            *) sleep "$INTERVAL" ;;
+        esac
         select_cert
         next="$(fingerprint)"
         if [ "$next" != "$current" ]; then

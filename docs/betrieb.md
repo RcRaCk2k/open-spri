@@ -25,7 +25,9 @@ Was passiert:
 1. `db` (MariaDB) startet. `api` legt beim ersten Start das Datenbankschema an (Flyway).
 2. `proxy` (nginx) startet mit einem **vorläufigen, selbst signierten Zertifikat**.
 3. `certbot` holt das Let's-Encrypt-Zertifikat über die HTTP-01-Prüfung (Schlüssel ECDSA P-256).
-4. Der Proxy erkennt das neue Zertifikat innerhalb von 5 Minuten und lädt ohne Unterbrechung neu. Danach wird alle 12 Stunden auf Verlängerung geprüft.
+4. Der Proxy prüft alle 10 Sekunden, ob das Zertifikat da ist, und lädt dann ohne Unterbrechung neu (`docker compose logs proxy | grep "certificate changed"`). Danach prüft certbot alle 12 Stunden, ob eine Verlängerung fällig ist, und der Proxy übernimmt ein verlängertes Zertifikat innerhalb von 5 Minuten.
+
+**Hostnamen ändern:** `PUBLIC_HOSTNAME` in `.env` ändern, dann `docker compose up -d`. Ein `docker compose restart` reicht nicht, weil es `.env` nicht neu einliest. Compose erstellt `proxy`, `certbot` und `api` neu. certbot beantragt ein Zertifikat für den neuen Namen, und der Proxy übernimmt es nach wenigen Sekunden. Bis dahin zeigt der Browser das vorläufige selbstsignierte Zertifikat. Vorher müssen A- und AAAA-Einträge des neuen Namens auf den Server zeigen. Den S/PRI-Endpunkt unter *Einstellungen* passt open-spri nicht von selbst an.
 
 **Staging zuerst:** In `.env.example` ist `ACME_STAGING=true` voreingestellt. Damit gibt Let's Encrypt Testzertifikate aus, ohne Ratenlimits. Sobald alles läuft, `ACME_STAGING=false` setzen und `docker compose up -d` ausführen. certbot holt dann automatisch ein echtes Zertifikat.
 

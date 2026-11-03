@@ -48,3 +48,4 @@ Welche Tests belegen die Änderung?
 | [CL-0010](CL-0010-m6-verfuegbarkeit.md) | M6 – Verfügbarkeit, Replikat und Online-Abfrage | 2026-11-02 |
 | [CL-0011](CL-0011-m7-frontend.md) | M7 – Web-Oberfläche | 2026-11-02 |
 | [CL-0012](CL-0012-m8-haertung.md) | M8 – Härtung und Release-Kandidat | 2026-11-03 |
+| [CL-0013](CL-0013-proxy-zertifikatswechsel.md) | Proxy übernimmt das Let's-Encrypt-Zertifikat nach Sekunden | 2026-11-03 |
