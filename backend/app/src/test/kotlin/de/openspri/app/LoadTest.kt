@@ -29,10 +29,12 @@ import kotlin.test.assertTrue
  * Load and response time (AUFGABE 10.1 item 7, NF-01): signed S/PRI orders over real HTTP against the complete
  * application with MariaDB. Requests are signed beforehand, so only the server side is measured.
  *
- * - 50 parallel senders, 1000 orders: TEQ p95 < 1 s (internal target; the specification requires 10 s)
+ * - 50 parallel senders, 1000 orders: TEQ p95 ≤ 10 s (specification 11.4, fails the test); the internal target
+ *   p95 < 1 s is reported, not enforced, because shared CI runners vary too much for a hard limit
  * - one order with a 10 MB attachment: TEQ < 120 s (specification 11.4: up to 120 s with attachments)
  *
- * Not part of every build (`./gradlew :app:test -Pload`); CI runs it in its own job, the result is in the test log.
+ * Not part of every build (`./gradlew :app:test -Pload`). The results are written to `build/load-results.txt`;
+ * the CI shows them as notice, a missed internal target as warning.
  */
 @Tag("load")
 @SpringBootTest(
@@ -99,10 +101,16 @@ class LoadTest(
         return millis to teq
     }
 
+    /** Prints a result line and appends it to build/load-results.txt (read by the CI). */
+    private fun report(line: String) {
+        println(line)
+        java.io.File("build/load-results.txt").appendText(line + "\n")
+    }
+
     private fun percentile(values: List<Long>, p: Double) = values.sorted()[((values.size - 1) * p).toInt()]
 
     @Test
-    fun `TEQ p95 below 1 s with 50 parallel senders (NF-01)`() {
+    fun `TEQ p95 within 10 s with 50 parallel senders, internal target 1 s (NF-01)`() {
         val id = partner("DEU.LOAD")
         val warmup = (1..WARMUP).map { order("WARM-%05d".format(it)) }
         val requests = (1..REQUESTS).map { order("LOAD-%05d".format(it)) }
@@ -117,7 +125,7 @@ class LoadTest(
         val p50 = percentile(durations, 0.50)
         val p95 = percentile(durations, 0.95)
         val p99 = percentile(durations, 0.99)
-        println(
+        report(
             "LOAD: %d orders, %d parallel, %.1f s, %.0f/s, p50 %d ms, p95 %d ms, p99 %d ms, max %d ms"
                 .format(java.util.Locale.ROOT, REQUESTS, PARALLEL, seconds, REQUESTS / seconds, p50, p95, p99, durations.max()),
         )
@@ -126,7 +134,8 @@ class LoadTest(
             Int::class.java, id.value,
         )
         assertEquals(REQUESTS, accepted, "every order archived with TEQ OK; answers: " + results.map { it.second }.distinct())
-        assertTrue(p95 < 1000, "p95 = $p95 ms")
+        report("LOAD: internal target p95 < 1000 ms " + if (p95 < 1000) "met" else "MISSED ($p95 ms)")
+        assertTrue(p95 <= 10_000, "p95 = $p95 ms (specification 11.4: 10 s)")
     }
 
     @Test
@@ -134,7 +143,7 @@ class LoadTest(
         val id = partner("DEU.ATTACH")
         val request = order("ATTACH-0001", Random(42).nextBytes(10 * 1024 * 1024))
         val (millis, _) = send(request)
-        println("LOAD: order with 10 MB attachment (%d MB on the wire) acknowledged in %d ms".format(java.util.Locale.ROOT, request.size / 1024 / 1024, millis))
+        report("LOAD: order with 10 MB attachment (%d MB on the wire) acknowledged in %d ms".format(java.util.Locale.ROOT, request.size / 1024 / 1024, millis))
         assertEquals(
             "OK",
             jdbc.queryForObject("SELECT teq_code FROM soap_archive WHERE partner_id = ? AND external_order_number = 'ATTACH-0001'", String::class.java, id.value),
