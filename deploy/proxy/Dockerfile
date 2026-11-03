@@ -1,5 +1,5 @@
 # Container image "proxy": edge nginx for the all-in-one stack (TLS, routing, ACME challenge).
-FROM nginx:1.30-alpine
+FROM nginx:1.31-alpine
 # apk upgrade: security fixes of Alpine packages ahead of the next nginx image (Trivy in CI)
 RUN apk upgrade --no-cache && apk add --no-cache openssl
 COPY deploy/nginx/snippets/ /etc/nginx/snippets/
