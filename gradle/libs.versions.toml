@@ -1,17 +1,17 @@
 # Central version catalog. Versions managed by the Spring Boot BOM are not repeated here.
 [versions]
-kotlin = "2.3.21"            # aligned with spring-boot-dependencies 4.1.2
+kotlin = "2.4.21"            # aligned with spring-boot-dependencies 4.1.2
 spring-boot = "4.1.2"
 cxf = "4.2.4"
 wss4j = "4.0.2"             # version used by CXF 4.2.4 (cxf.jakarta.wss4j.version)                # built against Spring Boot 4.1 / Spring 7 (used from M1)
-springdoc = "3.1.1"          # Spring Boot 4.1 line
+springdoc = "3.2.0"          # Spring Boot 4.1 line
 archunit = "1.5.1"
-flyway-mysql = "12.4.0"
+flyway-mysql = "13.12.0"
 bouncycastle = "1.86"
-poi = "5.5.1"               # simulator: reads the KFT test case list (xlsx)      # same as CXF 4.2.4 (cxf.bcprov.version)      # keep in sync with flyway.version of the Boot BOM
+poi = "6.0.0"               # simulator: reads the KFT test case list (xlsx)      # same as CXF 4.2.4 (cxf.bcprov.version)      # keep in sync with flyway.version of the Boot BOM
 
 # Security fixes ahead of the Spring Boot BOM (Trivy in CI, AUFGABE 13); remove when the BOM catches up.
-jackson2 = "2.22.3"          # Jackson 2 comes in transitively (CXF, springdoc) above the BOM's 2.21.x
+jackson2 = "2.22.4"          # Jackson 2 comes in transitively (CXF, springdoc) above the BOM's 2.21.x
 guava = "33.7.2-jre"         # via WSS4J
 
 [libraries]
