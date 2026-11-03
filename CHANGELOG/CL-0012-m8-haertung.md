@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Datum | 2026-11-02 |
-| Meilenstein | M8 (in Arbeit) |
+| Datum | 2026-11-03 |
+| Meilenstein | M8 (abgeschlossen, Tag `v1.0.0-rc1`) |
 | Bezug | AUFGABE 6 (NF-01, NF-02, NF-08 bis NF-11, NF-13), 7.3, 7.4, 7.6, 8.1, 10.1 Punkt 7 und 8, 12.1; ADR-0010 |
 
 ## Motivation
@@ -96,3 +96,12 @@ M8 macht open-spri betriebsfertig. Dazu gehören Überwachung, Begrenzung der An
 - `PartnerApiTest`: Schalter `useOutboundProxy`, Selbsttests (Scope, unerreichbare Adresse, 409 ohne Echo-Dienst)
 - Playwright: Selbsttest-Tab mit axe; lokal 15/15
 - Playwright: Die Suite prüft zusätzlich, dass keine Seite die Content-Security-Policy verletzt. Lokal lief sie gegen den gebauten Frontend-nginx (15/15).
+
+### Nacharbeiten aus der CI
+Die neuen Prüfungen in der CI haben vier weitere Punkte gefunden. Alle sind behoben:
+- **testssl:** `X-Content-Type-Options` kam doppelt an, vom Proxy und vom Upstream. Der Proxy blendet die Kopien des Upstreams jetzt aus, für HSTS ebenso. Die Note T (Testzertifikat nicht vertrauenswürdig) ist in der CI zugelassen.
+- **Trivy:** Das Basis-Image `nginx:1.30-alpine` enthielt veraltete Pakete: brotli-libs (CRITICAL) sowie curl und libcurl (HIGH). Frontend und Proxy führen deshalb beim Bau `apk upgrade` aus.
+- **ZAP 10015:** `index.html` wird jetzt mit `no-cache, no-store, must-revalidate` ausgeliefert.
+- **CI-Diagnose:** Fehlgeschlagene Tests und ZAP-Befunde erscheinen jetzt als Annotation. Im Nebenläufigkeitstest werden Exceptions der Worker nicht mehr verschluckt.
+
+Offen: Der `ConcurrencyIntegrationTest` (Eingang) ist einmal in der CI gescheitert. Lokal ließ sich das auch unter Last nicht nachstellen. Seitdem melden CI und Test die genaue Ursache.
