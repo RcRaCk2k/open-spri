@@ -69,6 +69,35 @@ Partner lassen nur freigeschaltete Absenderadressen an ihren Endpunkt (AK-Sicher
    Die Outbound-IP muss auf einer Schnittstelle des Hosts liegen. Hat der Host nur eine öffentliche Adresse, ist sie ohnehin die Outbound-IP, und SNAT ist nicht nötig.
 2. **Egress-Proxy:** `SPRI_OUTBOUND_PROXY=http://proxy.example.de:3128`, etwa ein Firmen-Proxy oder Squid mit fester Adresse. Der Proxy muss `CONNECT` auf Port 443 erlauben. Je Partner lässt er sich abschalten (Partnerseite, Schalter „Über den Egress-Proxy senden“, bzw. `useOutboundProxy`). Der Proxy gilt für S/PRI-Nachrichten. Replikat-Downloads und Online-Abfragen bei Partnern laufen über das Routing des Hosts, also über SNAT.
 
+**Mehrere Uplinks (ECMP, BGP):** Dockers Masquerading setzt als Absender die Adresse der Schnittstelle, über die ein Paket den Host verlässt. Das `src` der Route beachtet es nicht. Verteilt der Host seinen Verkehr auf mehrere Uplinks, etwa per ECMP oder mit BIRD und einer Dienstadresse auf `lo`, wechselt die Absenderadresse der Container von Verbindung zu Verbindung. Partner, die nur eine Adresse freigeschaltet haben, lehnen dann einen Teil der Nachrichten ab. Prüfen lässt sich das mit mehreren Aufrufen aus dem Container:
+```bash
+for i in 1 2 3 4 5 6; do docker compose exec -T api bash -c 'exec 3<>/dev/tcp/api6.ipify.org/80 && printf "GET / HTTP/1.0\r\nHost: api6.ipify.org\r\n\r\n" >&3 && tail -1 <&3'; echo; done | sort | uniq -c
+```
+Erscheint mehr als eine Adresse, hilft eine eigene SNAT-Regel auf die feste Dienstadresse. Mit nftables (Debian 13) sieht das so aus, als `/etc/nftables.d/openspri-snat.nft`:
+```
+table inet openspri_snat
+delete table inet openspri_snat
+table inet openspri_snat {
+	chain postrouting {
+		# vor Dockers MASQUERADE (Priorität srcnat = 100)
+		type nat hook postrouting priority srcnat - 10; policy accept;
+		iifname { "docker0", "br-*" } oifname { "ens18", "ens19" } meta nfproto ipv4 snat ip to 203.0.113.10
+		iifname { "docker0", "br-*" } oifname { "ens18", "ens19" } meta nfproto ipv6 snat ip6 to 2001:db8::10
+	}
+}
+```
+Schnittstellennamen und Adressen sind anzupassen. Die Regel hängt nicht vom Subnetz des Docker-Netzes ab und gilt deshalb auch, nachdem das Netz neu angelegt wurde. Aktiviert wird sie mit `include "/etc/nftables.d/*.nft"` in `/etc/nftables.conf` und `systemctl enable --now nftables`.
+
+**Achtung, `flush ruleset`:** Debians Vorgabe für `/etc/nftables.conf` beginnt mit `flush ruleset`. Ein `systemctl reload nftables` oder `nft -f /etc/nftables.conf` löscht dann auch alle Regeln, die Docker angelegt hat. Danach sind die veröffentlichten Ports und der Ausgang der Container weg, bis Docker neu startet. Die Zeile deshalb entfernen und eigene Tabellen wie oben mit `table …` / `delete table …` idempotent laden.
+
+**IPv6:** Damit open-spri bei Partnern, die per IPv6 kommen, die echte Absenderadresse sieht, braucht das Netz des Stacks IPv6. Sonst nimmt Dockers Userland-Proxy die Verbindung an, und open-spri sieht nur eine interne Adresse. Die IP-Freigabe je Partner greift dann nicht. Ab Docker 27 genügt dafür eine `compose.override.yaml` neben `compose.yaml`:
+```yaml
+networks:
+  default:
+    enable_ipv6: true     # Docker vergibt ein ULA-Präfix und setzt NAT für den Ausgang
+```
+Danach `docker compose down && docker compose up -d`, weil das Netz neu angelegt werden muss. Docker setzt dabei `net.ipv6.conf.all.forwarding=1`. Bezieht der Host seine IPv6-Adresse per Router Advertisement, sollte in systemd-networkd `IPv6AcceptRA=yes` ausdrücklich gesetzt sein. Sonst kann der Host mit eingeschaltetem Forwarding keine Router Advertisements mehr annehmen und dadurch SLAAC-Adresse und Standardroute verlieren.
+
 Die Outbound-IP(s) gehören in die Einstellungen (*Outbound-Adressen*). Sie erscheinen auf dem Onboarding-Blatt für Partner. Ob die Adresse stimmt, zeigt der [Selbsttest](#selbsttests). Ändert sie sich, rechtzeitig alle Partner informieren (*Zustellmonitor → Wartung ankündigen*), denn sonst lehnen sie unsere Nachrichten ab.
 
 ## Konfiguration (`.env`)
