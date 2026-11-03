@@ -173,8 +173,14 @@ jobs:
       - name: OWASP ZAP baseline
         run: |
           mkdir -p zap && cp .github/zap/rules.tsv zap/ && chmod -R 777 zap
+          status=0
           docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py -t https://localhost -c rules.tsv -r zap-report.html
+            zap-baseline.py -t https://localhost -c rules.tsv -r zap-report.html > zap/zap.txt 2>&1 || status=$?
+          cat zap/zap.txt
+          if [ "$status" != 0 ]; then
+            echo "::error title=OWASP ZAP::$(grep -E -A4 '^(WARN|FAIL)-NEW: [A-Za-z]' zap/zap.txt | head -40 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')"
+          fi
+          exit $status
       - uses: actions/upload-artifact@v7
         if: always()
         with:
