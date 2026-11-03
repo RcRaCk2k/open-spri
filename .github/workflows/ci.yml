@@ -128,7 +128,9 @@ jobs:
           python3 - <<'PY'
           import json, sys
           findings = [f for f in json.load(open("testssl/testssl.json"))
-                      if f["severity"] in ("MEDIUM", "HIGH", "CRITICAL") and not f["id"].startswith("cert") and f["id"] != "DNS_CAArecord"]
+                      if f["severity"] in ("MEDIUM", "HIGH", "CRITICAL") and not f["id"].startswith("cert") and f["id"] != "DNS_CAArecord"
+                      # grade "T" only means: certificate not trusted (the temporary self-signed one); any other grade counts
+                      and not (f["id"] == "overall_grade" and f["finding"] == "T")]
           for f in findings:
               print(f"::error title=testssl {f['id']}::{f['severity']}: {f['finding']}")
           sys.exit(1 if findings else 0)
