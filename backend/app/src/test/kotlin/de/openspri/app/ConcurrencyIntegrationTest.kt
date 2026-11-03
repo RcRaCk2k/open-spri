@@ -54,9 +54,10 @@ class ConcurrencyIntegrationTest(
 
     private fun parallel(workers: Int, work: () -> Unit) {
         val pool = Executors.newFixedThreadPool(workers)
-        repeat(workers) { pool.submit(work) }
+        val futures = (1..workers).map { pool.submit(work) }
         pool.shutdown()
         assertTrue(pool.awaitTermination(60, TimeUnit.SECONDS))
+        futures.forEach { it.get() } // a worker's exception (e.g. a deadlock) fails the test with its cause
     }
 
     @Test

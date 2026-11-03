@@ -48,6 +48,9 @@ jobs:
           echo "::notice title=ak-spri.de reachable?::HTTP $(curl -s -o /dev/null -m 20 -w '%{http_code}' -A 'open-spri-build (+https://github.com/RcRaCk2k/open-spri)' https://ak-spri.de/wp-content/uploads/Anlage_3_XSD_SPRI_V.4.x.zip || true)"
           summary=$(grep -E "What went wrong|Caused by|Exception|FAILED|^e: |^> |error" gradle.log | grep -v "^> Task" | head -40 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
           echo "::error title=Gradle build failed::${summary}"
+          # failed tests with their assertion message (the logs and reports need a login)
+          tests=$(grep -A8 " FAILED$" gradle.log | grep -v "^\s*at " | head -60 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+          if [ -n "$tests" ]; then echo "::error title=Failed tests::${tests}"; fi
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
