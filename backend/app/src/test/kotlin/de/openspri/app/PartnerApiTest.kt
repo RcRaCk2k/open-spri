@@ -48,7 +48,7 @@ class PartnerApiTest(@Autowired private val tokens: ApiTokens, @Autowired privat
         settings.settings = CompanySettings(
             name = "Beispiel GmbH", carrierCode = "BSPGMB", contactEmail = "betrieb@example.invalid",
             roleAuftraggeber = true, roleLeistungserbringer = true,
-            publicSpriEndpoint = "https://spri.example.invalid/spri/v4", outboundAddresses = listOf("203.0.113.10"),
+            publicSpriEndpoint = "https://spri.example.invalid/spri/v4", outboundAddresses = listOf("203.0.113.10", "2001:db8:0:0:0:ffff:2d99:b308"), // the second as stored before RFC 5952
         )
     }
 
@@ -94,6 +94,7 @@ class PartnerApiTest(@Autowired private val tokens: ApiTokens, @Autowired privat
         val sheet = call("GET", "/api/v1/partners/onboarding-sheet").body()
         assertContains(sheet, "\"carrierCode\":\"BSPGMB\"")
         assertContains(sheet, "203.0.113.10")
+        assertContains(sheet, "\"2001:db8::ffff:2d99:b308\"") // IPv6 in the short form (RFC 5952)
         assertContains(sheet, "BEGIN CERTIFICATE")
     }
 

@@ -185,7 +185,7 @@ class PartnerController(
     fun onboardingSheet(): OnboardingSheet {
         val company = settings.load() ?: throw NoSuchElementException("Ersteinrichtung nicht abgeschlossen")
         return OnboardingSheet(
-            company.name, company.carrierCode, company.publicSpriEndpoint, "/api/v1/partners/wsdl", company.outboundAddresses,
+            company.name, company.carrierCode, company.publicSpriEndpoint, "/api/v1/partners/wsdl", company.outboundAddresses.map(IpNetwork::normalize),
             keys.certificatePem(), company.contactEmail, de.openspri.domain.InterfaceVersion.CURRENT.toString(),
         )
     }

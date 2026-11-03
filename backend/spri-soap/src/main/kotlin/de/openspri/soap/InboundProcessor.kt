@@ -106,7 +106,7 @@ class InboundProcessor(
             direction = Direction.INBOUND,
             operation = context.operation,
             partnerId = context.partner?.id ?: candidates.singleOrNull()?.id,
-            remoteAddress = remoteAddress.hostAddress,
+            remoteAddress = de.openspri.domain.partner.IpNetwork.format(remoteAddress),
             startedAt = started,
             durationMillis = clock.millis() - started.toEpochMilli(),
             request = request,

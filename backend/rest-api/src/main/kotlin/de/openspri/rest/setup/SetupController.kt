@@ -126,13 +126,15 @@ data class CompanySettingsDto(
     fun toDomain() = CompanySettings(
         name, street, postalCode, city, carrierCode.trim().uppercase(), contactEmail, roleAuftraggeber, roleLeistungserbringer,
         estEnabled, diagEnabled, connectivityEnabled, thirdPartyOrdersEnabled, wbciMode, publicSpriEndpoint,
-        outboundAddresses.map { de.openspri.domain.partner.IpNetwork.parse(it).toString().substringBefore("/32").substringBefore("/128") },
+        outboundAddresses.map { de.openspri.domain.partner.IpNetwork.parse(it).toHostOrCidr() },
     )
 
     companion object {
         fun of(s: CompanySettings) = CompanySettingsDto(
             s.name, s.street, s.postalCode, s.city, s.carrierCode, s.contactEmail, s.roleAuftraggeber, s.roleLeistungserbringer,
-            s.estEnabled, s.diagEnabled, s.connectivityEnabled, s.thirdPartyOrdersEnabled, s.wbciMode, s.publicSpriEndpoint, s.outboundAddresses,
+            // stored before RFC 5952 formatting: shown in the short form
+            s.estEnabled, s.diagEnabled, s.connectivityEnabled, s.thirdPartyOrdersEnabled, s.wbciMode, s.publicSpriEndpoint,
+            s.outboundAddresses.map(de.openspri.domain.partner.IpNetwork::normalize),
         )
     }
 }

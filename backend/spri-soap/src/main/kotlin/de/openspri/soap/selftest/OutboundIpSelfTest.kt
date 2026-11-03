@@ -43,15 +43,15 @@ class OutboundIpSelfTest(private val echoUrl: URI?, private val outboundProxy: U
     fun evaluate(url: String, detected: InetAddress, configuredAddresses: List<String>): OutboundIpResult {
         val check = when {
             configuredAddresses.isEmpty() ->
-                SelfTestCheck("match", false, "Keine Outbound-Adresse eingetragen (Einstellungen). Partner müssen ${detected.hostAddress} freischalten.")
+                SelfTestCheck("match", false, "Keine Outbound-Adresse eingetragen (Einstellungen). Partner müssen ${IpNetwork.format(detected)} freischalten.")
             configuredAddresses.any { runCatching { detected in IpNetwork.parse(it) }.getOrDefault(false) } ->
-                SelfTestCheck("match", true, "${detected.hostAddress} ist als Outbound-Adresse eingetragen")
+                SelfTestCheck("match", true, "${IpNetwork.format(detected)} ist als Outbound-Adresse eingetragen")
             else -> SelfTestCheck(
                 "match", false,
-                "Anfragen kommen von ${detected.hostAddress}, eingetragen ist ${configuredAddresses.joinToString()}. Partner würden die Verbindung ablehnen.",
+                "Anfragen kommen von ${IpNetwork.format(detected)}, eingetragen ist ${configuredAddresses.joinToString()}. Partner würden die Verbindung ablehnen.",
             )
         }
-        return OutboundIpResult(url, detected.hostAddress, configuredAddresses, listOf(check))
+        return OutboundIpResult(url, IpNetwork.format(detected), configuredAddresses, listOf(check))
     }
 
     private companion object {

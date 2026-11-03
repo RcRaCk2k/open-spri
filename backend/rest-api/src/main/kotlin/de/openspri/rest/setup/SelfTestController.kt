@@ -101,7 +101,7 @@ class SelfTestController(
     )
     fun outboundIp(): OutboundIpSelfTestDto {
         if (!outbound.configured) throw IllegalStateException("Selbsttest nicht eingerichtet: OPENSPRI_SELFTEST_IP_ECHO_URL ist nicht gesetzt")
-        val r = outbound.run(settings.load()?.outboundAddresses.orEmpty())
+        val r = outbound.run(settings.load()?.outboundAddresses.orEmpty().map(de.openspri.domain.partner.IpNetwork::normalize))
         return OutboundIpSelfTestDto(r.ok, r.echoUrl, r.detected, r.configured, r.checks.map(SelfTestCheckDto::of))
     }
 }
