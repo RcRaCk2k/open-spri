@@ -37,6 +37,11 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew build --console=plain 2>&1 | tee gradle.log
+      # AUFGABE 10.1 item 7: 1000 signed orders from 50 parallel senders (TEQ p95 < 1 s), one 10 MB attachment
+      - name: Load test
+        run: |
+          set -o pipefail
+          ./gradlew :app:test -Pload --console=plain 2>&1 | tee -a gradle.log | grep "LOAD:" | while read -r line; do echo "::notice title=Lasttest::$line"; done
       - name: Report build failure as annotation
         if: failure()
         run: |
@@ -100,12 +105,39 @@ jobs:
           curl -kfsS https://localhost/ | grep -q '<title>open-spri</title>'
           curl -kfsS https://localhost/api/v1/openapi.json | grep -q '"openapi"'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/api/v1/about)" = "301"
+          # metrics only with a token (scope metrics:read); security headers of the frontend (CSP)
+          test "$(curl -ks -o /dev/null -w '%{http_code}' https://localhost/metrics)" = "401"
+          curl -ksI https://localhost/ | grep -qi '^content-security-policy:'
+          ! curl -ksI https://localhost/ | grep -qi '^server: nginx/'
           # S/PRI endpoint: no partner configured, so every address must be refused (AK security document 2.6)
           test "$(curl -ks -o /dev/null -w '%{http_code}' 'https://localhost/spri/v4?wsdl')" = "403"
       - name: TLS protocols (TLS 1.0/1.1 must be refused)
         run: |
           echo | openssl s_client -connect localhost:443 -tls1_2 >/dev/null 2>&1
           ! echo | openssl s_client -connect localhost:443 -tls1_1 >/dev/null 2>&1
+      # AUFGABE 10.1 item 8: TLS configuration of the proxy. The CI stack has a temporary self-signed certificate,
+      # so findings about the certificate itself (cert_*) are expected; everything else from MEDIUM up fails.
+      - name: TLS configuration (testssl.sh)
+        run: |
+          mkdir -p testssl && chmod 777 testssl
+          docker run --rm --network host -v "$PWD/testssl:/out" ghcr.io/testssl/testssl.sh:3.2 --quiet --color 0 \
+            --protocols --std --fs --server-defaults --vulnerable --headers --jsonfile /out/testssl.json https://localhost:443 > testssl/testssl.txt || true
+          python3 - <<'PY'
+          import json, sys
+          findings = [f for f in json.load(open("testssl/testssl.json"))
+                      if f["severity"] in ("MEDIUM", "HIGH", "CRITICAL") and not f["id"].startswith("cert") and f["id"] != "DNS_CAArecord"]
+          for f in findings:
+              print(f"::error title=testssl {f['id']}::{f['severity']}: {f['finding']}")
+          sys.exit(1 if findings else 0)
+          PY
+      # Container images without known HIGH/CRITICAL vulnerabilities that have a fix (AUFGABE 13)
+      - name: Vulnerability scan of the images (Trivy)
+        run: |
+          for image in api frontend proxy; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/.trivyignore:/.trivyignore:ro" aquasec/trivy:0.69.3 image \
+              --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /.trivyignore --exit-code 1 --quiet \
+              ghcr.io/rcrack2k/open-spri/$image:local
+          done
       # Playwright E2E against the complete stack behind the proxy (AUFGABE 10.1 item 9, M7):
       # setup wizard with the token from the API log, login, all pages, only /api/v1, axe WCAG 2.1 AA
       - uses: pnpm/action-setup@v6
@@ -122,9 +154,22 @@ jobs:
       - name: E2E tests (Playwright)
         working-directory: frontend
         run: |
-          export E2E_SETUP_TOKEN=$(docker compose logs api --no-color | grep -A3 "setup token" | sed -n 3p | awk '{print $NF}')
+          export E2E_SETUP_TOKEN=$(docker compose logs api --no-color | grep -oE 'setup token: [A-Za-z0-9_-]+' | tail -1 | cut -d' ' -f3)
           test -n "$E2E_SETUP_TOKEN"
           E2E_BASE_URL=https://localhost pnpm e2e
+      # AUFGABE 10.1 item 8: OWASP ZAP baseline (passive) against the stack; .github/zap/rules.tsv lists accepted warnings
+      - name: OWASP ZAP baseline
+        run: |
+          mkdir -p zap && cp .github/zap/rules.tsv zap/ && chmod -R 777 zap
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t https://localhost -c rules.tsv -r zap-report.html
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            testssl/
+            zap/
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

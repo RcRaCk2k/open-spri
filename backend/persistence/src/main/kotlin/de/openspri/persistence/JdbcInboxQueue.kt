@@ -91,6 +91,10 @@ class JdbcInboxQueue(private val jdbc: JdbcClient, private val transactions: Tra
     override fun reprocess(id: Long): Boolean =
         jdbc.sql("UPDATE inbox_message SET status = 'RECEIVED', error = NULL WHERE id = :id AND status = 'FAILED'").param("id", id).update() == 1
 
+    override fun countByStatus(): Map<String, Long> =
+        jdbc.sql("SELECT status, COUNT(*) AS n FROM inbox_message GROUP BY status")
+            .query { rs, _ -> rs.getString("status") to rs.getLong("n") }.list().toMap()
+
     private fun mark(id: Long, status: String, findings: String?, error: String?) {
         jdbc.sql("UPDATE inbox_message SET status = :s, processed_at = :t, findings = :f, error = :e WHERE id = :id")
             .param("s", status).param("t", Timestamp.from(Instant.now())).param("f", findings?.take(4000)).param("e", error).param("id", id)

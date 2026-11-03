@@ -28,6 +28,8 @@ enum class Scope(val value: String) {
     USERS_ADMIN("users:admin"),
     SETTINGS_ADMIN("settings:admin"),
     AUDIT_READ("audit:read"),
+    /** Prometheus metrics under /metrics (NF-11), e.g. for a monitoring token. */
+    METRICS_READ("metrics:read"),
     /**
      * Send own orders that our order rules would reject (KFT negative test cases, ADR-0008). In no role: only an
      * administrator can put it explicitly into an API token ([Role.grantable]).

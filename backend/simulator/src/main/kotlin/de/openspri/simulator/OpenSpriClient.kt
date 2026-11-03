@@ -21,6 +21,9 @@ class ApiException(val status: Int, val body: String, request: String) : Runtime
  * Our instance under test, driven only through its public REST API `/api/v1` (principle 4): exactly what an
  * external system or the frontend does.
  */
+/** Retries after HTTP 429 (Retry-After) before a call fails. */
+private const val MAX_RATE_LIMIT_RETRIES = 10
+
 class OpenSpriClient(private val baseUrl: URI, private val token: String) {
     private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build()
     private val json = JsonMapper.builder().build()
@@ -38,7 +41,14 @@ class OpenSpriClient(private val baseUrl: URI, private val token: String) {
             .header("Accept", "application/json")
             .method(method, body?.let { HttpRequest.BodyPublishers.ofString(json.writeValueAsString(it)) } ?: HttpRequest.BodyPublishers.noBody())
             .build()
-        val response = http.send(request, HttpResponse.BodyHandlers.ofString())
+        var response = http.send(request, HttpResponse.BodyHandlers.ofString())
+        // Rate limit of the REST API (429): wait as told and try again; nothing was processed.
+        repeat(MAX_RATE_LIMIT_RETRIES) {
+            if (response.statusCode() != 429) return@repeat
+            val wait = response.headers().firstValue("Retry-After").map { it.toLongOrNull() }.orElse(null) ?: 1
+            Thread.sleep(wait.coerceIn(1, 30) * 1000)
+            response = http.send(request, HttpResponse.BodyHandlers.ofString())
+        }
         if (response.statusCode() !in 200..299) throw ApiException(response.statusCode(), response.body(), "$method $path")
         return if (response.body().isBlank()) nodes.nullNode() else json.readTree(response.body())
     }

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
+import tools.jackson.databind.json.JsonMapper
 import java.net.CookieManager
 import java.net.URI
 import java.net.http.HttpClient
@@ -134,5 +135,49 @@ class SecurityTest(@Autowired private val tokens: ApiTokens, @Autowired private 
         assertEquals(200, get("/api/v1/audit", token = issue(Role.VIEWER)).statusCode())
         assertEquals(403, get("/api/v1/audit", token = issue(Role.OPERATOR_AG)).statusCode())
         assertEquals(400, get("/api/v1/audit?limit=0", token = admin).statusCode())
+    }
+
+    @Test
+    fun `no endpoint of the OpenAPI specification answers without login (auth bypass, AUFGABE 10-1 item 8)`() {
+        val spec = JsonMapper.builder().build().readTree(get("/api/v1/openapi.json").body())
+        val anonymous = HttpClient.newHttpClient()
+        val checked = mutableListOf<String>()
+        val open = mutableListOf<String>()
+        for ((path, operations) in spec["paths"].properties()) {
+            if (PUBLIC_PATHS.any { path == it || path.startsWith("$it/") }) continue
+            val concrete = path.replace(Regex("\\{[^}]+}"), "1")
+            for (method in operations.propertyNames().filter { it in setOf("get", "post", "put", "patch", "delete") }) {
+                val body = if (method in setOf("post", "put", "patch")) HttpRequest.BodyPublishers.ofString("{}") else HttpRequest.BodyPublishers.noBody()
+                val request = HttpRequest.newBuilder(url(concrete)).method(method.uppercase(), body).header("Content-Type", "application/json").build()
+                val status = anonymous.send(request, HttpResponse.BodyHandlers.discarding()).statusCode()
+                checked += "$method $path"
+                if (status != 401 && status != 403) open += "${method.uppercase()} $path -> $status"
+            }
+        }
+        assertTrue(checked.size > 80, "only ${checked.size} operations found")
+        assertTrue(open.isEmpty(), "reachable without login:\n" + open.joinToString("\n"))
+    }
+
+    @Test
+    fun `metrics need scope metrics read and show the queue depth`() {
+        assertEquals(401, get("/metrics").statusCode())
+        assertEquals(403, get("/metrics", issue(Role.VIEWER)).statusCode())
+        val metrics = get("/metrics", issue(Role.ADMIN, setOf(Scope.METRICS_READ)))
+        assertEquals(200, metrics.statusCode())
+        assertContains(metrics.body(), "openspri_outbox_messages{status=\"PENDING\"}")
+        assertContains(metrics.body(), "openspri_inbox_messages{status=\"FAILED\"}")
+    }
+
+    @Test
+    fun `API responses carry security headers`() {
+        val response = get("/api/v1/auth/me", issue(Role.VIEWER))
+        assertEquals("nosniff", response.headers().firstValue("X-Content-Type-Options").orElse(null))
+        assertEquals("DENY", response.headers().firstValue("X-Frame-Options").orElse(null))
+        assertContains(response.headers().firstValue("Cache-Control").orElse(""), "no-store")
+    }
+
+    private companion object {
+        /** Reachable without login on purpose; setup and partner access have their own protection (setup token, partner token). */
+        val PUBLIC_PATHS = listOf("/api/v1/about", "/api/v1/auth/login", "/api/v1/auth/modules", "/api/v1/setup", "/api/v1/openapi.json")
     }
 }

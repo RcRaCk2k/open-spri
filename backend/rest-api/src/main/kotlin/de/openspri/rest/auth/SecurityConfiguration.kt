@@ -5,6 +5,7 @@ import de.openspri.auth.ApiTokenStore
 import de.openspri.auth.ApiTokens
 import de.openspri.auth.AuthenticationModule
 import de.openspri.auth.LocalUsers
+import de.openspri.auth.Scope
 import de.openspri.auth.UserStore
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -58,6 +59,7 @@ class SecurityConfiguration {
             }
             .authorizeHttpRequests { auth ->
                 auth.requestMatchers(*PUBLIC).permitAll()
+                auth.requestMatchers("/metrics").hasAuthority(Scope.METRICS_READ.authority.authority)
                 auth.anyRequest().authenticated()
             }
             .exceptionHandling { it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)) }

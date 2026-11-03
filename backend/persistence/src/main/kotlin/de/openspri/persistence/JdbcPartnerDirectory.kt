@@ -41,13 +41,16 @@ class JdbcPartnerDirectory(private val jdbc: JdbcClient) : PartnerDirectory, Par
 
     override fun create(partner: Partner): PartnerId =
         create(partner.name, partner.carrierCode, partner.signatureCertificates, partner.allowedSourceNetworks, partner.endpointUrl, partner.technicalContactEmail)
-            .also { if (!partner.enabled) update(partner.copy(id = it)) }
+            .also { if (!partner.enabled || !partner.useOutboundProxy) update(partner.copy(id = it)) }
 
     @Transactional
     override fun update(partner: Partner) {
-        jdbc.sql("UPDATE partner SET name = :n, carrier_code = :c, endpoint_url = :u, technical_contact_email = :m, enabled = :e WHERE id = :id")
+        jdbc.sql(
+            """UPDATE partner SET name = :n, carrier_code = :c, endpoint_url = :u, technical_contact_email = :m, enabled = :e,
+                   use_outbound_proxy = :x WHERE id = :id""",
+        )
             .param("n", partner.name).param("c", partner.carrierCode).param("u", partner.endpointUrl).param("m", partner.technicalContactEmail)
-            .param("e", partner.enabled).param("id", partner.id.value).update()
+            .param("e", partner.enabled).param("x", partner.useOutboundProxy).param("id", partner.id.value).update()
     }
 
     override fun addCertificate(id: PartnerId, certificate: X509Certificate): Long {
@@ -80,7 +83,7 @@ class JdbcPartnerDirectory(private val jdbc: JdbcClient) : PartnerDirectory, Par
             .query { rs, _ -> rs.getLong("partner_id") to toCertificate(rs.getBytes("certificate")) }
             .list().groupBy({ it.first }, { it.second })
         return jdbc.sql(
-            "SELECT id, name, carrier_code, endpoint_url, technical_contact_email, enabled FROM partner WHERE tenant_id = :tenant" +
+            "SELECT id, name, carrier_code, endpoint_url, technical_contact_email, enabled, use_outbound_proxy FROM partner WHERE tenant_id = :tenant" +
                 (if (onlyEnabled) " AND enabled" else "") + " ORDER BY name",
         )
             .param("tenant", Tenant.DEFAULT)
@@ -95,6 +98,7 @@ class JdbcPartnerDirectory(private val jdbc: JdbcClient) : PartnerDirectory, Par
                     enabled = rs.getBoolean("enabled"),
                     endpointUrl = rs.getString("endpoint_url"),
                     technicalContactEmail = rs.getString("technical_contact_email"),
+                    useOutboundProxy = rs.getBoolean("use_outbound_proxy"),
                 )
             }.list()
     }

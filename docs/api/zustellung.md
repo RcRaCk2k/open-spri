@@ -67,11 +67,14 @@ curl -s $SPRI/api/v1/messages/815/response -H "Authorization: Bearer $TOKEN"   #
 {
   "id": 815, "direction": "INBOUND", "operation": "annehmenMeldung", "partnerId": 7, "remoteAddress": "198.51.100.3",
   "startedAt": "2026-11-01T10:05:12Z", "durationMillis": 38, "teqCode": "OK", "rejectionReason": null,
-  "findings": null, "signerSubject": "CN=S/PRI Glasfaser Nord", "externalOrderNumber": "AG-2026-0001"
+  "findings": null, "signerSubject": "CN=S/PRI Glasfaser Nord", "externalOrderNumber": "AG-2026-0001",
+  "requestSha256": "9f2c…e41a", "contentPurgedAt": null
 }
 ```
 
 `rejectionReason` erklärt eine negative TEQ intern (z. B. „Signatur ungültig“). Der Partner erhält laut Spezifikation nur die Fehlernummer. Rohnachrichten enthalten Endkundendaten; jeder Abruf von `/raw` steht im Audit-Log.
+
+**Aufbewahrung (NF-10, ADR-0010):** Ist `OPENSPRI_RETENTION_PERSONAL_DATA` gesetzt, löscht open-spri den Inhalt abgeschlossener Vorgänge nach dieser Frist. `contentPurgedAt` zeigt dann den Zeitpunkt, und `/raw` antwortet mit `410 Gone`. Metadaten, TEQ-Antwort und `requestSha256` bleiben erhalten. Mit dem Hash lässt sich eine später vorgelegte Kopie der Nachricht prüfen (`sha256sum`).
 
 ## Wartung ankündigen (`partners:admin`)
 

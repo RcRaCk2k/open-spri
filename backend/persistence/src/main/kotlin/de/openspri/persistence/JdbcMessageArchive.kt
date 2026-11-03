@@ -58,6 +58,8 @@ class JdbcMessageArchive(private val jdbc: JdbcClient) : InboundStore, OutboundA
                 signerSerial = rs.getString("signer_serial"),
                 externalOrderNumber = rs.getString("external_order_number"),
                 findings = rs.getString("findings"),
+                requestSha256 = rs.getString("request_sha256"),
+                contentPurgedAt = rs.getTimestamp("content_purged_at")?.toInstant(),
             )
         }.optional().orElse(null)
 

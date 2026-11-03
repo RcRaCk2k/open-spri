@@ -30,6 +30,7 @@ import de.openspri.soap.OutboxSender
 import de.openspri.soap.SigningKeyHolder
 import de.openspri.soap.SpriSchema
 import de.openspri.soap.SpriClient
+import de.openspri.soap.SpriMetrics
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -91,7 +92,7 @@ class DeliveryConfiguration {
         DeliveryOperations(outbox, deliveries, transactions, events)
 
     @Bean
-    fun outboxSender(partners: PartnerDirectory, client: SpriClient) = OutboxSender(partners, client)
+    fun outboxSender(partners: PartnerDirectory, client: SpriClient, metrics: SpriMetrics) = OutboxSender(partners, client, metrics)
 
     @Bean
     fun outboundOrderService(

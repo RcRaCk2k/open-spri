@@ -1327,7 +1327,7 @@
     },
     "/api/v1/messages/{id}/raw" : {
       "get" : {
-        "description" : "Enthält Endkundendaten; der Zugriff wird protokolliert.",
+        "description" : "Enthält Endkundendaten; der Zugriff wird protokolliert. 410, wenn der Inhalt nach der Aufbewahrungsfrist gelöscht ist.",
         "operationId" : "request",
         "parameters" : [ {
           "in" : "path",
@@ -3436,6 +3436,46 @@
         "tags" : [ "Verfügbarkeit" ]
       }
     },
+    "/api/v1/selftest/outbound-ip" : {
+      "get" : {
+        "description" : "Fragt OPENSPRI_SELFTEST_IP_ECHO_URL (über den Egress-Proxy, falls gesetzt), von welcher Adresse unsere Anfragen kommen, und vergleicht sie mit den eingetragenen Outbound-Adressen. 409, wenn kein Echo-Dienst konfiguriert ist.",
+        "operationId" : "outboundIp",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OutboundIpSelfTestDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Outbound-IP prüfen",
+        "tags" : [ "Einstellungen" ]
+      }
+    },
+    "/api/v1/selftest/tls" : {
+      "get" : {
+        "description" : "Ruft die eigene öffentliche Adresse (S/PRI-Endpunkt aus den Einstellungen) so auf wie ein Partner und prüft Protokoll, Vertrauenskette, Hostname, Schlüssel, Aussteller und Restlaufzeit (Warnung unter 14 Tagen).",
+        "operationId" : "tls",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TlsSelfTestDto"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "TLS-Zertifikat der öffentlichen Adresse prüfen",
+        "tags" : [ "Einstellungen" ]
+      }
+    },
     "/api/v1/settings" : {
       "get" : {
         "operationId" : "get_1",
@@ -4105,6 +4145,11 @@
         "type" : "object",
         "description" : "Eine archivierte SOAP-Nachricht mit Antwort (NF-09)",
         "properties" : {
+          "contentPurgedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "Zeitpunkt, an dem der Inhalt nach Ablauf der Aufbewahrungsfrist gelöscht wurde (NF-10); /raw antwortet dann 410"
+          },
           "direction" : {
             "type" : "string",
             "description" : "INBOUND oder OUTBOUND"
@@ -4136,6 +4181,10 @@
           },
           "remoteAddress" : {
             "type" : "string"
+          },
+          "requestSha256" : {
+            "type" : [ "string", "null" ],
+            "description" : "SHA-256 (hex) der Rohnachricht; bleibt nach dem Löschen des Inhalts als Nachweis erhalten"
           },
           "signerSubject" : {
             "type" : [ "string", "null" ]
@@ -4531,6 +4580,10 @@
           },
           "technicalContactEmail" : {
             "type" : [ "string", "null" ]
+          },
+          "useOutboundProxy" : {
+            "type" : "boolean",
+            "description" : "über den Egress-Proxy senden, falls einer konfiguriert ist"
           }
         },
         "required" : [ "carrierCode", "name" ]
@@ -5460,6 +5513,36 @@
         },
         "required" : [ "ds", "partnerId" ]
       },
+      "OutboundIpSelfTestDto" : {
+        "type" : "object",
+        "description" : "Selbsttest der Outbound-IP (AUFGABE 7.6)",
+        "properties" : {
+          "checks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SelfTestCheckDto"
+            }
+          },
+          "configured" : {
+            "type" : "array",
+            "description" : "eingetragene Outbound-Adressen",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "detected" : {
+            "type" : [ "string", "null" ],
+            "description" : "Adresse, von der unsere Anfragen ankommen"
+          },
+          "echoUrl" : {
+            "type" : "string"
+          },
+          "ok" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "checks", "configured", "echoUrl", "ok" ]
+      },
       "PartnerDto" : {
         "type" : "object",
         "description" : "Ein Partner",
@@ -5501,9 +5584,13 @@
           "technicalContactEmail" : {
             "type" : [ "string", "null" ],
             "description" : "technischer Kontakt; erhält die Ausfall-Mail (11.2.3.2)"
+          },
+          "useOutboundProxy" : {
+            "type" : "boolean",
+            "description" : "über den Egress-Proxy senden (SPRI_OUTBOUND_PROXY), falls einer konfiguriert ist"
           }
         },
-        "required" : [ "allowedSourceNetworks", "carrierCode", "certificates", "enabled", "id", "name" ]
+        "required" : [ "allowedSourceNetworks", "carrierCode", "certificates", "enabled", "id", "name", "useOutboundProxy" ]
       },
       "PartyDto" : {
         "type" : "object",
@@ -5809,6 +5896,27 @@
         },
         "required" : [ "errors", "hits" ]
       },
+      "SelfTestCheckDto" : {
+        "type" : "object",
+        "description" : "Eine Prüfung eines Selbsttests",
+        "properties" : {
+          "detail" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "description" : "z. B. protocol, trust, key, validity, match"
+          },
+          "ok" : {
+            "type" : "boolean"
+          },
+          "warning" : {
+            "type" : "boolean",
+            "description" : "funktioniert, aber bald handeln (z. B. Zertifikat läuft bald ab)"
+          }
+        },
+        "required" : [ "detail", "id", "ok", "warning" ]
+      },
       "SendMessageRequest" : {
         "type" : "object",
         "description" : "Eine Meldung zu einem Auftrag. Kopf, externe Auftragsnummer und Auftraggebernummer übernimmt open-spri aus dem Auftrag.",
@@ -6049,6 +6157,46 @@
         },
         "required" : [ "clientNumber", "codes", "contractNumber", "externalOrderNumber", "partnerId", "shutdownDate" ]
       },
+      "TlsSelfTestDto" : {
+        "type" : "object",
+        "description" : "Selbsttest des TLS-Zertifikats unserer öffentlichen Adresse (AUFGABE 7.4)",
+        "properties" : {
+          "checks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SelfTestCheckDto"
+            }
+          },
+          "issuer" : {
+            "type" : [ "string", "null" ]
+          },
+          "keyBits" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32"
+          },
+          "keyType" : {
+            "type" : [ "string", "null" ],
+            "description" : "RSA oder EC"
+          },
+          "notAfter" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "ok" : {
+            "type" : "boolean"
+          },
+          "protocol" : {
+            "type" : [ "string", "null" ]
+          },
+          "subject" : {
+            "type" : [ "string", "null" ]
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "checks", "ok", "url" ]
+      },
       "TokenResponse" : {
         "type" : "object",
         "description" : "Ein API-Token. Das Geheimnis wird nie wieder angezeigt.",
@@ -6124,6 +6272,9 @@
           },
           "technicalContactEmail" : {
             "type" : [ "string", "null" ]
+          },
+          "useOutboundProxy" : {
+            "type" : [ "boolean", "null" ]
           }
         }
       },

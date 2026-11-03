@@ -44,6 +44,7 @@ class SpriEndpoint(private val processor: InboundProcessor) : Provider<Source> {
         val raw = message.exchange.inMessage[RawRequestInterceptor.RAW_REQUEST] as ByteArray
         val http = message[AbstractHTTPDestination.HTTP_REQUEST] as HttpServletRequest
         val soapAction = http.getHeader("SOAPAction")
+        http.setAttribute(de.openspri.soap.config.SpriRequestFilter.PROCESSED, true)
         return when (val result = processor.process(raw, InetAddress.getByName(http.remoteAddr), soapAction)) {
             is InboundProcessor.Result.Answered -> StreamSource(ByteArrayInputStream(result.response))
             // Normally caught by the IP filter before CXF; kept as a second line of defence.

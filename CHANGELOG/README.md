@@ -47,3 +47,4 @@ Welche Tests belegen die Änderung?
 | [CL-0009](CL-0009-m5-simulator-szenarien.md) | M5 – Simulator und KFT-Szenarien | 2026-11-01 |
 | [CL-0010](CL-0010-m6-verfuegbarkeit.md) | M6 – Verfügbarkeit, Replikat und Online-Abfrage | 2026-11-02 |
 | [CL-0011](CL-0011-m7-frontend.md) | M7 – Web-Oberfläche | 2026-11-02 |
+| [CL-0012](CL-0012-m8-haertung.md) | M8 – Härtung und Release-Kandidat | in Arbeit |

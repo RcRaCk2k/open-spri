@@ -17,6 +17,8 @@ import java.math.BigInteger
 import java.net.InetAddress
 import java.security.cert.X509Certificate
 import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 import javax.security.auth.x500.X500Principal
 
 /**
@@ -46,6 +48,7 @@ class InboundProcessor(
     private val clock: Clock = Clock.systemUTC(),
     private val attributes: AttributeValidator? = null,
     private val attributeMode: AttributeMode = AttributeMode.REPORT,
+    private val metrics: SpriMetrics = SpriMetrics.NONE,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -56,16 +59,37 @@ class InboundProcessor(
         data class Answered(val teq: TeqCode, val response: ByteArray) : Result
     }
 
-    fun process(request: ByteArray, remoteAddress: InetAddress, soapAction: String?): Result {
+    /**
+     * Checks and answers one request. [oversizedLimit] is set when the request was larger than this limit and
+     * [request] holds only its beginning: it is archived as such and answered with TEQ 0995 without further checks.
+     */
+    fun process(request: ByteArray, remoteAddress: InetAddress, soapAction: String?, oversizedLimit: Int? = null): Result {
         val started = clock.instant()
         val candidates = partners.findBySourceAddress(remoteAddress)
         if (candidates.isEmpty()) {
             log.warn("S/PRI request from {} rejected: address not allowlisted for any partner", remoteAddress.hostAddress)
+            metrics.inbound(null, operationFromSoapAction(soapAction), "forbidden", Duration.between(started, clock.instant()))
             return Result.Forbidden
         }
-
         val context = Context(operationFromSoapAction(soapAction))
+        val result = answer(request, remoteAddress, candidates, context, started, oversizedLimit)
+        val partnerId = context.partner?.id ?: candidates.singleOrNull()?.id
+        metrics.inbound(partnerId?.value, context.operation, (result as Result.Answered).teq.code, Duration.between(started, clock.instant()))
+        return result
+    }
+
+    private fun answer(
+        request: ByteArray,
+        remoteAddress: InetAddress,
+        candidates: List<Partner>,
+        context: Context,
+        started: Instant,
+        oversizedLimit: Int?,
+    ): Result {
         val code = try {
+            if (oversizedLimit != null) {
+                throw Rejected(TeqCode.STRUCTURE_INVALID, "request exceeds $oversizedLimit bytes; archived truncated to ${request.size} bytes")
+            }
             check(request, candidates, context)
         } catch (e: Rejected) {
             context.reason = e.message

@@ -29,3 +29,4 @@ Status: vorgeschlagen | Datum: JJJJ-MM-TT
 | [ADR-0007](ADR-0007-outbox-reihenfolge.md) | Postausgang und Eingang mit Reihenfolgegarantie über die Datenbank | angenommen |
 | [ADR-0008](ADR-0008-uebersteuerung-auftragspruefungen.md) | Übersteuerung eigener Auftragsprüfungen für KFT-Negativtests | angenommen |
 | [ADR-0009](ADR-0009-frontend-stack.md) | Frontend mit Mantine, TanStack Query, React Router und Playwright | angenommen |
+| [ADR-0010](ADR-0010-aufbewahrung-endkundendaten.md) | Aufbewahrung von Endkundendaten: Inhalte löschen, Nachweis behalten | angenommen |

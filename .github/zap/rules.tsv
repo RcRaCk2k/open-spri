@@ -1,0 +1,5 @@
+# OWASP ZAP baseline rules for the CI (AUFGABE 10.1 item 8). Every rule not listed here fails the build on WARN.
+# Format: rule id, TAB, IGNORE|WARN|FAIL, TAB, reason
+10049	IGNORE	Storable and Cacheable Content: hashed assets are cached on purpose (immutable), index.html is revalidated
+10055	IGNORE	CSP style-src 'unsafe-inline': Mantine writes its CSS variables into a style element at runtime (deploy/frontend/security-headers.conf)
+10109	IGNORE	Modern Web Application: informational, the frontend is a single-page application

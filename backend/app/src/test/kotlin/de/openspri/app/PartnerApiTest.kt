@@ -96,4 +96,26 @@ class PartnerApiTest(@Autowired private val tokens: ApiTokens, @Autowired privat
         assertContains(sheet, "203.0.113.10")
         assertContains(sheet, "BEGIN CERTIFICATE")
     }
+
+    @Test
+    fun `the egress proxy can be switched off per partner (AUFGABE 7-6)`() {
+        val created = call("POST", "/api/v1/partners", """{"name":"Direkt","carrierCode":"DIREKT"}""")
+        assertContains(created.body(), "\"useOutboundProxy\":true")
+        val id = Regex("\"id\":(\\d+)").find(created.body())!!.groupValues[1]
+        val changed = call("PATCH", "/api/v1/partners/$id", """{"useOutboundProxy":false}""")
+        assertContains(changed.body(), "\"useOutboundProxy\":false")
+        assertContains(call("PATCH", "/api/v1/partners/$id", """{"name":"Direkt GmbH"}""").body(), "\"useOutboundProxy\":false")
+    }
+
+    @Test
+    fun `self-tests need settings admin, report an unreachable address and need an echo service for the outbound IP`() {
+        assertEquals(403, call("GET", "/api/v1/selftest/tls", token = viewer).statusCode())
+        val tls = call("GET", "/api/v1/selftest/tls")
+        assertEquals(200, tls.statusCode(), tls.body())
+        assertContains(tls.body(), "\"ok\":false")
+        assertContains(tls.body(), "\"id\":\"connect\"")
+        val outbound = call("GET", "/api/v1/selftest/outbound-ip")
+        assertEquals(409, outbound.statusCode())
+        assertContains(outbound.body(), "OPENSPRI_SELFTEST_IP_ECHO_URL")
+    }
 }

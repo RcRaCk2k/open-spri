@@ -57,6 +57,7 @@ class ApplicationIntegrationTest(
     @Autowired private val replikatImports: de.openspri.persistence.JdbcReplikatImports,
     @Autowired private val partnerLocations: de.openspri.persistence.JdbcPartnerLocations,
     @Autowired private val auditLog: de.openspri.persistence.JdbcAuditLog,
+    @Autowired private val personalData: de.openspri.persistence.JdbcPersonalDataStore,
 ) {
     @LocalServerPort
     private var port = 0
@@ -191,6 +192,60 @@ class ApplicationIntegrationTest(
         assertEquals(false, orderRepository.deleteDraft(pv.id!!), "only drafts can be deleted")
         assertEquals(listOf(pv.id), orderRepository.search(de.openspri.domain.query.OrderFilter(partnerId = partner, handover = de.openspri.domain.order.HandoverPhase.ANNOUNCED)).map { it.id })
         assertEquals(emptyList(), orderRepository.search(de.openspri.domain.query.OrderFilter(partnerId = partner, handover = de.openspri.domain.order.HandoverPhase.REPLIED)))
+    }
+
+    @Test
+    fun `retention removes end customer data of completed business only and keeps the evidence (NF-10)`() {
+        val partner = partners.create(name = "Aufbewahrung", carrierCode = "DEU.RETAIN", certificates = listOf(credentials.certificate), networks = emptyList())
+        val now = java.time.Instant.now()
+        val old = now.minus(java.time.Duration.ofDays(500))
+        fun order(number: String, finished: Boolean, updated: java.time.Instant): Long {
+            val data = de.openspri.domain.order.OrderData(number, de.openspri.domain.BusinessCase.NEU, infrastructureKey = "musterstr|1|12345")
+            val id = orderRepository.save(
+                de.openspri.domain.order.Order(null, partner, de.openspri.domain.order.OrderRole.LEISTUNGSERBRINGER, data,
+                    de.openspri.domain.order.OrderLifecycle.submitted(data.businessCase), old, old),
+            ).id!!.value
+            jdbc.update("UPDATE spri_order SET finished = ?, updated_at = ? WHERE id = ?", finished, java.sql.Timestamp.from(updated), id)
+            return id
+        }
+        fun archived(number: String?) = archive.storeRejected(
+            de.openspri.domain.exchange.ArchivedExchange(
+                de.openspri.domain.exchange.Direction.INBOUND, SoapOperation.ANNEHMEN_AUFTRAG, partner, "192.0.2.10", old, 5,
+                "<Endkunde>Erika Mustermann</Endkunde>".toByteArray(), "<teq/>".toByteArray(), TeqCode.OK, null, null, null, number,
+            ),
+        )
+        val completed = order("RET-DONE", finished = true, updated = now.minus(java.time.Duration.ofDays(400)))
+        order("RET-OPEN", finished = false, updated = old)
+        order("RET-RECENT", finished = true, updated = now.minus(java.time.Duration.ofDays(10)))
+        val done = archived("RET-DONE")
+        val open = archived("RET-OPEN")
+        val recent = archived("RET-RECENT")
+        val withoutOrder = archived(null)
+        val outboxId = outbox.enqueue(
+            de.openspri.domain.delivery.OutboxEntry(null, partner, de.openspri.domain.order.OrderId(completed), de.openspri.domain.delivery.RequestType.MESSAGE,
+                SoapOperation.ANNEHMEN_MELDUNG, "RET-DONE", "ret", "<Endkunde/>".toByteArray(), nextAttemptAt = old, createdAt = old),
+        ).id!!
+        jdbc.update("UPDATE outbox_message SET status = 'DELIVERED' WHERE id = ?", outboxId)
+        val sha = archive.get(done)!!.requestSha256
+
+        val result = personalData.purgeBefore(now.minus(java.time.Duration.ofDays(365)), now)
+
+        val purged = archive.get(done)!!
+        assertEquals(0, purged.request.size)
+        assertEquals("<teq/>", String(purged.response!!), "the TEQ carries no end customer data")
+        assertEquals(sha, purged.requestSha256, "the hash stays as evidence")
+        kotlin.test.assertNotNull(purged.contentPurgedAt)
+        kotlin.test.assertNotNull(archive.get(withoutOrder)!!.contentPurgedAt, "rejected requests without order")
+        for (kept in listOf(open, recent)) {
+            assertEquals(null, archive.get(kept)!!.contentPurgedAt)
+            assertEquals("<Endkunde>Erika Mustermann</Endkunde>", String(archive.get(kept)!!.request))
+        }
+        assertEquals(0, outbox.get(outboxId)!!.payload.size)
+        assertEquals(null, jdbc.queryForObject("SELECT infrastructure_key FROM spri_order WHERE id = ?", String::class.java, completed))
+        assertEquals(1, result.outboxPayloads)
+        kotlin.test.assertTrue(result.archivedRequests >= 2)
+        val again = personalData.purgeBefore(now.minus(java.time.Duration.ofDays(365)), now)
+        assertEquals(0, again.archivedRequests + again.outboxPayloads + again.orders, "a second run finds nothing new")
     }
 
     @Test

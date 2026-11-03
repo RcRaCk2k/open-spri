@@ -72,7 +72,7 @@ SPRING_DATASOURCE_URL=jdbc:mariadb://127.0.0.1:3306/openspri SPRING_DATASOURCE_U
   ./gradlew :app:bootRun | tee /tmp/api.log &
 cd frontend && pnpm dev &
 pnpm exec playwright install chromium                 # einmalig
-E2E_SETUP_TOKEN=$(grep -A3 "setup token" /tmp/api.log | sed -n 3p | tr -d ' ') pnpm e2e
+E2E_SETUP_TOKEN=$(grep -oE 'setup token: [A-Za-z0-9_-]+' /tmp/api.log | tail -1 | cut -d' ' -f3) pnpm e2e
 ```
 
 | Variable | Bedeutung | Standard |

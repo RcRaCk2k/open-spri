@@ -47,6 +47,7 @@ class SoapEndToEndTest(
     @Autowired private val outbox: de.openspri.domain.InMemoryOutbox,
     @Autowired private val delivery: de.openspri.domain.delivery.DeliveryService,
     @Autowired private val outboundOrders: de.openspri.domain.order.OutboundOrderService,
+    @Autowired private val meters: io.micrometer.core.instrument.MeterRegistry,
 ) {
     @LocalServerPort
     private var port = 0
@@ -71,6 +72,22 @@ class SoapEndToEndTest(
         orders.orders.clear()
         outbox.entries.clear()
         outbound.exchanges.clear()
+    }
+
+    @Test
+    fun `TEQ latency and address refusals are measured per partner (NF-11)`() {
+        fun count(teq: String) = meters.find("openspri.inbound.requests").tags("teq", teq).timers().sumOf { it.count() }
+        val ok = count("OK")
+        val forbidden = count("forbidden")
+        client.send(self(), endpoint, SoapOperation.ANNEHMEN_AUFTRAG, TestData.payload("neu-auftrag.xml", credentials), "TEST-0100")
+        assertEquals(ok + 1, count("OK"))
+        val timer = meters.find("openspri.inbound.requests").tags("partner", "1", "operation", "annehmenAuftrag", "teq", "OK").timer()
+        assertTrue(timer != null && timer.count() >= 1)
+
+        partners.partners.clear()
+        partners.partners += self(allowed = "192.0.2.1")
+        client.send(self(), endpoint, SoapOperation.ANNEHMEN_AUFTRAG, TestData.payload("neu-auftrag.xml", credentials), "TEST-0101")
+        assertEquals(forbidden + 1, count("forbidden"))
     }
 
     @Test

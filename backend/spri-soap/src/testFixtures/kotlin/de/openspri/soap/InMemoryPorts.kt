@@ -63,6 +63,8 @@ class InMemoryInboundStore : InboundStore, InboxQueue, InboxQueries, ArchiveQuer
 
     override fun reprocess(id: Long) = false
 
+    override fun countByStatus() = list(null, null, Int.MAX_VALUE).groupingBy { it.status }.eachCount().mapValues { it.value.toLong() }
+
     override fun get(id: Long) = if (id > 1000) rejected.getOrNull((id - 1001).toInt()) else accepted.getOrNull((id - 1).toInt())?.first
 }
 

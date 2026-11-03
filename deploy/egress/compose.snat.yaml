@@ -1,0 +1,15 @@
+# Fixed outbound IP via SNAT on the host (AUFGABE 7.6, docs/betrieb.md "Ausgehende Adresse").
+# The stack gets its own bridge with a fixed subnet and without Docker's masquerading; the host rule in
+# deploy/egress/snat.sh then rewrites the source address of everything leaving this bridge to OUTBOUND_IP.
+#
+#   docker compose -f compose.yaml -f deploy/egress/compose.snat.yaml up -d
+#   sudo OUTBOUND_IP=203.0.113.10 deploy/egress/snat.sh
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-openspri
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    ipam:
+      config:
+        - subnet: 172.30.81.0/24

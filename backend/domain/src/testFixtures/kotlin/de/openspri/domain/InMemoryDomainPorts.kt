@@ -106,6 +106,8 @@ class InMemoryOutbox : Outbox, DeliveryQueries {
 
     override fun originalOrderPayload(orderId: OrderId) = entries.firstOrNull { it.orderId == orderId && it.type == RequestType.ORDER }?.payload
 
+    override fun countByStatus() = entries.groupingBy { it.status }.eachCount().mapValues { it.value.toLong() }
+
     private fun change(id: Long, from: Set<DeliveryStatus>, to: (OutboxEntry) -> OutboxEntry): Boolean {
         val index = entries.indexOfFirst { it.id == id && it.status in from }
         if (index < 0) return false

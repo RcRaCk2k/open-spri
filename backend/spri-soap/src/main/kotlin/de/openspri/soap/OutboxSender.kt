@@ -4,11 +4,29 @@ import de.openspri.domain.delivery.AttemptResult
 import de.openspri.domain.delivery.OutboxEntry
 import de.openspri.domain.partner.PartnerDirectory
 import java.net.URI
+import java.time.Duration
 
 /** Transport for the outbox: sends one entry with [SpriClient] and translates the outcome. */
-class OutboxSender(private val partners: PartnerDirectory, private val client: SpriClient) : (OutboxEntry) -> AttemptResult {
+class OutboxSender(
+    private val partners: PartnerDirectory,
+    private val client: SpriClient,
+    private val metrics: SpriMetrics = SpriMetrics.NONE,
+) : (OutboxEntry) -> AttemptResult {
 
     override fun invoke(entry: OutboxEntry): AttemptResult {
+        val started = System.nanoTime()
+        val result = attempt(entry)
+        val (name, teq) = when (result) {
+            is AttemptResult.Acknowledged -> "acknowledged" to result.code
+            is AttemptResult.NoAnswer -> "no_answer" to null
+            is AttemptResult.NotReached -> "not_reached" to null
+            is AttemptResult.Invalid -> "invalid" to null
+        }
+        metrics.outbound(entry.partnerId.value, entry.operation, name, teq, Duration.ofNanos(System.nanoTime() - started))
+        return result
+    }
+
+    private fun attempt(entry: OutboxEntry): AttemptResult {
         val partner = partners.findById(entry.partnerId) ?: return AttemptResult.NotReached("Partner ${entry.partnerId.value} ist nicht (mehr) aktiv")
         val endpoint = partner.endpointUrl?.takeIf { it.isNotBlank() }
             ?: return AttemptResult.Invalid("Für Partner ${partner.name} ist kein S/PRI-Endpunkt hinterlegt")

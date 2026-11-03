@@ -41,6 +41,7 @@ export TOKEN=spri_Ab3dE7fG_…   # aus POST /api/v1/tokens, siehe auth.md
 | Paginierung | Listen sind nach `id` absteigend sortiert. Nächste Seite mit `?cursor=<kleinste id der Seite>&limit=…`. Der Event-Feed läuft aufsteigend mit `?after=<größte id>`. |
 | Asynchron | Senden heißt: geprüft und in den Postausgang gelegt (202 Accepted). Ob der Partner quittiert hat, zeigen `GET /deliveries?orderId=…` und das Ereignis `delivery.updated`. |
 | Versionierung | Pfad `/api/v1`. Inkompatible Änderungen nur mit `/api/v2`. |
+| Ratenbegrenzung | Je Token, sonst je Session, sonst je Adresse höchstens `OPENSPRI_RATE_LIMIT_REQUESTS_PER_MINUTE` Anfragen pro Minute (Standard 1200). Anmeldung und Setup: `OPENSPRI_RATE_LIMIT_LOGIN_PER_MINUTE` je Adresse (Standard 20). Darüber: 429 mit `Retry-After` in Sekunden. Der S/PRI-Endpunkt ist nicht begrenzt. |
 
 ### Fehlerantworten
 
@@ -51,7 +52,9 @@ export TOKEN=spri_Ab3dE7fG_…   # aus POST /api/v1/tokens, siehe auth.md
 | 403 | Scope fehlt | |
 | 404 | Objekt existiert nicht | |
 | 409 | fachlich nicht zulässig (Zustandsautomat, Dublette, R-xx-Regel) | `reasons` (mit Regelverweis), `allowedActions` (was jetzt zulässig ist) |
+| 410 | Inhalt nach Ablauf der Aufbewahrungsfrist gelöscht (`/messages/{id}/raw`, ADR-0010) | |
 | 422 | `Idempotency-Key` für eine andere Anfrage verwendet | |
+| 429 | zu viele Anfragen | Header `Retry-After` |
 
 ```json
 {
@@ -103,3 +106,19 @@ curl -s https://spri.example.de/health
 ```
 
 `/health/liveness` und `/health/readiness` sind für Container-Orchestrierung gedacht.
+
+### `GET /metrics`: Prometheus-Metriken (`metrics:read`)
+
+```bash
+curl -s https://spri.example.de/metrics -H "Authorization: Bearer $MONITORING_TOKEN"
+```
+
+```text
+openspri_inbound_requests_seconds_bucket{operation="annehmenAuftrag",partner="7",teq="OK",le="1.0"} 412
+openspri_inbound_requests_seconds_count{operation="annehmenAuftrag",partner="7",teq="OK"} 415
+openspri_outbound_attempts_seconds_count{operation="annehmenMeldung",partner="7",result="acknowledged",teq="OK"} 1203
+openspri_outbox_messages{status="UNDELIVERABLE"} 0
+openspri_inbox_messages{status="FAILED"} 0
+```
+
+Für Prometheus ein eigenes Token anlegen, das nur `metrics:read` trägt (Rolle `ADMIN`, Scopes eingeschränkt). Bedeutung der Metriken und Alarmregeln: [betrieb.md](../betrieb.md#überwachung).

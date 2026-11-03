@@ -30,6 +30,8 @@ function MasterData({ partner, editable }: { partner: Partner; editable: boolean
         <TextInput label="Technischer Kontakt (E-Mail)" disabled={!editable} value={form.technicalContactEmail} onChange={set("technicalContactEmail")} />
         <Switch label="Partner aktiv" description="deaktiviert: keine Aufträge an ihn, eingehende Nachrichten werden abgewiesen" disabled={!editable || save.isPending}
           checked={partner.enabled} onChange={(e) => save.mutate({ enabled: e.currentTarget.checked })} />
+        <Switch label="Über den Egress-Proxy senden" description="nur wirksam, wenn SPRI_OUTBOUND_PROXY gesetzt ist; aus = direkt über die Outbound-IP des Hosts"
+          disabled={!editable || save.isPending} checked={partner.useOutboundProxy} onChange={(e) => save.mutate({ useOutboundProxy: e.currentTarget.checked })} />
         <ErrorAlert error={save.error} />
         {editable && <Group justify="flex-end"><Button type="submit" loading={save.isPending}>Speichern</Button></Group>}
       </Stack>

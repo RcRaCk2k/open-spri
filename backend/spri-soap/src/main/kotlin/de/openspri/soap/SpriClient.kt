@@ -102,7 +102,7 @@ class SpriClient(
         val request = SecureXml.serialize(signer.sign(SoapEnvelope.wrap(payload)))
         var response: ByteArray? = null
         val outcome = try {
-            response = post(endpoint, operation, request)
+            response = post(endpoint, operation, request, partner.useOutboundProxy)
             evaluate(partner, operation, response)
         } catch (e: Exception) {
             val reason = causes(e)
@@ -166,25 +166,25 @@ class SpriClient(
         return Outcome.Acknowledged(operation, TeqCode.fromCode(code), code, text)
     }
 
-    private fun post(endpoint: URI, operation: SoapOperation, request: ByteArray): ByteArray {
+    private fun post(endpoint: URI, operation: SoapOperation, request: ByteArray, viaProxy: Boolean): ByteArray {
         val service = Service.create(SERVICE)
         service.addPort(PORT, SOAPBinding.SOAP11HTTP_BINDING, endpoint.toString())
         val dispatch: Dispatch<Source> = service.createDispatch(PORT, Source::class.java, Service.Mode.MESSAGE)
         dispatch.requestContext[BindingProvider.SOAPACTION_USE_PROPERTY] = true
         dispatch.requestContext[BindingProvider.SOAPACTION_URI_PROPERTY] = "$NAMESPACE/${operation.wsdlName}"
-        configureConduit(dispatch)
+        configureConduit(dispatch, viaProxy)
         val result = dispatch.invoke(StreamSource(ByteArrayInputStream(request)))
         return SecureXml.serialize(SecureXml.parse(sourceBytes(result)))
     }
 
-    private fun configureConduit(dispatch: Dispatch<Source>) {
+    private fun configureConduit(dispatch: Dispatch<Source>, viaProxy: Boolean) {
         val client: Client = (dispatch as org.apache.cxf.jaxws.DispatchImpl<*>).client
         val conduit = client.conduit as HTTPConduit
         conduit.client = HTTPClientPolicy().apply {
             connectionTimeout = settings.connectTimeout.toMillis()
             receiveTimeout = settings.receiveTimeout.toMillis()
             isAllowChunking = false
-            settings.outboundProxy?.let {
+            settings.outboundProxy?.takeIf { viaProxy }?.let {
                 proxyServer = it.host
                 proxyServerPort = if (it.port > 0) it.port else 3128
             }

@@ -15,6 +15,7 @@ export const Scope = {
   usersAdmin: "users:admin",
   settingsAdmin: "settings:admin",
   auditRead: "audit:read",
+  metricsRead: "metrics:read",
 } as const;
 
 export type ScopeName = (typeof Scope)[keyof typeof Scope];

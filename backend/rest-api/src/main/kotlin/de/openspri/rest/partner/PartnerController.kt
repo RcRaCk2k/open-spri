@@ -60,6 +60,8 @@ class PartnerController(
         @field:Schema(description = "S/PRI-Endpunkt des Partners (aus seiner WSDL)", example = "https://spri.partner.example/spri/v4") val endpointUrl: String?,
         @field:Schema(description = "technischer Kontakt; erhält die Ausfall-Mail (11.2.3.2)") val technicalContactEmail: String?,
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED) val enabled: Boolean,
+        @field:Schema(description = "über den Egress-Proxy senden (SPRI_OUTBOUND_PROXY), falls einer konfiguriert ist", requiredMode = Schema.RequiredMode.REQUIRED)
+        val useOutboundProxy: Boolean,
         @field:Schema(description = "Outbound-IPs des Partners, die unseren Endpunkt aufrufen dürfen (CIDR)", requiredMode = Schema.RequiredMode.REQUIRED)
         val allowedSourceNetworks: List<String>,
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED) val certificates: List<CertificateDto>,
@@ -72,6 +74,7 @@ class PartnerController(
         val endpointUrl: String? = null,
         val technicalContactEmail: String? = null,
         val enabled: Boolean = true,
+        @field:Schema(description = "über den Egress-Proxy senden, falls einer konfiguriert ist") val useOutboundProxy: Boolean = true,
         @field:Schema(example = "[\"203.0.113.10/32\"]") val allowedSourceNetworks: List<String> = emptyList(),
         @field:Schema(description = "Signaturzertifikate als PEM") val certificatesPem: List<String> = emptyList(),
     )
@@ -83,6 +86,7 @@ class PartnerController(
         val endpointUrl: String? = null,
         val technicalContactEmail: String? = null,
         val enabled: Boolean? = null,
+        val useOutboundProxy: Boolean? = null,
     )
 
     @Schema(description = "Ein Zertifikat als PEM")
@@ -118,6 +122,7 @@ class PartnerController(
         val partner = Partner(
             PartnerId(0), body.name.trim(), body.carrierCode.trim().uppercase(), body.certificatesPem.map(::parsePem),
             body.allowedSourceNetworks.map(IpNetwork::parse), body.enabled, body.endpointUrl?.let(::validateUrl), body.technicalContactEmail,
+            body.useOutboundProxy,
         )
         val id = partners.create(partner)
         audit.record(currentActor(), "partner.create", "partner:${id.value}", "carrierCode=${partner.carrierCode}")
@@ -136,6 +141,7 @@ class PartnerController(
                 endpointUrl = body.endpointUrl?.let(::validateUrl) ?: current.endpointUrl,
                 technicalContactEmail = body.technicalContactEmail ?: current.technicalContactEmail,
                 enabled = body.enabled ?: current.enabled,
+                useOutboundProxy = body.useOutboundProxy ?: current.useOutboundProxy,
             ),
         )
         audit.record(currentActor(), "partner.update", "partner:$id")
@@ -200,7 +206,7 @@ class PartnerController(
     private fun find(id: Long) = partners.get(PartnerId(id)) ?: throw NoSuchElementException("Partner $id nicht gefunden")
 
     private fun toDto(p: Partner) = PartnerDto(
-        p.id.value, p.name, p.carrierCode, p.endpointUrl, p.technicalContactEmail, p.enabled, p.allowedSourceNetworks.map { it.toString() },
+        p.id.value, p.name, p.carrierCode, p.endpointUrl, p.technicalContactEmail, p.enabled, p.useOutboundProxy, p.allowedSourceNetworks.map { it.toString() },
         partners.certificates(p.id).map { (certId, c) ->
             CertificateDto(
                 certId, c.subjectX500Principal.name, c.issuerX500Principal.name, c.serialNumber.toString(), c.notAfter.toInstant(),

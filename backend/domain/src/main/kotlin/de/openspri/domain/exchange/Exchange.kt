@@ -37,6 +37,10 @@ data class ArchivedExchange(
     val externalOrderNumber: String?,
     /** Observations that did not lead to a rejection, e.g. Anlage 1 violations in report mode. */
     val findings: String? = null,
+    /** SHA-256 (hex) of [request] as received or sent; kept when the content is removed. Set when read from the archive. */
+    val requestSha256: String? = null,
+    /** When [request] was removed after the retention period (NF-10); [request] is empty then. */
+    val contentPurgedAt: Instant? = null,
 )
 
 /** A validated inbound order or message, handed over to business processing (M2). */

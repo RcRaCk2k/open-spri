@@ -10,4 +10,5 @@ RUN pnpm check:api && pnpm build
 
 FROM nginx:1.30-alpine
 COPY deploy/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/frontend/security-headers.conf /etc/nginx/openspri/security-headers.conf
 COPY --from=build /src/frontend/dist /usr/share/nginx/html

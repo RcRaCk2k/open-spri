@@ -5,7 +5,9 @@ COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle gradle
 COPY build-logic build-logic
 COPY backend backend
-RUN --mount=type=cache,target=/root/.gradle ./gradlew :app:bootJar --no-daemon --console=plain
+# Release builds pass the version from the Git tag (e.g. 1.0.0-rc1); local builds keep gradle.properties.
+ARG OPENSPRI_VERSION=
+RUN --mount=type=cache,target=/root/.gradle ./gradlew :app:bootJar --no-daemon --console=plain ${OPENSPRI_VERSION:+-Pversion=$OPENSPRI_VERSION}
 
 FROM eclipse-temurin:25-jre-noble
 # Fixed UID/GID 10001 so that mounted secrets can be given to exactly this user (docs/betrieb.md).

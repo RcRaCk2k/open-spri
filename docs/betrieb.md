@@ -1,6 +1,8 @@
 # Betrieb von open-spri
 
-> Stand M0. Dieses Handbuch wächst mit jedem Meilenstein und ist bis M8 vollständig (Backup/Restore, Updates, Zertifikatswechsel, Monitoring).
+Dieses Handbuch beschreibt Installation, Einrichtung und Betrieb, Stand Release-Kandidat 1.0. Wie ein neuer Partner angebunden wird, steht in [partner-onboarding.md](partner-onboarding.md).
+
+**Inhalt:** [Voraussetzungen](#voraussetzungen) · [Installation](#variante-a-all-in-one-empfohlen) · [Ausgehende Adresse](#ausgehende-adresse-outbound-ip) · [Konfiguration](#konfiguration-env) · [Ersteinrichtung](#ersteinrichtung) · [Signaturschlüssel](#signaturschlüssel-ws-security) · [Selbsttests](#selbsttests) · [Überwachung](#überwachung) · [Backup und Restore](#backup-und-restore) · [Updates](#updates) · [Zertifikatswechsel](#zertifikatswechsel) · [Verfügbarkeit und Wartung](#verfügbarkeit-und-wartung) · [Datenschutz](#datenschutz-und-aufbewahrung)
 
 ## Voraussetzungen
 
@@ -55,6 +57,20 @@ docker compose -f compose.yaml -f compose.external-proxy.yaml up -d --build
    # bei RSA 2048: certbot renew --cert-name <host> --key-type ecdsa --force-renewal
    ```
 
+## Ausgehende Adresse (Outbound-IP)
+
+Partner lassen nur freigeschaltete Absenderadressen an ihren Endpunkt (AK-Sicherheitsdokument 2.6). Alle Verbindungen von `api` zu Partnern müssen deshalb über eine **feste öffentliche IPv4** laufen, die Outbound-IP. Sie darf sich von der Inbound-IP unterscheiden (AUFGABE 7.6). Es gibt zwei Wege:
+
+1. **SNAT auf dem Host (Standard):** Der Stack bekommt ein eigenes Docker-Netz, und eine iptables-Regel setzt die Quelladresse.
+   ```bash
+   docker compose -f compose.yaml -f deploy/egress/compose.snat.yaml up -d
+   sudo OUTBOUND_IP=203.0.113.10 deploy/egress/snat.sh     # nach jedem Neustart, z. B. als systemd-Unit
+   ```
+   Die Outbound-IP muss auf einer Schnittstelle des Hosts liegen. Hat der Host nur eine öffentliche Adresse, ist sie ohnehin die Outbound-IP, und SNAT ist nicht nötig.
+2. **Egress-Proxy:** `SPRI_OUTBOUND_PROXY=http://proxy.example.de:3128`, etwa ein Firmen-Proxy oder Squid mit fester Adresse. Der Proxy muss `CONNECT` auf Port 443 erlauben. Je Partner lässt er sich abschalten (Partnerseite, Schalter „Über den Egress-Proxy senden“, bzw. `useOutboundProxy`). Der Proxy gilt für S/PRI-Nachrichten. Replikat-Downloads und Online-Abfragen bei Partnern laufen über das Routing des Hosts, also über SNAT.
+
+Die Outbound-IP(s) gehören in die Einstellungen (*Outbound-Adressen*). Sie erscheinen auf dem Onboarding-Blatt für Partner. Ob die Adresse stimmt, zeigt der [Selbsttest](#selbsttests). Ändert sie sich, rechtzeitig alle Partner informieren (*Zustellmonitor → Wartung ankündigen*), denn sonst lehnen sie unsere Nachrichten ab.
+
 ## Konfiguration (`.env`)
 
 | Variable | Bedeutung | Standard |
@@ -68,11 +84,18 @@ docker compose -f compose.yaml -f compose.external-proxy.yaml up -d --build
 | `ACME_KEY_TYPE` | `ecdsa` (P-256) oder `rsa` (3072) | `ecdsa` |
 | `HTTP_PORT`, `HTTPS_PORT` | Ports des Proxys auf dem Host | `80`, `443` |
 | `OPENSPRI_BUILD_DIGEST` | Image-Digest, an dem zertifizierte Builds erkannt werden | leer |
+| `SPRI_OUTBOUND_PROXY` | Egress-Proxy für S/PRI-Nachrichten, z. B. `http://proxy:3128` | leer |
+| `OPENSPRI_SELFTEST_TRUSTED_ISSUERS` | Teile des Aussteller-DN der CAs auf der AK-Whitelist, kommagetrennt, z. B. `Let's Encrypt` | leer (nicht geprüft) |
+| `OPENSPRI_SELFTEST_IP_ECHO_URL` | Dienst, der die IP des Aufrufers als Text zurückgibt, für den Outbound-IP-Selbsttest | leer (Test aus) |
+| `OPENSPRI_RETENTION_PERSONAL_DATA` | Endkundendaten so lange nach Abschluss aufbewahren, z. B. `730d`; `0` = unbegrenzt ([Datenschutz](#datenschutz-und-aufbewahrung)) | `0` |
+| `OPENSPRI_LOG_FORMAT` | `ecs` = JSON-Zeilen, leer = Klartext | `ecs` |
+| `OPENSPRI_RATE_LIMIT_REQUESTS_PER_MINUTE` | REST-Anfragen je Token, Session oder Adresse und Minute | `1200` |
+| `OPENSPRI_RATE_LIMIT_LOGIN_PER_MINUTE` | Anmelde- und Setup-Versuche je Adresse und Minute | `20` |
 
 ## Ersteinrichtung
 
 1. **Master-Schlüssel** einmalig erzeugen und in `.env` eintragen: `OPENSPRI_MASTER_KEY=$(openssl rand -base64 32)`. Mit ihm wird der Signaturschlüssel verschlüsselt, den der Setup-Assistent in der Datenbank ablegt (AES-256-GCM). Der Master-Schlüssel selbst liegt nie in der Datenbank. **Sichert ihn**, denn ohne ihn ist der gespeicherte Schlüssel unbrauchbar.
-2. `docker compose up -d` ausführen und im Log das **Setup-Token** suchen: `docker compose logs api | grep -A3 "setup token"`.
+2. `docker compose up -d` ausführen und im Log das **Setup-Token** suchen: `docker compose logs api | grep -o "setup token: [A-Za-z0-9_-]*"`.
 3. Die Web-Oberfläche öffnen und das Token eingeben. Danach erfasst der Assistent Admin-Benutzer, Firmendaten mit ITU Carrier Code (ICC), Rollen, Optionen und den Signaturschlüssel (neu erzeugen oder vorhandenen PKCS#12 übernehmen). Per REST geht das mit `POST /api/v1/setup` und dem Header `X-Setup-Token` (siehe `docs/api/`).
 4. Nach dem Abschluss ist das Setup gesperrt. Änderungen laufen über die Einstellungen (`/api/v1/settings`).
 
@@ -226,6 +249,162 @@ Mit `COMPOSE_PROFILES=proxy,simulator` startet zusätzlich der Dienst `spri-simu
 
 open-spri prüft die IPs der Partner selbst. Zusätzlich lässt sich in nginx eine zweite Sperre setzen: `deploy/nginx/snippets/openspri-spri-allowlist.conf` bearbeiten, dann `docker compose restart proxy`.
 
+## Selbsttests
+
+Unter *Einstellungen → Selbsttests* (REST: `GET /api/v1/selftest/tls` und `/outbound-ip`, Scope `settings:admin`, siehe [api/setup.md](api/setup.md#selbsttests-settingsadmin)):
+
+- **TLS:** Ruft den eingetragenen öffentlichen S/PRI-Endpunkt so auf wie ein Partner. Geprüft werden TLS ≥ 1.2, die Vertrauenskette (öffentliche CA, nicht selbstsigniert), der Hostname, der Schlüssel (ECC ≥ 256 oder RSA ≥ 3072 Bit), der Signaturalgorithmus, der Aussteller gegen `OPENSPRI_SELFTEST_TRUSTED_ISSUERS` und die Restlaufzeit (Warnung unter 14 Tagen). Den Test nach der Inbetriebnahme und nach jedem Zertifikatswechsel ausführen. Solange das Übergangszertifikat des Proxys aktiv ist, schlägt er fehl.
+- **Outbound-IP:** Fragt `OPENSPRI_SELFTEST_IP_ECHO_URL`, von welcher Adresse unsere Anfragen ankommen, und vergleicht sie mit den eingetragenen Outbound-Adressen. Ohne diese Variable ist der Test aus. open-spri ruft von sich aus keinen fremden Dienst auf. Geeignet ist ein eigener Dienst oder ein öffentlicher wie `https://api.ipify.org`.
+
+Eine gründlichere Prüfung der TLS-Konfiguration, wie sie die CI gegen den Proxy macht:
+```bash
+docker run --rm ghcr.io/testssl/testssl.sh:3.2 --protocols --std --fs --vulnerable --headers https://spri.example.de
+```
+
+## Überwachung
+
+**Health:** `/health` (gesamt), `/health/liveness`, `/health/readiness`. Der Compose-Healthcheck nutzt `readiness`. Die Antwort enthält bewusst keine Details.
+
+**Metriken:** `GET /metrics` im Prometheus-Format, nur mit einem API-Token mit Scope `metrics:read`. Ein solches Token legt ein Admin unter *Benutzer und Tokens* an (Rolle `ADMIN`, Scopes nur `metrics:read`).
+
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: open-spri
+    scheme: https
+    metrics_path: /metrics
+    authorization: { credentials_file: /etc/prometheus/openspri-token }
+    static_configs: [{ targets: ["spri.example.de"] }]
+```
+
+| Metrik | Bedeutung |
+|---|---|
+| `openspri_inbound_requests_seconds{partner,operation,teq}` | Zeit vom Eingang bis zur TEQ, als Histogramm. `teq="forbidden"` heißt: Absender-IP nicht freigeschaltet. |
+| `openspri_outbound_attempts_seconds{partner,operation,result,teq}` | Sendeversuche mit Ergebnis `acknowledged`, `no_answer`, `not_reached` oder `invalid` |
+| `openspri_outbox_messages{status}` | Postausgang je Status |
+| `openspri_inbox_messages{status}` | Eingang je Status |
+| `http_server_requests_seconds`, `jvm_*`, `hikaricp_*` | Standardmetriken von Spring Boot (REST, JVM, Datenbankpool) |
+
+`partner` ist die Partner-ID aus `GET /api/v1/partners`.
+
+**Empfohlene Alarme:**
+
+```yaml
+groups:
+  - name: open-spri
+    rules:
+      - alert: SpriTeqLatenz        # NF-01: p95 < 10 s Pflicht, intern < 1 s
+        expr: histogram_quantile(0.95, sum by (le) (rate(openspri_inbound_requests_seconds_bucket[10m]))) > 1
+        for: 10m
+      - alert: SpriZustellungGestoert   # Partner nicht erreichbar oder Meldungen nicht zustellbar
+        expr: openspri_outbox_messages{status=~"UNDELIVERABLE|UNCLEAR"} > 0
+        for: 5m
+      - alert: SpriEingangFehler    # Verarbeitung hängt; folgende Nachrichten desselben Auftrags warten
+        expr: openspri_inbox_messages{status="FAILED"} > 0
+        for: 5m
+      - alert: SpriPartnerLehntAb   # viele negative TEQ eines Partners
+        expr: sum by (partner) (rate(openspri_outbound_attempts_seconds_count{result="acknowledged",teq!="OK"}[1h])) > 0.01
+```
+
+**Logs:** Der Container `api` schreibt JSON-Zeilen im Elastic Common Schema (ECS) auf stdout (`OPENSPRI_LOG_FORMAT=ecs`). Sie lassen sich direkt von Loki, Elasticsearch oder Graylog einlesen. `docker compose logs api` zeigt sie unverändert. Klartext gibt es mit `OPENSPRI_LOG_FORMAT=` (leer). Die Logs enthalten keine Nachrichteninhalte und keine Geheimnisse. Endkundendaten stehen nur im Archiv der Datenbank.
+
+**Ratenbegrenzung:** Die REST-API nimmt je Token, Session oder Adresse höchstens 1200 Anfragen pro Minute an, Anmeldung und Setup höchstens 20 je Adresse. Darüber antwortet sie mit 429 und `Retry-After`. Die Grenzen gelten je Instanz. Der S/PRI-Endpunkt ist nicht begrenzt, denn ein Partner muss immer eine TEQ bekommen.
+
+## Backup und Restore
+
+Zu sichern sind:
+- die **Datenbank**
+- **`.env`**, vor allem `OPENSPRI_MASTER_KEY`: Ohne ihn sind der gespeicherte Signaturschlüssel, die Webhook-Geheimnisse und die Zugangsdaten der Replikat-Quellen unbrauchbar.
+- **`secrets/`** und **`config/`**
+
+Das Skript `deploy/backup/backup.sh` erledigt das. Es erzeugt einen konsistenten Dump mit `mariadb-dump --single-transaction` im laufenden Betrieb, packt die Dateien dazu und löscht Sicherungen nach `KEEP_DAYS` (Standard 30):
+
+```bash
+deploy/backup/backup.sh /var/backups/open-spri
+# crontab: 15 1 * * *  cd /opt/open-spri && deploy/backup/backup.sh /var/backups/open-spri
+```
+
+Die Sicherung enthält Geheimnisse und Endkundendaten. Legt sie verschlüsselt bzw. zugriffsgeschützt ab, möglichst auf einem anderen System, und lasst sie nicht länger liegen, als die [Aufbewahrungsfrist](#datenschutz-und-aufbewahrung) erlaubt.
+
+**Restore** (gleiche oder neuere open-spri-Version):
+```bash
+docker compose down                                   # Stack anhalten
+tar -xzf /var/backups/open-spri/<zeitpunkt>/files.tar.gz   # .env, secrets/, config/
+docker compose up -d db                               # nur die Datenbank starten
+gunzip -c /var/backups/open-spri/<zeitpunkt>/openspri.sql.gz \
+  | docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD"'
+docker compose up -d                                  # api migriert bei Bedarf (Flyway)
+```
+
+Der Dump legt die Datenbank `openspri` neu an (`DROP`/`CREATE TABLE`). Nach dem Restore die Zustellung prüfen: Nachrichten, die nach der Sicherung gesendet wurden, kennt die Datenbank nicht. Eingehende Nachrichten aus dieser Zeit sind verloren, sofern Partner sie nicht erneut senden. Ein Restore ist deshalb mit den Partnern abzustimmen. Probt den Restore regelmäßig auf einem Testsystem.
+
+## Updates
+
+```bash
+deploy/backup/backup.sh /var/backups/open-spri       # vorher sichern
+git fetch --tags && git checkout v1.0.0               # gewünschte Version
+docker compose up -d --build                          # oder fertige Images: OPENSPRI_VERSION=1.0.0 docker compose pull && docker compose up -d
+docker compose ps; curl -fsS https://spri.example.de/health
+```
+
+- **Datenbank:** `api` migriert beim Start mit Flyway. Migrationen sind nur additiv bzw. rückwärtskompatibel, die vorige Version läuft also mit dem neuen Schema weiter. Ein Rückschritt auf eine ältere Version braucht trotzdem den Restore der Sicherung, wenn die neue Version Daten in einem neuen Format geschrieben hat.
+- **Unterbrechung:** Ein Neustart von `api` dauert meist unter einer Minute. Partner wiederholen ihre Nachrichten laut Spezifikation (11.2.3.2), unsere eigenen warten im Postausgang. Für geplante Arbeiten gilt die Ankündigungsfrist (siehe [Verfügbarkeit und Wartung](#verfügbarkeit-und-wartung)).
+- **Zertifizierte Builds:** Ein Update auf eine Version ohne Softwarezertifikat verlässt den zertifizierten Stand (`GET /api/v1/about` → `certifiedBuild`). Release-Notes und `CHANGELOG/` nennen Änderungen an der S/PRI-Schnittstelle.
+- Vor dem Einsatz fertiger Images deren Signatur prüfen (nächster Abschnitt).
+
+## Zertifikatswechsel
+
+| Was | Wie | Partner informieren? |
+|---|---|---|
+| **TLS-Zertifikat** (All-in-One) | certbot verlängert automatisch alle 12 h, nginx lädt ohne Unterbrechung neu. Danach den [Selbsttest](#selbsttests) ausführen. | nein (kein Pinning) |
+| TLS-Zertifikat (externer Proxy) | wie beim eigenen nginx üblich; ECDSA P-256 oder RSA ≥ 3072 | nein |
+| **Eigener Signaturschlüssel** (WS-Security) | 1. Neues Zertifikat erzeugen oder übernehmen. 2. Das PEM allen Partnern mit Vorlauf zusenden; sie hinterlegen es zusätzlich zum alten. 3. Zum vereinbarten Zeitpunkt umstellen: `POST /api/v1/settings/signing-key` bzw. *Einstellungen → Signaturschlüssel*, wirkt sofort. | **ja**, mit Vorlauf; Vorlage über *Wartung ankündigen* |
+| Signaturschlüssel per Keystore-Datei | neue Datei nach `secrets/`, Pfad und Passwort in `.env`, `docker compose up -d api` | ja, wie oben |
+| **Zertifikat eines Partners** | neues zusätzlich hinterlegen; beide gelten, bis der Partner umgestellt hat; dann das alte entfernen ([api/partner.md](api/partner.md#zertifikatswechsel)) | – |
+
+Abgelaufene Partnerzertifikate markiert die Partnerseite. Prüft sie regelmäßig.
+
+## Verfügbarkeit und Wartung
+
+Die Spezifikation (11.3) verlangt für NEU, KUE, AEN und PV Mo–Fr 6–24 Uhr, für die Entstörung (EST) **7×24**, mit 99,5 % im Jahresmittel (NF-02).
+
+- **Ein Host:**
+  - `restart: unless-stopped` und Healthchecks starten ausgefallene Container neu.
+  - Die [Alarme](#überwachung) melden Störungen.
+  - Mit einer nächtlichen Sicherung und einem geprobten Restore auf Ersatzhardware ist das für die meisten Betreiber ausreichend.
+- **Mehrere `api`-Instanzen** dürfen gleichzeitig auf dieselbe Datenbank zugreifen. Postausgang und Eingang halten die Reihenfolge über Datenbanksperren ein (ADR-0007). Davor gehört ein Load-Balancer, der `/health/readiness` prüft. Die Ratenbegrenzung gilt dann je Instanz.
+- **Datenbank:** Hochverfügbarkeit über MariaDB-Replikation (Primary/Replica mit manuellem oder automatischem Umschalten) oder Galera liegt beim Betreiber. open-spri braucht genau eine schreibbare Datenbank, an die alle Instanzen angebunden sind.
+- **Wartung:** Arbeiten, die die Schnittstelle beeinträchtigen, sind allen Partnern **5 Werktage vorher** anzukündigen (11.5, NF-08), über *Zustellmonitor → Wartung ankündigen* bzw. `POST /api/v1/maintenance-announcements`. Dabei die 7×24-Pflicht für EST beachten.
+
+## Images prüfen
+
+Release-Images (`ghcr.io/rcrack2k/open-spri/{api,frontend,proxy}:<version>`) sind mit Cosign signiert, und zwar ohne Schlüssel über das GitHub-OIDC-Token des Release-Workflows. Jedes Image trägt eine CycloneDX-SBOM als signierte Attestierung. Prüfen vor dem Einsatz:
+
+```bash
+IMAGE=ghcr.io/rcrack2k/open-spri/api:1.0.0-rc1
+cosign verify "$IMAGE" \
+  --certificate-identity-regexp '^https://github.com/RcRaCk2k/open-spri/.github/workflows/release.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+cosign verify-attestation --type cyclonedx "$IMAGE" \
+  --certificate-identity-regexp '^https://github.com/RcRaCk2k/open-spri/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com | jq -r .payload | base64 -d | jq '.predicate.components | length'
+```
+
+Die Digests jedes Releases stehen in den Release-Notes. Für einen zertifizierten Betrieb das Image per Digest einbinden und `OPENSPRI_BUILD_DIGEST` setzen (siehe README).
+
+## Datenschutz und Aufbewahrung
+
+Endkundendaten (Name, Anschrift, Kontakt, Eigentümer) stehen in den S/PRI-Nachrichten: im Archiv, im Eingang, im Postausgang und in Entwürfen (NF-10).
+
+- **Zugriff:** Jeder Abruf einer Rohnachricht (`/messages/{id}/raw`) steht im Audit-Log (`archive.read`).
+- **Aufbewahrung:** `OPENSPRI_RETENTION_PERSONAL_DATA` legt fest, wie lange nach Abschluss eines Auftrags die Inhalte erhalten bleiben. Ein täglicher Lauf (02:30 Uhr, `OPENSPRI_RETENTION_CRON`) löscht danach:
+  - die Inhalte von Archiv, Eingang, Postausgang und Entwürfen
+  - den Adressschlüssel abgeschlossener Aufträge
+
+  Metadaten, TEQ und der SHA-256 jeder Rohnachricht bleiben als Nachweis erhalten (ADR-0010). Offene Aufträge sind nie betroffen.
+- **Standard ist `0`, also keine Löschung.** Die richtige Frist hängt von euren Aufbewahrungspflichten ab, etwa aus Handels- und Steuerrecht oder aus Partnerverträgen. Legt sie bei der Inbetriebnahme mit eurem Datenschutzbeauftragten fest. Ein Beispiel ist `OPENSPRI_RETENTION_PERSONAL_DATA=730d`.
+- **Backups** enthalten gelöschte Inhalte, bis sie rotiert sind. Die Rotation der Sicherungen sollte zur Frist passen.
+
 ## Endpunkte
 
 | Pfad | Zweck | Zugriff |
@@ -235,4 +414,5 @@ open-spri prüft die IPs der Partner selbst. Zusätzlich lässt sich in nginx ei
 | `/api/v1/…` | REST-API | Nutzer, Fremdsysteme |
 | `/api/docs` | Swagger UI | Nutzer |
 | `/health` | Health-Check | Monitoring |
+| `/metrics` | Prometheus-Metriken | Monitoring, Token mit `metrics:read` |
 | `/` | Web-Oberfläche | Nutzer |

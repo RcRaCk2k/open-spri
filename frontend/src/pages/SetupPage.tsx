@@ -89,7 +89,7 @@ export function SetupPage() {
               <Stepper.Step label="Setup-Token">
                 <Stack mt="md">
                   {tokenRejected && <Alert color="red" role="alert">Das Setup-Token passt nicht. Es steht im Log des Containers „api“ und gilt nur bis zum nächsten Neustart.</Alert>}
-                  <Text size="sm">Das einmalige Setup-Token steht im Log des API-Containers: <code>docker compose logs api | grep -A3 "setup token"</code></Text>
+                  <Text size="sm">Das einmalige Setup-Token steht im Log des API-Containers: <code>docker compose logs api | grep -o "setup token: [A-Za-z0-9_-]*"</code></Text>
                   <TextInput label="Setup-Token" autoComplete="off" required {...register("setupToken")} error={errors.setupToken?.message} />
                 </Stack>
               </Stepper.Step>

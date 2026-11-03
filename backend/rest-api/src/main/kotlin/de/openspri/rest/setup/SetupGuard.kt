@@ -29,8 +29,8 @@ class SetupGuard(private val settings: SettingsRepository) {
         log.warn(
             "\n\n================================================================================\n" +
                 " open-spri: setup not completed.\n" +
-                " Open the web interface and enter this one-time setup token:\n\n" +
-                "     $generated\n\n" +
+                " Open the web interface and enter the one-time setup token.\n\n" +
+                "     setup token: $generated\n\n" +
                 " (REST: header X-Setup-Token, see docs/api/setup.md)\n" +
                 "================================================================================\n",
         )

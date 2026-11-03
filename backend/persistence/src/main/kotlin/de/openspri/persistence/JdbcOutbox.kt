@@ -91,6 +91,10 @@ class JdbcOutbox(private val jdbc: JdbcClient, private val transactions: Transac
         jdbc.sql("SELECT payload FROM outbox_message WHERE order_id = :o AND request_type = 'ORDER' ORDER BY id LIMIT 1")
             .param("o", orderId.value).query(ByteArray::class.java).optional().orElse(null)
 
+    override fun countByStatus(): Map<DeliveryStatus, Long> =
+        jdbc.sql("SELECT status, COUNT(*) AS n FROM outbox_message WHERE tenant_id = :t GROUP BY status").param("t", Tenant.DEFAULT)
+            .query { rs, _ -> DeliveryStatus.valueOf(rs.getString("status")) to rs.getLong("n") }.list().toMap()
+
     private fun change(id: Long, condition: String, assignment: String, now: Instant): Boolean =
         jdbc.sql("UPDATE outbox_message SET $assignment WHERE id = :id AND $condition")
             .param("id", id).param("now", Timestamp.from(now)).update() == 1

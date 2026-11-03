@@ -44,6 +44,8 @@ import kotlin.test.fail
     properties = [
         "openspri.inbox.initial-delay=0s", "openspri.inbox.poll-interval=50ms",
         "openspri.outbox.initial-delay=0s", "openspri.outbox.poll-interval=50ms", "openspri.outbox.overloaded-interval=1s",
+        // the simulator drives all test cases through the REST API at full speed; the limit itself is tested in RateLimitTest
+        "openspri.rate-limit.requests-per-minute=1000000",
     ],
 )
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

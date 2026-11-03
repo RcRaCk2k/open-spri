@@ -557,7 +557,7 @@ export interface paths {
         };
         /**
          * Rohnachricht (SOAP-Envelope, byte-genau)
-         * @description Enthält Endkundendaten; der Zugriff wird protokolliert.
+         * @description Enthält Endkundendaten; der Zugriff wird protokolliert. 410, wenn der Inhalt nach der Aufbewahrungsfrist gelöscht ist.
          */
         get: operations["request"];
         put?: never;
@@ -1401,6 +1401,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/selftest/outbound-ip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Outbound-IP prüfen
+         * @description Fragt OPENSPRI_SELFTEST_IP_ECHO_URL (über den Egress-Proxy, falls gesetzt), von welcher Adresse unsere Anfragen kommen, und vergleicht sie mit den eingetragenen Outbound-Adressen. 409, wenn kein Echo-Dienst konfiguriert ist.
+         */
+        get: operations["outboundIp"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/selftest/tls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * TLS-Zertifikat der öffentlichen Adresse prüfen
+         * @description Ruft die eigene öffentliche Adresse (S/PRI-Endpunkt aus den Einstellungen) so auf wie ein Partner und prüft Protokoll, Vertrauenskette, Hostname, Schlüssel, Aussteller und Restlaufzeit (Warnung unter 14 Tagen).
+         */
+        get: operations["tls"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings": {
         parameters: {
             query?: never;
@@ -1717,6 +1757,11 @@ export interface components {
         };
         /** @description Eine archivierte SOAP-Nachricht mit Antwort (NF-09) */
         ArchiveEntryDto: {
+            /**
+             * Format: date-time
+             * @description Zeitpunkt, an dem der Inhalt nach Ablauf der Aufbewahrungsfrist gelöscht wurde (NF-10); /raw antwortet dann 410
+             */
+            contentPurgedAt?: string | null;
             /** @description INBOUND oder OUTBOUND */
             direction: string;
             /** Format: int64 */
@@ -1731,6 +1776,8 @@ export interface components {
             /** @description interner Grund einer Ablehnung; geht nie an den Partner */
             rejectionReason?: string | null;
             remoteAddress: string;
+            /** @description SHA-256 (hex) der Rohnachricht; bleibt nach dem Löschen des Inhalts als Nachweis erhalten */
+            requestSha256?: string | null;
             signerSubject?: string | null;
             /** Format: date-time */
             startedAt: string;
@@ -1931,6 +1978,8 @@ export interface components {
             endpointUrl?: string | null;
             name: string;
             technicalContactEmail?: string | null;
+            /** @description über den Egress-Proxy senden, falls einer konfiguriert ist */
+            useOutboundProxy?: boolean;
         };
         /** @description Neues Token */
         CreateTokenRequest: {
@@ -2363,6 +2412,16 @@ export interface components {
             /** @description gewünschte Produkte; das erste wird Produkt der Auftragsposition, weitere werden Positionen. Leer = erstes Produkt */
             products?: string[];
         };
+        /** @description Selbsttest der Outbound-IP (AUFGABE 7.6) */
+        OutboundIpSelfTestDto: {
+            checks: components["schemas"]["SelfTestCheckDto"][];
+            /** @description eingetragene Outbound-Adressen */
+            configured: string[];
+            /** @description Adresse, von der unsere Anfragen ankommen */
+            detected?: string | null;
+            echoUrl: string;
+            ok: boolean;
+        };
         /** @description Ein Partner */
         PartnerDto: {
             /** @description Outbound-IPs des Partners, die unseren Endpunkt aufrufen dürfen (CIDR) */
@@ -2385,6 +2444,8 @@ export interface components {
             name: string;
             /** @description technischer Kontakt; erhält die Ausfall-Mail (11.2.3.2) */
             technicalContactEmail?: string | null;
+            /** @description über den Egress-Proxy senden (SPRI_OUTBOUND_PROXY), falls einer konfiguriert ist */
+            useOutboundProxy: boolean;
         };
         /** @description Person (`salutation` 1 Herr, 2 Frau, 9 keine Anrede) oder mit `company` eine Firma */
         PartyDto: {
@@ -2542,6 +2603,15 @@ export interface components {
             };
             hits: components["schemas"]["HitDto"][];
         };
+        /** @description Eine Prüfung eines Selbsttests */
+        SelfTestCheckDto: {
+            detail: string;
+            /** @description z. B. protocol, trust, key, validity, match */
+            id: string;
+            ok: boolean;
+            /** @description funktioniert, aber bald handeln (z. B. Zertifikat läuft bald ab) */
+            warning: boolean;
+        };
         /** @description Eine Meldung zu einem Auftrag. Kopf, externe Auftragsnummer und Auftraggebernummer übernimmt open-spri aus dem Auftrag. */
         SendMessageRequest: {
             /** @description weitere `meldungsattribute` des XSD-Typs `Meldungsattribute<Typ>Type`, z. B. `{"verbindlicherLiefertermin": "2026-12-01"}` bei ABM */
@@ -2665,6 +2735,21 @@ export interface components {
              */
             shutdownDate: string;
         };
+        /** @description Selbsttest des TLS-Zertifikats unserer öffentlichen Adresse (AUFGABE 7.4) */
+        TlsSelfTestDto: {
+            checks: components["schemas"]["SelfTestCheckDto"][];
+            issuer?: string | null;
+            /** Format: int32 */
+            keyBits?: number | null;
+            /** @description RSA oder EC */
+            keyType?: string | null;
+            /** Format: date-time */
+            notAfter?: string | null;
+            ok: boolean;
+            protocol?: string | null;
+            subject?: string | null;
+            url: string;
+        };
         /** @description Ein API-Token. Das Geheimnis wird nie wieder angezeigt. */
         TokenResponse: {
             /** Format: date-time */
@@ -2702,6 +2787,7 @@ export interface components {
             endpointUrl?: string | null;
             name?: string | null;
             technicalContactEmail?: string | null;
+            useOutboundProxy?: boolean | null;
         };
         /** @description Änderungen; nicht angegebene Felder bleiben unverändert */
         UpdateUserRequest: {
@@ -4969,6 +5055,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportRunDto"];
+                };
+            };
+        };
+    };
+    outboundIp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutboundIpSelfTestDto"];
+                };
+            };
+        };
+    };
+    tls: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TlsSelfTestDto"];
                 };
             };
         };

@@ -19,7 +19,7 @@ curl -s -X POST $SPRI/api/v1/partners -H "Authorization: Bearer $TOKEN" -H "Cont
 {
   "id": 7, "name": "Glasfaser Nord GmbH", "carrierCode": "GFNORD",
   "endpointUrl": "https://spri.partner.example/spri/v4", "technicalContactEmail": "spri-betrieb@partner.example",
-  "enabled": true, "allowedSourceNetworks": ["198.51.100.0/28"],
+  "enabled": true, "useOutboundProxy": true, "allowedSourceNetworks": ["198.51.100.0/28"],
   "certificates": [{"id": 12, "subject": "CN=S/PRI Glasfaser Nord", "issuer": "CN=S/PRI Glasfaser Nord", "serialNumber": "4711",
                     "notAfter": "2028-11-01T00:00:00Z", "keyBits": 3072, "expired": false}]
 }
@@ -29,6 +29,7 @@ curl -s -X POST $SPRI/api/v1/partners -H "Authorization: Bearer $TOKEN" -H "Cont
 - `allowedSourceNetworks`: CIDR-Notation, keine Hostnamen.
 - Zertifikate: RSA ≥ 3072 Bit (bestehende 2048-Bit-Zertifikate bis Laufzeitende, AUFGABE 5.3).
 - `technicalContactEmail` bekommt die Ausfall-Mail, wenn der Partner nicht erreichbar ist (11.2.3.2).
+- `useOutboundProxy` (Standard `true`): Nachrichten an diesen Partner laufen über den Egress-Proxy `SPRI_OUTBOUND_PROXY`, sofern einer gesetzt ist. Mit `false` geht dieser Partner direkt über das Routing bzw. SNAT des Hosts (AUFGABE 7.6), etwa wenn er im selben Netz liegt oder eine andere Quelladresse freigeschaltet hat.
 
 ## Ändern
 

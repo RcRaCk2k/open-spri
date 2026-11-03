@@ -42,6 +42,9 @@ interface DeliveryQueries {
 
     /** The payload of the first order request of an order (basis for Storno and Terminverschiebung). */
     fun originalOrderPayload(orderId: OrderId): ByteArray?
+
+    /** Number of outbox entries per status (queue depth, NF-11). */
+    fun countByStatus(): Map<DeliveryStatus, Long>
 }
 
 data class InboxItem(
@@ -60,6 +63,9 @@ data class InboxItem(
 interface InboxQueries {
     fun list(status: String?, beforeId: Long?, limit: Int): List<InboxItem>
     fun reprocess(id: Long): Boolean
+
+    /** Number of inbox items per status (queue depth, NF-11). */
+    fun countByStatus(): Map<String, Long>
 }
 
 interface ArchiveQueries {

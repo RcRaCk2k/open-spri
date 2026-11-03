@@ -17,6 +17,10 @@ kotlin {
 dependencies {
     implementation(platform(lib("spring-boot-bom")))
     testImplementation(platform(lib("spring-boot-bom")))
+    implementation(platform(lib("jackson2-bom")))
+    constraints {
+        implementation(lib("guava")) { because("CVE fixes; Guava comes in via WSS4J") }
+    }
     testImplementation(lib("junit-jupiter"))
     testImplementation(kotlin("test"))
     testRuntimeOnly(lib("junit-platform-launcher"))

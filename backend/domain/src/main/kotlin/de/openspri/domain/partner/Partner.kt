@@ -25,6 +25,8 @@ data class Partner(
     val endpointUrl: String? = null,
     /** Receives the outage notification (specification 11.2.3.2) and the e-mail fallback. */
     val technicalContactEmail: String? = null,
+    /** Send through the egress proxy (SPRI_OUTBOUND_PROXY) if one is configured; false = direct (AUFGABE 7.6). */
+    val useOutboundProxy: Boolean = true,
 )
 
 /** A partner certificate as administered (with id, for removal during a certificate change). */

@@ -56,6 +56,16 @@ services:
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:-true}
       OPENSPRI_NOTIFICATIONS_FROM: ${OPENSPRI_NOTIFICATIONS_FROM:-open-spri@localhost}
       OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL: ${OPENSPRI_NOTIFICATIONS_OPERATOR_EMAIL:-}
+      # Self-tests (docs/betrieb.md, "Selbsttests"): issuer whitelist and IP echo service, both optional
+      OPENSPRI_SELFTEST_TRUSTED_ISSUERS: ${OPENSPRI_SELFTEST_TRUSTED_ISSUERS:-}
+      OPENSPRI_SELFTEST_IP_ECHO_URL: ${OPENSPRI_SELFTEST_IP_ECHO_URL:-}
+      # NF-10: remove end customer data this long after completion (e.g. 730d); 0 = keep (docs/betrieb.md)
+      OPENSPRI_RETENTION_PERSONAL_DATA: ${OPENSPRI_RETENTION_PERSONAL_DATA:-0}
+      # Logs as JSON lines (Elastic Common Schema, NF-11); OPENSPRI_LOG_FORMAT= (empty) for plain text
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: ${OPENSPRI_LOG_FORMAT-ecs}
+      # REST rate limits (AUFGABE 7.3) per token/session/address and for login attempts per address
+      OPENSPRI_RATE_LIMIT_REQUESTS_PER_MINUTE: ${OPENSPRI_RATE_LIMIT_REQUESTS_PER_MINUTE:-1200}
+      OPENSPRI_RATE_LIMIT_LOGIN_PER_MINUTE: ${OPENSPRI_RATE_LIMIT_LOGIN_PER_MINUTE:-20}
       TZ: Europe/Berlin
     volumes:
       # Directory for the signing keystore, e.g. ./secrets/spri-signature.p12 -> /run/openspri/spri-signature.p12

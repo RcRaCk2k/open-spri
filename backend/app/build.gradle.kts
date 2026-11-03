@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":auth-local"))
     implementation(project(":simulator"))           // OPENSPRI_MODE=SIMULATOR (container spri-simulator)
     implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.micrometer.registry.prometheus)  // GET /metrics (NF-11)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlin.reflect)
 
@@ -28,11 +29,14 @@ dependencies {
 
 springBoot {
     mainClass = "de.openspri.app.OpenSpriApplicationKt"
-    buildInfo()
+    // without the build time: the same sources give the same jar (reproducible builds, NF-13)
+    buildInfo { excludes = setOf("time") }
 }
 
 tasks.bootJar {
     archiveFileName = "open-spri.jar"
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
 }
 
 tasks.jar {
@@ -40,10 +44,13 @@ tasks.jar {
 }
 
 tasks.test {
-    // Self-test AG ↔ LE (two instances, all KFT test cases): nightly with -Pselftest, not in every build
+    // Self-test AG ↔ LE (two instances, all KFT test cases): nightly with -Pselftest; load test (AUFGABE 10.1 item 7)
+    // with -Pload. Neither is part of every build.
     useJUnitPlatform {
-        if (providers.gradleProperty("selftest").isPresent) includeTags("selftest") else excludeTags("selftest")
+        val special = listOf("selftest", "load").filter { providers.gradleProperty(it).isPresent }
+        if (special.isNotEmpty()) includeTags(*special.toTypedArray()) else excludeTags("selftest", "load")
     }
+    testLogging { if (providers.gradleProperty("load").isPresent) showStandardStreams = true }
     // ./gradlew :app:test -PupdateOpenApi rewrites docs/api/openapi.json instead of comparing it.
     systemProperty("openspri.updateOpenApi", providers.gradleProperty("updateOpenApi").isPresent)
     systemProperty("openspri.repoRoot", rootDir.absolutePath)

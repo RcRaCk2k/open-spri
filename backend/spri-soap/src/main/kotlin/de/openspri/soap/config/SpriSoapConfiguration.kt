@@ -13,6 +13,7 @@ import de.openspri.soap.SigningKeyHolder
 import de.openspri.soap.SigningKeyService
 import de.openspri.soap.SpriClient
 import de.openspri.soap.SpriEndpoint
+import de.openspri.soap.SpriMetrics
 import de.openspri.soap.SpriSchema
 import de.openspri.soap.TeqResponder
 import de.openspri.soap.WsSecurityVerifier
@@ -37,7 +38,7 @@ class MasterKey(val encryption: KeyEncryption?)
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(SpriSoapProperties::class)
-@org.springframework.context.annotation.Import(OrderProcessingConfiguration::class, DeliveryConfiguration::class)
+@org.springframework.context.annotation.Import(OrderProcessingConfiguration::class, DeliveryConfiguration::class, MetricsConfiguration::class, RetentionConfiguration::class)
 class SpriSoapConfiguration {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -82,9 +83,10 @@ class SpriSoapConfiguration {
         verifier: WsSecurityVerifier,
         keys: SigningKeyHolder,
         properties: SpriSoapProperties,
+        metrics: SpriMetrics,
     ) = InboundProcessor(
         partners, store, schema, verifier, TeqResponder(keys::current),
-        attributes = AttributeValidator(), attributeMode = properties.attributeRules.inbound,
+        attributes = AttributeValidator(), attributeMode = properties.attributeRules.inbound, metrics = metrics,
     )
 
     @Bean
@@ -114,9 +116,17 @@ class SpriSoapConfiguration {
             publish("/v4")
         }
 
+    /** After the address filter: every POST gets a TEQ, also when CXF cannot read it. */
     @Bean
-    fun spriSourceAddressFilter(partners: PartnerDirectory): FilterRegistrationBean<SourceAddressFilter> =
-        FilterRegistrationBean(SourceAddressFilter(partners)).apply {
+    fun spriRequestFilter(processor: InboundProcessor, properties: SpriSoapProperties): FilterRegistrationBean<SpriRequestFilter> =
+        FilterRegistrationBean(SpriRequestFilter(processor, properties.maxRequestBytes)).apply {
+            addUrlPatterns("/spri/*")
+            order = 1
+        }
+
+    @Bean
+    fun spriSourceAddressFilter(partners: PartnerDirectory, metrics: SpriMetrics): FilterRegistrationBean<SourceAddressFilter> =
+        FilterRegistrationBean(SourceAddressFilter(partners, metrics)).apply {
             addUrlPatterns("/spri/*")
             order = 0
         }

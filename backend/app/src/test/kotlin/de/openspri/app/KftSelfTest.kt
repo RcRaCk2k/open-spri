@@ -44,7 +44,7 @@ class KftSelfTest {
     /** Arguments, not default properties: they must win over application.yaml (server.port 8080). */
     private fun start(name: String): ConfigurableApplicationContext = SpringApplicationBuilder(ScenarioTestApplication::class.java).run(
         "--server.port=0", "--spring.application.name=$name",
-        "--openspri.inbox.initial-delay=0s", "--openspri.inbox.poll-interval=50ms",
+        "--openspri.inbox.initial-delay=0s", "--openspri.inbox.poll-interval=50ms", "--openspri.rate-limit.requests-per-minute=1000000",
         "--openspri.outbox.initial-delay=0s", "--openspri.outbox.poll-interval=50ms",
     )
 

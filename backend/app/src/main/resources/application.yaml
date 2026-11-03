@@ -32,7 +32,10 @@ management:
     web:
       base-path: /
       exposure:
-        include: health, info
+        include: health, info, prometheus
+      # Prometheus format under /metrics (AUFGABE 8.5), requires scope metrics:read (SecurityConfiguration)
+      path-mapping:
+        prometheus: metrics
   health:
     # The S/PRI interface is available even when the mail server is not; notifications are only an add-on.
     mail:
@@ -73,6 +76,15 @@ openspri:
     published-endpoint-url: ${OPENSPRI_SOAP_PUBLISHED_ENDPOINT_URL:}
     client:
       outbound-proxy: ${SPRI_OUTBOUND_PROXY:}
+  # NF-10 (ADR-0010): remove end customer data this long after completion, e.g. 730d; 0 = keep (docs/betrieb.md)
+  retention:
+    personal-data: ${OPENSPRI_RETENTION_PERSONAL_DATA:0}
+    cron: ${OPENSPRI_RETENTION_CRON:0 30 2 * * *}
+  # Self-tests (AUFGABE 7.4, 7.6): issuer whitelist for the TLS check (parts of the issuer DN, comma separated)
+  # and a service answering with the caller's IP for the outbound IP check; both empty by default.
+  selftest:
+    trusted-issuers: ${OPENSPRI_SELFTEST_TRUSTED_ISSUERS:}
+    ip-echo-url: ${OPENSPRI_SELFTEST_IP_ECHO_URL:}
   certification:
     build-digest: ${OPENSPRI_BUILD_DIGEST:}
     certified-digests: []

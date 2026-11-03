@@ -88,6 +88,7 @@ curl -s -b jar -X POST $SPRI/api/v1/auth/logout -H "X-XSRF-TOKEN: $(awk '/XSRF-T
 | `users:admin` | Benutzer und Tokens |
 | `settings:admin` | Einstellungen, Signaturschlüssel |
 | `audit:read` | Audit-Log |
+| `metrics:read` | Prometheus-Metriken unter `/metrics` ([betrieb.md](../betrieb.md#überwachung)) |
 | `availability:admin` | eigene Standorte, Replikat-Freigaben |
 | `partner:availability` | nur in Partner-Tokens: Replikat-Download und Online-Abfrage ([verfuegbarkeit.md](verfuegbarkeit.md)) |
 | `orders:override` | eigene Auftragsregeln einzeln übersteuern (`?override=`), nur für KFT-Negativtests (ADR-0008). In keiner Rolle; ein Admin kann ihn ausdrücklich in ein Token aufnehmen. |

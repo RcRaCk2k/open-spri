@@ -11,6 +11,12 @@ test("Einstellungen und Signaturschlüssel, Webhook mit einmaligem Geheimnis", a
   await expect(page.getByRole("cell", { name: "3072 Bit" })).toBeVisible();
   await expect(page.getByText("BEGIN CERTIFICATE")).toBeVisible();
   await expectAccessible(page, "/settings (Schlüssel)");
+  // TLS self-test (AUFGABE 7.4): the CI stack has a self-signed certificate, locally the endpoint may be plain HTTP;
+  // either way the page reports a result or the reason instead of failing silently
+  await page.getByRole("tab", { name: "Selbsttests" }).click();
+  await page.getByRole("button", { name: "TLS prüfen" }).click();
+  await expect(page.getByRole("alert").first()).toBeVisible({ timeout: 20_000 });
+  await expectAccessible(page, "/settings (Selbsttests)");
 
   const suffix = uniqueSuffix();
   await page.goto("/webhooks");

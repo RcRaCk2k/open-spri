@@ -30,6 +30,8 @@ data class ArchiveEntryDto(
     val findings: String?,
     val signerSubject: String?,
     val externalOrderNumber: String?,
+    @field:Schema(description = "SHA-256 (hex) der Rohnachricht; bleibt nach dem Löschen des Inhalts als Nachweis erhalten") val requestSha256: String?,
+    @field:Schema(description = "Zeitpunkt, an dem der Inhalt nach Ablauf der Aufbewahrungsfrist gelöscht wurde (NF-10); /raw antwortet dann 410") val contentPurgedAt: Instant?,
 )
 
 @RestController
@@ -43,15 +45,19 @@ class ArchiveController(private val archive: ArchiveQueries, private val audit: 
     fun get(@PathVariable id: Long): ArchiveEntryDto = find(id).let {
         ArchiveEntryDto(
             id, it.direction.name, it.operation?.wsdlName, it.partnerId?.value, it.remoteAddress, it.startedAt, it.durationMillis,
-            it.teqCode?.code, it.rejectionReason, it.findings, it.signerSubject, it.externalOrderNumber,
+            it.teqCode?.code, it.rejectionReason, it.findings, it.signerSubject, it.externalOrderNumber, it.requestSha256, it.contentPurgedAt,
         )
     }
 
     @GetMapping("/{id}/raw", produces = [MediaType.APPLICATION_XML_VALUE])
     @PreAuthorize(Requires.ORDERS_READ)
-    @Operation(summary = "Rohnachricht (SOAP-Envelope, byte-genau)", description = "Enthält Endkundendaten; der Zugriff wird protokolliert.")
+    @Operation(
+        summary = "Rohnachricht (SOAP-Envelope, byte-genau)",
+        description = "Enthält Endkundendaten; der Zugriff wird protokolliert. 410, wenn der Inhalt nach der Aufbewahrungsfrist gelöscht ist.",
+    )
     fun request(@PathVariable id: Long): ByteArray {
         val entry = find(id)
+        entry.contentPurgedAt?.let { throw ContentPurgedException("Der Inhalt von Nachricht $id wurde am $it nach Ablauf der Aufbewahrungsfrist gelöscht") }
         audit.record(currentActor(), "archive.read", "archive:$id", "request")
         return entry.request
     }
@@ -64,3 +70,6 @@ class ArchiveController(private val archive: ArchiveQueries, private val audit: 
 
     private fun find(id: Long): ArchivedExchange = archive.get(id) ?: throw NoSuchElementException("Archiveintrag $id existiert nicht")
 }
+
+/** The content was removed after the retention period (NF-10): answered with 410 Gone. */
+class ContentPurgedException(message: String) : RuntimeException(message)

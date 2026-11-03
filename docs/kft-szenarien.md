@@ -81,6 +81,8 @@ curl -s http://127.0.0.1:8090/sim/report.xml  -o kft-bericht.xml    # JUnit-XML
 
 Beim Start holt sich der Simulator aus dem Onboarding-Blatt der Instanz deren Signaturzertifikat und S/PRI-Endpunkt. Er erzeugt einen eigenen Signaturschlüssel und trägt sich mit dem Carrier Code `KFTSIM` als Partner ein; bei einem Neustart ersetzt er dort sein Zertifikat. Er verwendet die aktive Meldungscodetabelle der Instanz und legt Projektvereinbarung, Vollmacht und Produktkatalog an wie die Szenario-Tests. `POST /sim/run` antwortet mit 200, wenn alle Testfälle bestanden sind, sonst mit 409 und den Gründen.
 
+Ein kompletter Lauf stellt mehr REST-Anfragen, als die Ratenbegrenzung der Instanz erlaubt (Standard 1200 pro Minute und Token). Der Simulator wartet dann jeweils die Zeit aus `Retry-After` ab, der Lauf dauert also länger. Für einen schnellen Lauf auf der Testinstanz `OPENSPRI_RATE_LIMIT_REQUESTS_PER_MINUTE=100000` setzen.
+
 **Achtung:** Der Simulator legt Testaufträge, Bestand und Stammdaten in der Instanz an. Er gehört nie an eine produktive Instanz.
 
 ## Auslegung der Testfallliste

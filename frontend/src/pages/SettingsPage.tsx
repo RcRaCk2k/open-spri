@@ -1,4 +1,4 @@
-import { Alert, Button, Checkbox, Code, CopyButton, FileInput, Group, Modal, PasswordInput, Radio, Select, SimpleGrid, Stack, Table, Tabs, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { Alert, Badge, Button, Checkbox, Code, CopyButton, FileInput, Group, Modal, PasswordInput, Radio, Select, SimpleGrid, Stack, Table, Tabs, Text, Textarea, TextInput, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -116,7 +116,60 @@ function SigningKey() {
   );
 }
 
-/** Settings (AUFGABE 8.6): company data, roles and options, WS-Security signing key. */
+type Check = Schemas["SelfTestCheckDto"];
+
+function CheckTable({ checks }: { checks: Check[] }) {
+  return (
+    <Table>
+      <Table.Tbody>
+        {checks.map((c) => (
+          <Table.Tr key={c.id}>
+            <Table.Td w={120}>
+              <Badge color={!c.ok ? "red" : c.warning ? "orange" : "teal"} variant="light">{!c.ok ? "Fehler" : c.warning ? "Hinweis" : "OK"}</Badge>
+            </Table.Td>
+            <Table.Td>{c.detail}</Table.Td>
+          </Table.Tr>
+        ))}
+      </Table.Tbody>
+    </Table>
+  );
+}
+
+/** Self-tests of the public address (AUFGABE 7.4) and the outbound IP (7.6); run on request, they call out. */
+function SelfTests() {
+  const tls = useMutation({ mutationFn: () => call(api.GET("/api/v1/selftest/tls")) });
+  const ip = useMutation({ mutationFn: () => call(api.GET("/api/v1/selftest/outbound-ip")) });
+  return (
+    <Stack maw={900}>
+      <Title order={3}>TLS-Zertifikat</Title>
+      <Text size="sm">Ruft unseren öffentlichen S/PRI-Endpunkt so auf wie ein Partner und prüft das Zertifikat nach dem AK-Sicherheitsdokument (TLS ≥ 1.2, öffentliche CA, ECC ≥ 256 oder RSA ≥ 3072 Bit, Restlaufzeit).</Text>
+      <Group><Button variant="default" onClick={() => tls.mutate()} loading={tls.isPending}>TLS prüfen</Button></Group>
+      <ErrorAlert error={tls.error} />
+      {tls.data && (
+        <>
+          <Alert color={tls.data.ok ? "teal" : "red"} title={tls.data.ok ? "Zertifikat in Ordnung" : "Zertifikat nicht für den Partnerbetrieb geeignet"}>
+            {tls.data.url}{tls.data.notAfter && <> · gültig bis {formatDate(tls.data.notAfter)}</>}
+          </Alert>
+          <CheckTable checks={tls.data.checks} />
+        </>
+      )}
+      <Title order={3}>Outbound-IP</Title>
+      <Text size="sm">Prüft, von welcher Adresse unsere Anfragen bei Partnern ankommen, und vergleicht sie mit den eingetragenen Outbound-Adressen. Voraussetzung: <Code>OPENSPRI_SELFTEST_IP_ECHO_URL</Code>.</Text>
+      <Group><Button variant="default" onClick={() => ip.mutate()} loading={ip.isPending}>Outbound-IP prüfen</Button></Group>
+      <ErrorAlert error={ip.error} />
+      {ip.data && (
+        <>
+          <Alert color={ip.data.ok ? "teal" : "red"} title={ip.data.detected ? `Erkannt: ${ip.data.detected}` : "Keine Adresse ermittelt"}>
+            Eingetragen: {ip.data.configured.length > 0 ? ip.data.configured.join(", ") : "keine"}
+          </Alert>
+          <CheckTable checks={ip.data.checks} />
+        </>
+      )}
+    </Stack>
+  );
+}
+
+/** Settings (AUFGABE 8.6): company data, roles and options, WS-Security signing key, self-tests. */
 export function SettingsPage() {
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => call(api.GET("/api/v1/settings")) });
   return (
@@ -126,12 +179,14 @@ export function SettingsPage() {
         <Tabs.List>
           <Tabs.Tab value="company">Firma und Optionen</Tabs.Tab>
           <Tabs.Tab value="key">Signaturschlüssel</Tabs.Tab>
+          <Tabs.Tab value="selftest">Selbsttests</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="company" pt="md">
           <ErrorAlert error={settings.error} />
           {settings.isPending ? <Loading /> : settings.data && <CompanyForm initial={settings.data} />}
         </Tabs.Panel>
         <Tabs.Panel value="key" pt="md"><SigningKey /></Tabs.Panel>
+        <Tabs.Panel value="selftest" pt="md"><SelfTests /></Tabs.Panel>
       </Tabs>
     </Stack>
   );

@@ -31,6 +31,10 @@ class ProblemHandlers {
             setProperty("errors", e.errors)
         }
 
+    @ExceptionHandler(de.openspri.rest.delivery.ContentPurgedException::class)
+    fun purged(e: de.openspri.rest.delivery.ContentPurgedException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.GONE, e.message ?: "Gelöscht")
+
     @ExceptionHandler(NotFoundException::class)
     fun notFound(e: NotFoundException): ProblemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.message ?: "Nicht gefunden")
 
