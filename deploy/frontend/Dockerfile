@@ -1,5 +1,5 @@
 # Container image "frontend": static React build served by nginx. Build context: repository root.
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 RUN npm install -g pnpm@12.13.0
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
